@@ -1,0 +1,240 @@
+KNOWLEDGE HUB — ARCHITECTURE RULES
+==================================
+
+Sumber kebenaran aturan arsitektur. Rujukan: docs/superpowers/specs/2026-10-20-knowledge-hub-design.md
+dan docs/tickets/. Jika ada konflik, file ini menang untuk soal arsitektur; desain menang untuk soal produk.
+Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran = build gagal.
+
+
+1. PRINSIP
+----------
+1.1  Domain-driven, screaming architecture: struktur folder menjelaskan APA yang dilakukan sistem,
+     bukan framework apa yang dipakai.
+1.2  Hierarki tetap: domain > module > feature. 1 feature = 1 folder.
+1.3  Interaksi antar module dan antar domain HANYA lewat bus (infra/bus).
+1.4  Satu binary Go + satu Postgres. Tidak menambah komponen runtime baru (queue, cache, object
+     storage) tanpa keputusan tertulis yang mengubah desain.
+1.5  Sederhana dulu: jangan menambah abstraksi, flag, atau fitur yang tidak diminta tiket.
+
+
+2. DOMAIN DAN MODULE
+--------------------
+2.1  Domain yang ada:
+       core       : auth, auditlog
+       project    : management, apikey, knowledge, apispec
+       discovery  : mcpgateway, knowledgetools, apispectools
+2.2  Menambah domain/module baru WAJIB disertai tiket di docs/tickets/ dan pembaruan README tiket.
+2.3  Nama folder Go: huruf kecil, tanpa pemisah (apikey, auditlog, apispec). Nama di dokumen/URL
+     memakai tanda hubung (api-key, audit-log, api-spec).
+2.4  Satu module memiliki tabelnya sendiri. Module lain DILARANG membaca/menulis tabel itu
+     (lihat 8.5 untuk satu-satunya pengecualian FK).
+
+
+3. STRUKTUR DIREKTORI
+---------------------
+3.1  Backend:
+       backend/
+         cmd/{http,cli}/
+         internal/
+           domain/<domain>/
+             base.go                       (wiring domain)
+             internal/<module>/
+               base.go                     (wiring module: route + handler bus)
+               base/                       (entity + rule bisnis)
+               <feature>/                  (1 folder = 1 feature)
+                 init.go  handler.go  params.go  usecase.go  repository.go  *_test.go
+           infra/{bus,db,http,middleware,config,static,logger,jobs}/
+           eventregistry/                  (hanya jika ada event bernama)
+         lib/{common,constants,contracts,util}/
+         migrations/{core,project}/        (YYYYMMDDHHMMSSmmm_<nama>.sql)
+3.2  Frontend:
+       frontend/src/
+         app/{routes,layouts}/             (bootstrap, guard route, komposisi lintas module)
+         domain/<domain>/<module>/<feature>/
+           components/ services/ stores/ views/ types.ts index.ts
+         shared/{components,services,stores,validation,utils}/
+3.3  Kontrak REST: api/modules/<domain>/<module>.yml, di-bundle ke api/openapi.yml
+     (GENERATED, DILARANG diedit manual; jalankan make api-bundle, verifikasi make api-check).
+3.4  Satu feature = satu folder = satu tanggung jawab (satu endpoint/aksi/handler bus/job).
+     Feature baru = folder baru. DILARANG menumpuk beberapa feature dalam satu folder.
+
+
+4. BATAS IMPORT (BACKEND)
+-------------------------
+4.1  DILARANG: domain meng-import domain lain. Ditegakkan oleh aturan internal/ Go.
+4.2  DILARANG: module meng-import module lain (walau satu domain). Gunakan bus.
+4.3  DILARANG: feature meng-import feature lain di module yang sama. Bagi pakai lewat base/ (entity/rule).
+4.4  Consumer bus HANYA boleh meng-import: lib/constants, lib/contracts/..., infra/bus.
+     Consumer DILARANG meng-import package provider.
+4.5  lib/contracts/** DILARANG meng-import domain/** atau infra/** (package netral, hanya tipe).
+4.6  infra/** DILARANG meng-import domain/**. Infra tidak tahu bisnis.
+4.7  cmd/** hanya merakit (wiring, config, start/stop). Tanpa logika bisnis.
+4.8  Arah dependensi satu arah per feature: handler -> usecase -> (entity, repository). Tidak boleh terbalik.
+
+
+5. LAYERING (BACKEND, PER FEATURE)
+----------------------------------
+5.1  Entity (<module>/base/): rule bisnis sebagai method (IsValid, CanTransition, ToResponse).
+     Tanpa I/O, tanpa context, tanpa SQL. Mudah dites tanpa mock.
+5.2  Usecase (usecase.go): orkestrasi saja: ambil -> panggil rule entity -> ubah -> simpan.
+     Di sini tempat error handling, logging, pemanggilan bus, dan penulisan audit.
+5.3  Repository (repository.go + repository/): satu-satunya yang menyentuh SQL (sqlx).
+     Transaksi lewat BeginTx(ctx, func(tx) error). Parameterized query SELALU; DILARANG
+     menyusun SQL dengan string concat dari input.
+5.4  Handler (handler.go, params.go): transport HTTP: decode -> validasi bentuk -> panggil usecase
+     -> encode. DILARANG berisi rule bisnis atau SQL.
+5.5  Wiring (base.go / init.go): ada di tiap level (domain -> module -> feature). Mendaftarkan
+     route dan handler bus secara hierarkis. Tidak ada registrasi global di luar wiring.
+5.6  Usecase menerima interface (repository, bus), bukan tipe konkret, agar dapat dites.
+5.7  context.Context argumen pertama setiap fungsi yang melakukan I/O.
+5.8  Error: bungkus dengan konteks (fmt.Errorf("...: %w", err)); sentinel error untuk kasus bisnis
+     (ErrNotFound, ErrForbidden, ErrConflict, ErrInvalid) dan dipetakan ke status HTTP di handler.
+5.9  Panic hanya untuk kesalahan wiring saat start (mis. registrasi bus ganda). Tidak di jalur request.
+
+
+6. BUS (infra/bus)
+------------------
+6.1  Registry: peta endpoint (string) -> Handler. Register dua kali untuk endpoint yang sama = panic.
+     Urutan registrasi tidak boleh berpengaruh.
+6.2  Dua mode:
+       Call(ctx, endpoint, req)     sinkron request-response. Untuk lookup/validasi lintas module
+                                    dan untuk apa pun yang hasilnya dibutuhkan pemanggil.
+       Publish(ctx, endpoint, req)  fire-and-forget di goroutine, context di-detach dari cancel
+                                    parent tetapi trace_id, user_id, api_key_id ikut. Error hanya
+                                    di-log. Untuk efek samping yang tidak boleh menggagalkan request.
+6.3  Aksi audit untuk panggilan agent (mcp.*) dan aksi keamanan WAJIB memakai Call (sinkron).
+     Aksi lain boleh Publish.
+6.4  Nama endpoint: <domain>.<module>.<aksi> dengan huruf kecil dan tanda hubung
+     (project.knowledge.read-file). Konstanta di lib/constants/bus.go (BUS_PROJECT_KNOWLEDGE_READ_FILE).
+6.5  Kontrak (request, response, sentinel error) di lib/contracts/<domain>/<module>/<nama>/.
+6.6  Pemanggilan memakai helper generik bus.CallTyped[contracts.XResponse](ctx, b, constants.BUS_X, req).
+     Registry nil = error wiring, tanpa fallback.
+6.7  "Tidak ketemu" yang wajar dikembalikan sebagai Found bool dengan error nil. Error Go hanya
+     untuk request invalid atau kegagalan infra.
+6.8  Setiap endpoint bus baru WAJIB dicatat di katalog pada docs/tickets/README.md.
+6.9  Handler bus provider WAJIB memeriksa tipe req.Body dan mengembalikan error jelas bila salah.
+6.10 Handler bus yang menyajikan data per project WAJIB membatasi query pada ProjectID dari request
+     dan tidak pernah mengembalikan data project lain.
+
+
+7. KEAMANAN DAN OTORISASI
+-------------------------
+7.1  Role user hanya super_admin dan developer. Agent bukan user; ia API key milik satu project.
+7.2  Otorisasi project lewat bus project.management.check-access (Level: none|member|owner|admin).
+     Module lain DILARANG menyalin logika keanggotaan.
+7.3  Project yang bukan milik pemanggil dijawab 404 (bukan 403) agar keberadaannya tidak bocor.
+7.4  Tool MCP DILARANG menerima parameter project. ProjectID hanya dari context hasil verifikasi key.
+7.5  API key diverifikasi di SETIAP request ke /mcp tanpa cache. Hanya hash (SHA-256) yang disimpan;
+     plaintext hanya muncul sekali di respons pembuatan. Perbandingan waktu-konstan.
+7.6  Password: argon2id. Password, token, key DILARANG muncul di log, error, maupun audit.
+7.7  Sesi web: cookie HttpOnly + SameSite=Lax (+ Secure di produksi); token acak 256-bit, hanya hash
+     yang disimpan; status user dicek di setiap request.
+7.8  Request mutasi di /api WAJIB header CSRF. /mcp tidak memakai cookie.
+7.9  Semua isi dari user (Markdown, deskripsi OpenAPI, nama file) tidak tepercaya: sanitasi saat
+     render, validasi path, batasi ukuran.
+7.10 Parser OpenAPI DILARANG melakukan fetch jaringan/file untuk $ref eksternal. Batasi alias/kedalaman YAML.
+7.11 Login dan percobaan key gagal wajib rate limit. Respons gagal tidak membedakan alasan.
+7.12 Error ke klien tidak membocorkan detail internal (SQL, stack). Detail hanya di log dengan trace_id.
+
+
+8. DATA DAN MIGRASI
+-------------------
+8.1  Postgres adalah satu-satunya penyimpanan. Isi file knowledge dan spec disimpan sebagai teks.
+8.2  Hard delete. DILARANG soft delete (deleted_at), SCD2, atau riwayat versi (diputuskan di desain).
+8.3  Migrasi forward-only, file SQL di migrations/<domain>/, nama YYYYMMDDHHMMSSmmm_<nama>.sql.
+     Migrasi yang sudah dirilis DILARANG diedit; buat migrasi baru.
+8.4  Primary key uuid. Waktu timestamptz (UTC). Email citext.
+8.5  Satu-satunya FK lintas module yang diizinkan: kolom project_id -> projects(id) ON DELETE CASCADE
+     pada tabel project/* (T04-T06). user_id TIDAK diberi FK ke users; konsistensi lewat bus.
+8.6  Tabel audit_log TIDAK memakai FK dan menyimpan snapshot label (nama user/key/project) agar
+     tetap bermakna setelah penghapusan.
+8.7  Kolom created_by/updated_by diikuti kolom label snapshot bila ditampilkan ke user.
+8.8  Query berat WAJIB punya indeks yang dibuktikan (EXPLAIN) di tiket terkait.
+8.9  Audit log append-only dari sisi aplikasi: tidak ada UPDATE/DELETE selain job retensi.
+
+
+9. MCP DAN DISCOVERY
+--------------------
+9.1  Hanya tool read-only, semuanya readOnlyHint: true. Tidak ada tool yang menulis.
+9.2  Transport HTTP stateless di /mcp. Kegagalan tool = hasil isError; kegagalan protokol = error JSON-RPC.
+9.3  Gateway (mcpgateway) mengurus: autentikasi key, project context, rate limit, batas ukuran
+     respons, timeout, dan AUDIT. Module tool (knowledgetools, apispectools) hanya memvalidasi
+     argumen dan memanggil bus. Module tool DILARANG menulis audit sendiri.
+9.4  Setiap tools/call menghasilkan tepat satu entri audit. Nama aksi audit = mcp.<nama_tool>.
+9.5  Tool diberi deskripsi dan pesan error yang memandu LLM ke langkah berikutnya
+     (mis. saran path mirip, daftar nama spec yang valid).
+9.6  Respons dibatasi ukuran dan dipotong dengan penanda eksplisit (truncated, next_offset).
+9.7  Pendaftaran tool tidak boleh bergantung urutan; nama tool unik (duplikat = panic saat start).
+
+
+10. AUDIT
+---------
+10.1 Aksi agent dan aksi manusia yang sensitif WAJIB tercatat (katalog aksi di docs/tickets/README.md).
+10.2 Argumen dibersihkan (kunci password/token/authorization/api_key/secret ditutup; string dipotong).
+10.3 Isi file yang dibaca agent TIDAK disimpan di audit; hanya metadata (path, ukuran, jumlah hasil).
+10.4 Fail-closed untuk panggilan agent bila audit gagal ditulis (rekomendasi; keputusan final di T02/T07).
+10.5 Retensi AUDIT_RETENTION_DAYS (default 90), dihapus job terjadwal di dalam binary.
+
+
+11. API REST
+------------
+11.1 Prefix /api. Format error seragam:
+       { "error": { "code": "...", "message": "...", "details": ... }, "trace_id": "..." }
+11.2 Kode error stabil dan huruf besar (PASSWORD_CHANGE_REQUIRED, NOT_FOUND, CONFLICT, INVALID_ARGUMENT).
+11.3 Upload memakai multipart; hasil per file (created/updated/unchanged/skipped/rejected + alasan);
+     sebagian gagal tidak membatalkan yang lain.
+11.4 Path file dikirim lewat query parameter (?path=), bukan segmen URL.
+11.5 Paginasi: cursor untuk data yang tumbuh (audit), limit/offset untuk daftar kecil.
+11.6 Setiap endpoint baru/ubah WAJIB tercermin di api/modules/**.yml sebelum kode.
+
+
+12. FRONTEND (SVELTE)
+---------------------
+12.1 Build menghasilkan static file yang di-embed ke binary Go. DILARANG SSR/Node di produksi.
+12.2 Layering per feature:
+       services/    panggil API lewat shared/services/http.ts, validasi respons dengan Zod,
+                    map ke tipe. Tidak menyimpan state.
+       stores/      state UI/sesi (Svelte store). Tidak melakukan fetch.
+       components/  presentasi dan state lokal. Tidak memanggil service langsung.
+       views/       komposisi tipis untuk satu route. Bukan god-object.
+12.3 Setiap feature self-contained dan mengekspos API publik hanya lewat index.ts.
+12.4 DILARANG import silang ke internals module/feature lain. Komposisi lintas module (mis. workspace
+     project yang memuat tab knowledge/spec/key, upload campuran .md + .yaml) dilakukan di app/.
+12.5 shared/ DILARANG meng-import domain/.
+12.6 Markdown dirender dengan sanitasi (tanpa HTML mentah, tautan javascript: ditolak).
+     Mermaid dengan securityLevel 'strict'. Konten spec/knowledge tidak pernah dipercaya.
+12.7 Navigasi dan tombol menyesuaikan role/peran project, tetapi otorisasi sebenarnya SELALU di backend.
+12.8 Teks UI lewat i18n (id/en); tidak ada string hard-coded di komponen.
+12.9 Rahasia (API key plaintext) hanya di memori komponen sekali tampil; jangan simpan di store
+     persisten, localStorage, atau URL.
+
+
+13. PENGUJIAN
+-------------
+13.1 Entity: tes unit tanpa mock.
+13.2 Usecase: tes dengan repository/bus palsu.
+13.3 Repository: tes integrasi ke Postgres nyata (container), bukan mock SQL.
+13.4 Tiap tiket: kriteria penerimaan -> tes. Penamaan tes mengikuti nomor kriteria (T05-AC3, dst.).
+13.5 Tes arsitektur (T00 F9) berjalan di CI dan menegakkan bagian 4 dan 12.
+13.6 Tes keamanan wajib ada: isolasi antar project, key dicabut langsung ditolak, password/isi file
+     tidak masuk log/audit, sanitasi Markdown, tanpa fetch $ref eksternal.
+13.7 Tes e2e (Playwright) untuk alur utama: login -> buat project -> upload -> buat key -> panggil MCP.
+
+
+14. KONFIGURASI DAN OPERASI
+---------------------------
+14.1 Konfigurasi hanya lewat env var, divalidasi saat start (gagal cepat). Daftar di docs/configuration.md.
+14.2 Log terstruktur dengan trace_id di setiap baris. DILARANG log data sensitif (lihat 7.6).
+14.3 /healthz (proses hidup) dan /readyz (DB terjangkau). Graceful shutdown menunggu request dan bus.
+14.4 Job terjadwal berjalan di dalam binary dengan Postgres advisory lock (aman multi-instance).
+14.5 TLS ditangani reverse proxy. Binary tidak mengurus sertifikat.
+
+
+15. PROSES KERJA
+----------------
+15.1 Urutan: tiket -> rencana implementasi -> kode. Pekerjaan mengikuti tree dependensi di
+     docs/tickets/README.md.
+15.2 Perubahan yang menyentuh kontrak bus atau API WAJIB memperbarui katalog/OpenAPI di PR yang sama.
+15.3 Menyimpang dari aturan ini butuh keputusan tertulis (ubah file ini + catat alasannya di desain).
+15.4 Dependensi baru (library) harus aktif dipelihara dan disebutkan alasannya di PR.
+15.5 Satu PR = satu tiket (atau bagian jelas dari satu tiket). Jangan mencampur module.
