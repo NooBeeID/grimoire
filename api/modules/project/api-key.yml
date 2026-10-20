@@ -1,0 +1,296 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Project API Keys
+  version: 0.1.0
+paths:
+  /api/projects/{projectID}/api-keys:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listkeys
+      tags: [project-api-keys]
+      summary: Daftar API key project
+      description: >
+        Anggota (owner/member) dan super_admin. Key aktif lebih dulu, lalu created_at DESC, lalu id.
+        Key yang sudah dicabut ikut ditampilkan. Tanpa paginasi; tidak pernah memuat raw key atau hash.
+        Project yang tidak ada, id bukan uuid, atau bukan milik pemanggil dijawab 404 yang identik.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Daftar key (items selalu array, [] bila kosong)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiKeyList" }
+              example:
+                items:
+                  - id: 0192f5a0-2222-7aaa-8bbb-000000000003
+                    name: ci-pipeline
+                    prefix: a1b2c3d4
+                    status: active
+                    created_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                    created_by_label: a@tim.id
+                    created_at: "2026-10-23T10:00:00Z"
+                    last_used_at: "2026-10-23T11:42:00Z"
+                    revoked_at: null
+                    revoked_by: null
+                    revoked_by_label: null
+                  - id: 0192f5a0-2222-7aaa-8bbb-000000000001
+                    name: claude-code-budi
+                    prefix: k3x9q2ma
+                    status: revoked
+                    created_by: 0192f5a0-bbbb-7aaa-8bbb-00000000000b
+                    created_by_label: b@tim.id
+                    created_at: "2026-10-23T09:00:00Z"
+                    last_used_at: null
+                    revoked_at: "2026-10-23T12:00:00Z"
+                    revoked_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                    revoked_by_label: a@tim.id
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    post:
+      operationId: createkey
+      tags: [project-api-keys]
+      summary: Buat API key
+      description: >
+        Anggota (owner/member) dan super_admin. raw_key hanya dikembalikan sekali pada respons ini;
+        simpan sekarang. Respons memakai Cache-Control no-store. Nama 2-60 karakter dan unik di antara
+        key aktif project; maksimal 20 key aktif per project. Field tak dikenal ditolak 400.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApiKeyRequest" }
+            example: { name: claude-code-budi }
+      responses:
+        "201":
+          description: Key dibuat; raw_key tidak bisa diambil lagi
+          headers:
+            Cache-Control:
+              description: Selalu no-store
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreateApiKeyResponse" }
+              example:
+                key:
+                  id: 0192f5a0-2222-7aaa-8bbb-000000000001
+                  name: claude-code-budi
+                  prefix: k3x9q2ma
+                  status: active
+                  created_by: 0192f5a0-bbbb-7aaa-8bbb-00000000000b
+                  created_by_label: b@tim.id
+                  created_at: "2026-10-23T09:00:00Z"
+                  last_used_at: null
+                  revoked_at: null
+                  revoked_by: null
+                  revoked_by_label: null
+                raw_key: gr_k3x9q2ma_Q2xhdWRlLWNvZGUtYnVkaS1zZWNyZXQtZXhhbXBsZS0xMjM0NTY
+                mcp_url: https://grimoire.tim.id/mcp
+        "400":
+          description: >
+            Validasi gagal (INVALID_ARGUMENT), mis. nama bukan 2-60 karakter atau field tak dikenal.
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: permintaan tidak valid
+                  details: { fields: { name: nama key wajib 2-60 karakter } }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403":
+          description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error: { code: CSRF_REQUIRED, message: header X-Requested-With wajib untuk request mutasi, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: >
+            Konflik (CONFLICT). details.reason NAME_TAKEN (nama dipakai key aktif lain) atau
+            KEY_LIMIT_REACHED (batas key aktif tercapai; details.limit berisi batas).
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                nameTaken:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: nama key sudah dipakai key aktif lain di project ini
+                      details: { reason: NAME_TAKEN }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                keyLimitReached:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: batas 20 key aktif per project tercapai; cabut key yang tidak dipakai
+                      details: { reason: KEY_LIMIT_REACHED, limit: 20 }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/api-keys/{keyID}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/KeyID"
+    post:
+      operationId: revokekey
+      tags: [project-api-keys]
+      summary: Cabut API key
+      description: >
+        Anggota (owner/member) dan super_admin. Tanpa request body (body diabaikan). Pencabutan
+        permanen: key tidak bisa diaktifkan lagi. Key yang tidak ada, keyID bukan uuid, atau milik
+        project lain dijawab 404 KEY_NOT_FOUND (tidak bocor).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "200":
+          description: Key setelah dicabut
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiKeyEnvelope" }
+              example:
+                key:
+                  id: 0192f5a0-2222-7aaa-8bbb-000000000001
+                  name: claude-code-budi
+                  prefix: k3x9q2ma
+                  status: revoked
+                  created_by: 0192f5a0-bbbb-7aaa-8bbb-00000000000b
+                  created_by_label: b@tim.id
+                  created_at: "2026-10-23T09:00:00Z"
+                  last_used_at: "2026-10-23T11:00:00Z"
+                  revoked_at: "2026-10-23T12:00:00Z"
+                  revoked_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                  revoked_by_label: a@tim.id
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403":
+          description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error: { code: CSRF_REQUIRED, message: header X-Requested-With wajib untuk request mutasi, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "404":
+          description: >
+            Tidak ditemukan (NOT_FOUND). Project tidak ada/bukan milik pemanggil (pesan "project tidak
+            ditemukan") atau key tidak ada/milik project lain (details.reason KEY_NOT_FOUND). Tidak bocor.
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                projectNotFound:
+                  value:
+                    error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                keyNotFound:
+                  value:
+                    error:
+                      code: NOT_FOUND
+                      message: API key tidak ditemukan
+                      details: { reason: KEY_NOT_FOUND }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "409":
+          description: Key sudah dicabut (CONFLICT, details.reason ALREADY_REVOKED)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: API key sudah dicabut
+                  details: { reason: ALREADY_REVOKED }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    ProjectID:
+      name: projectID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    KeyID:
+      name: keyID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    ProjectNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
+        uuid (tidak bocor).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  schemas:
+    ApiKey:
+      type: object
+      additionalProperties: false
+      required: [id, name, prefix, status, created_by, created_by_label, created_at, last_used_at, revoked_at, revoked_by, revoked_by_label]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string, description: 8 karakter pertama bagian identitas key (bukan secret) }
+        status: { type: string, enum: [active, revoked] }
+        created_by: { type: [string, "null"], format: uuid }
+        created_by_label: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+        revoked_by: { type: [string, "null"], format: uuid }
+        revoked_by_label: { type: [string, "null"] }
+    CreateApiKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+    CreateApiKeyResponse:
+      type: object
+      additionalProperties: false
+      required: [key, raw_key, mcp_url]
+      properties:
+        key: { $ref: "#/components/schemas/ApiKey" }
+        raw_key:
+          type: string
+          pattern: "^gr_[a-z0-9]{8}_[A-Za-z0-9_-]{43}$"
+          description: raw_key hanya dikembalikan sekali; simpan sekarang.
+        mcp_url:
+          type: [string, "null"]
+          format: uri
+          description: null bila PUBLIC_URL tidak diset (FE memakai window.location.origin + /mcp).
+    ApiKeyList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ApiKey" }
+    ApiKeyEnvelope:
+      type: object
+      additionalProperties: false
+      required: [key]
+      properties:
+        key: { $ref: "#/components/schemas/ApiKey" }

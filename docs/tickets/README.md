@@ -11,7 +11,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T01](T01-core-auth.md) | core | auth | L | T00 | Selesai (`329d71d`) |
 | [T02](T02-core-audit-log.md) | core | audit-log | M | T00 | Selesai (`d0a7c19`; e2e terautentikasi menunggu T01) |
 | [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Plan siap |
-| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Belum |
+| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Plan siap |
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Belum |
 | [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Belum |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Belum |
