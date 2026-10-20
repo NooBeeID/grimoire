@@ -1,0 +1,547 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Auth
+  version: 0.1.0
+paths:
+  /api/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login email + password (set cookie sesi)
+      description: >
+        Publik, rate limit per IP. Gagal login (email tidak ada, password salah, user nonaktif)
+        dijawab identik 401 INVALID_CREDENTIALS. Lockout per email menghasilkan 429 ACCOUNT_LOCKED
+        dengan header Retry-After. Email dinormalisasi lowercase; password maksimal 256 byte.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+            example: { email: Budi@Tim.ID, password: rahasia-panjang-1 }
+      responses:
+        "200":
+          description: Login berhasil
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+            Set-Cookie:
+              description: "grimoire_session=<token 43 karakter>; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax"
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+              example:
+                user:
+                  id: 0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d
+                  email: budi@tim.id
+                  name: Budi
+                  role: developer
+                  must_change_password: true
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401":
+          description: Kredensial salah atau user nonaktif (INVALID_CREDENTIALS), respons identik
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error: { code: INVALID_CREDENTIALS, message: email atau password salah, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "429":
+          description: Akun ditunda (ACCOUNT_LOCKED) atau rate limit IP (RATE_LIMITED)
+          headers:
+            Retry-After:
+              description: Detik sebelum boleh mencoba lagi
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                locked:
+                  value:
+                    error:
+                      code: ACCOUNT_LOCKED
+                      message: terlalu banyak percobaan login, coba lagi nanti
+                      details: { retry_after_seconds: 812 }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                rate_limited:
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: terlalu banyak permintaan, coba lagi nanti
+                      details: { retry_after_seconds: 3 }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout (hapus sesi saat ini)
+      description: Tanpa body. Cookie dihapus lewat Set-Cookie Max-Age=0. Exempt dari password gate.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "204":
+          description: Sesi dihapus
+          headers:
+            Set-Cookie:
+              description: "grimoire_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+              schema: { type: string }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Identitas user yang sedang login
+      description: Exempt dari password gate. 401 adalah hasil normal saat bootstrap tanpa sesi.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Identitas saat ini
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+              example:
+                id: 0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d
+                email: budi@tim.id
+                name: Budi
+                role: developer
+                must_change_password: false
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Ganti password sendiri
+      description: >
+        Rate limit per user. Password lama salah dijawab 400 (fields.current_password), bukan 401.
+        Sukses mencabut semua sesi lain user; sesi saat ini tetap. Mengosongkan must_change_password.
+        409 bila terjadi perubahan password paralel.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangePasswordRequest" }
+            example: { current_password: sementara-AbC123, new_password: baru-sangat-rahasia }
+      responses:
+        "204": { description: Password diganti }
+        "400":
+          description: Validasi gagal (INVALID_ARGUMENT)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: permintaan tidak valid
+                  details:
+                    fields:
+                      current_password: password lama salah
+                      new_password: minimal 10 karakter
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "409": { $ref: "../infra/foundation.yml#/components/responses/Conflict" }
+        "429": { $ref: "../infra/foundation.yml#/components/responses/RateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users:
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Buat user (khusus super_admin)
+      description: >
+        Bila password kosong, server membangkitkan password sementara dan mengembalikannya SEKALI
+        di temporary_password. User baru selalu must_change_password=true.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
+            example: { email: sari@tim.id, name: Sari, role: developer }
+      responses:
+        "201":
+          description: User dibuat
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserWithTempPassword" }
+              example:
+                user:
+                  id: 7d1e0a52-3c4b-4f6a-8b9c-1d2e3f4a5b6c
+                  email: sari@tim.id
+                  name: Sari
+                  role: developer
+                  is_active: true
+                  must_change_password: true
+                  created_at: "2026-10-21T09:00:00Z"
+                  created_by: 0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d
+                  created_by_label: admin@tim.id
+                  updated_at: "2026-10-21T09:00:00Z"
+                  last_login_at: null
+                temporary_password: Kq7mZp3RtX9aHw2N
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "409":
+          description: Email sudah terdaftar (CONFLICT)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error: { code: CONFLICT, message: email sudah terdaftar, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "429": { $ref: "../infra/foundation.yml#/components/responses/RateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: Daftar user (limit/offset, khusus super_admin)
+      description: Urutan name ASC, id ASC. Pencarian q mencocokkan email atau nama (ILIKE, tak peka huruf besar-kecil).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: role
+          in: query
+          schema: { $ref: "#/components/schemas/Role" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, inactive] }
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Satu halaman user
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserList" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Detail user (khusus super_admin)
+      description: Id yang bukan uuid atau tidak ada sama-sama 404.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Detail user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Ubah nama, email, atau role user (khusus super_admin)
+      description: >
+        Minimal satu field. Tanpa perubahan tetap 200 tanpa audit. Menurunkan role sendiri 403
+        (details.reason SELF_ACTION_FORBIDDEN); menurunkan super admin aktif terakhir 409
+        (details.reason LAST_SUPER_ADMIN).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" }
+            example: { name: "Sari W.", role: super_admin }
+      responses:
+        "200":
+          description: User terbaru
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/AdminConflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/{id}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      operationId: deactivateUser
+      tags: [users]
+      summary: Nonaktifkan user (khusus super_admin)
+      description: >
+        Tanpa body. Semua sesi target dihapus di transaksi yang sama. Idempoten (sudah nonaktif
+        tetap 200 tanpa audit).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "200":
+          description: User terbaru
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/AdminConflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/{id}/activate:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      operationId: activateUser
+      tags: [users]
+      summary: Aktifkan user (khusus super_admin)
+      description: Tanpa body. Idempoten (sudah aktif tetap 200 tanpa audit).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "200":
+          description: User terbaru
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/AdminConflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/{id}/reset-password:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset password user (khusus super_admin)
+      description: >
+        Body opsional (kosong atau {} berarti bangkitkan). Semua sesi target dihapus dan
+        must_change_password=true. Reset akun sendiri ditolak 403 SELF_ACTION_FORBIDDEN
+        (gunakan change-password).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResetPasswordRequest" }
+      responses:
+        "200":
+          description: Password direset
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserWithTempPassword" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "429": { $ref: "../infra/foundation.yml#/components/responses/RateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    ForbiddenAdmin:
+      description: >
+        Akses ditolak. Kode: FORBIDDEN (bukan super_admin, atau SELF_ACTION_FORBIDDEN via
+        details.reason), PASSWORD_CHANGE_REQUIRED (user wajib ganti password), CSRF_REQUIRED.
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          examples:
+            forbidden:
+              value:
+                error: { code: FORBIDDEN, message: akses ditolak, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+            password_change_required:
+              value:
+                error:
+                  code: PASSWORD_CHANGE_REQUIRED
+                  message: password wajib diganti sebelum melanjutkan
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+            self_action:
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: tidak boleh menonaktifkan atau menurunkan role akun sendiri
+                  details: { reason: SELF_ACTION_FORBIDDEN }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+            csrf:
+              value:
+                error:
+                  code: CSRF_REQUIRED
+                  message: header X-Requested-With wajib untuk request mutasi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    AdminConflict:
+      description: Konflik (CONFLICT), mis. email sudah terdaftar atau super admin aktif terakhir
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          examples:
+            last_super_admin:
+              value:
+                error:
+                  code: CONFLICT
+                  message: minimal harus ada satu super admin aktif
+                  details: { reason: LAST_SUPER_ADMIN }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+            email_taken:
+              value:
+                error: { code: CONFLICT, message: email sudah terdaftar, details: null }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  schemas:
+    Role:
+      type: string
+      enum: [super_admin, developer]
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, maxLength: 254 }
+        password: { type: string, maxLength: 256, writeOnly: true }
+    Me:
+      type: object
+      required: [id, email, name, role, must_change_password]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        must_change_password: { type: boolean }
+    LoginResponse:
+      type: object
+      required: [user]
+      properties:
+        user: { $ref: "#/components/schemas/Me" }
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string, maxLength: 256, writeOnly: true }
+        new_password:
+          type: string
+          maxLength: 256
+          writeOnly: true
+          description: Minimal PASSWORD_MIN_LENGTH karakter, beda dari password lama dan dari email.
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+        - is_active
+        - must_change_password
+        - created_at
+        - created_by
+        - created_by_label
+        - updated_at
+        - last_login_at
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        is_active: { type: boolean }
+        must_change_password: { type: boolean }
+        created_at: { type: string, format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_by_label: { type: [string, "null"] }
+        updated_at: { type: string, format: date-time }
+        last_login_at: { type: [string, "null"], format: date-time }
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [email, name, role]
+      properties:
+        email: { type: string, maxLength: 254 }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        role: { $ref: "#/components/schemas/Role" }
+        password:
+          type: string
+          maxLength: 256
+          writeOnly: true
+          description: Opsional; bila kosong server membangkitkan password sementara.
+    UserWithTempPassword:
+      type: object
+      required: [user, temporary_password]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        temporary_password:
+          type: [string, "null"]
+          description: Hanya terisi bila dibangkitkan server; tampil sekali dan tidak dapat diambil lagi.
+    UserList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/User" }
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer }
+        offset: { type: integer }
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, maxLength: 254 }
+        role: { $ref: "#/components/schemas/Role" }
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        password:
+          type: string
+          maxLength: 256
+          writeOnly: true
+          description: Opsional; bila kosong server membangkitkan password sementara.

@@ -13,6 +13,24 @@ paths:
     $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log
   /api/audit-log/{id}:
     $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log~1{id}
+  /api/auth/login:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1auth~1login
+  /api/auth/logout:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1auth~1logout
+  /api/auth/me:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1auth~1me
+  /api/auth/change-password:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1auth~1change-password
+  /api/users:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users
+  /api/users/{id}:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}
+  /api/users/{id}/deactivate:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1deactivate
+  /api/users/{id}/activate:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1activate
+  /api/users/{id}/reset-password:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1reset-password
 components:
   schemas:
     Error:
@@ -23,6 +41,14 @@ components:
       $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntryList
     AuditEntryDetail:
       $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntryDetail
+    Me:
+      $ref: ./modules/core/auth.yml#/components/schemas/Me
+    User:
+      $ref: ./modules/core/auth.yml#/components/schemas/User
+    UserList:
+      $ref: ./modules/core/auth.yml#/components/schemas/UserList
+    UserWithTempPassword:
+      $ref: ./modules/core/auth.yml#/components/schemas/UserWithTempPassword
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest
