@@ -5,7 +5,7 @@ export const meta = {
   phases: [{ title: 'Planning', detail: 'decompose -> overview -> plan per usecase (paralel) -> frontend -> api-design -> commit' }],
 }
 
-// args: { goal, scope: 'backend'|'frontend'|'fullstack', domain, module, service, feature, notes?, images?, prd?, ticket?, commit? }
+// args: { goal, scope: 'backend'|'frontend'|'fullstack', domain, module, service, feature, notes?, images?, prd?, ticket?, ticketId? (mis. 'T03': status README jadi 'Plan siap' di commit yang sama), commit? (default true: commit ke main) }
 
 class Halt extends Error {}
 const halt = (reason) => { throw new Halt(reason) }
@@ -221,13 +221,26 @@ const runBody = async () => {
       }), 'api-design')
   }
 
-  // ---- 5. commit (worktree di-fork dari HEAD, plan harus ikut tersedia)
+  // ---- 5. commit langsung ke main (worktree di-fork dari HEAD, plan harus ikut tersedia)
   let committed = false
+  let commitNote = null
   if (a.commit !== false) {
+    const planPaths = `${isDecomposed ? planDir : planFile}${endpointsChanged ? ' api/' : ''}`
     const c = must(await agent(
-      `Commit plan supaya ikut terbawa saat worktree di-fork dari HEAD. Jalankan: git add -f ${isDecomposed ? planDir : planFile}${endpointsChanged ? ' api/' : ''} lalu git commit -m "docs(plan): ${slug}" dengan baris terakhir pesan "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>". Hanya file itu; jangan menambahkan file lain. Jika tidak ada perubahan, committed=false. Jangan push.`,
-      { label: 'commit-plan', model: 'haiku', effort: 'low', schema: { type: 'object', properties: { committed: { type: 'boolean' }, note: { type: 'string' } }, required: ['committed'] } }), 'commit-plan')
+      `Commit hasil plan langsung ke branch main. Langkah:
+1. Jalankan "git branch --show-current". Jika bukan "main": JANGAN pindah branch dan jangan commit; kembalikan committed=false, branch=<nama branch>, note="bukan di main".
+2. ${a.ticketId ? `Di docs/tickets/README.md, ubah HANYA sel Status pada baris tabel tiket ${a.ticketId} menjadi "Plan siap" (jika kolom Status tidak ada, jangan mengubah apa pun dan catat di note).` : 'Tidak ada ticketId, jangan mengubah README.'}
+3. git add -f ${planPaths}${a.ticketId ? ' docs/tickets/README.md' : ''}. Lalu cek "git diff --cached --name-only": isinya hanya path itu. Jika ada file lain ter-stage, "git reset" file lain itu dari index (jangan menghapus perubahan di working tree).
+4. git commit -m "docs(plan): ${slug}" dengan baris terakhir pesan "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>". Jika tidak ada perubahan, committed=false dengan note.
+5. Jangan push. Jangan men-stage perubahan lain milik pengguna (mis. modifikasi file tracked lain).
+Kembalikan sha commit (git rev-parse --short HEAD) bila committed.`,
+      {
+        label: 'commit-plan', model: 'haiku', effort: 'low',
+        schema: { type: 'object', properties: { committed: { type: 'boolean' }, branch: { type: 'string' }, sha: { type: 'string' }, note: { type: 'string' } }, required: ['committed'] },
+      }), 'commit-plan')
     committed = c.committed
+    if (!c.committed) commitNote = c.note || 'commit tidak dilakukan'
+    else if (c.note) commitNote = c.note
   }
 
   return {
@@ -239,6 +252,7 @@ const runBody = async () => {
     endpointsChanged,
     isDecomposed,
     committed,
+    commitNote,
     usecases: usecaseResults,
   }
 }
