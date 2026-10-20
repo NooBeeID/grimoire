@@ -1,0 +1,174 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: "true" # test integrasi GAGAL (bukan skip) bila TEST_DATABASE_URL kosong
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: go vet ./...
+        working-directory: backend
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+          working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run check
+        working-directory: frontend
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: architecture-guard (rules.txt 4 dan 13.5)
+        run: go test -count=1 -race ./internal/archtest/...
+        working-directory: backend
+      - run: go test -count=1 -race ./...
+        working-directory: backend
+      - run: npm ci && npm test -- --run
+        working-directory: frontend
+
+  test-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: grimoire
+          POSTGRES_PASSWORD: grimoire
+          POSTGRES_DB: grimoire
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U grimoire"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://grimoire:grimoire@localhost:5432/grimoire?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: go test -count=1 -race -tags integration ./...
+        working-directory: backend
+
+  api-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: make api-check
+      - run: make api-selftest
+
+  depcruise:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run depcruise
+        working-directory: frontend
+      - run: node scripts/test-arch.mjs
+        working-directory: frontend
+
+  build:
+    needs: [lint, test, test-integration, api-check, depcruise]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: make build
+      - run: ./bin/grimoire version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grimoire-linux-amd64
+          path: bin/grimoire
+          if-no-files-found: error
+
+  e2e:
+    needs: [build]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: grimoire
+          POSTGRES_PASSWORD: grimoire
+          POSTGRES_DB: grimoire
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U grimoire"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://grimoire:grimoire@localhost:5432/grimoire?sslmode=disable
+      SESSION_SECRET: ci-e2e-session-secret-not-for-production-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: grimoire-linux-amd64
+          path: bin
+      - run: chmod +x bin/grimoire
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend

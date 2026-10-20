@@ -35,6 +35,7 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
 3.1  Backend:
        backend/
          cmd/{http,cli}/
+         cmd/internal/{server,buildinfo}/  (perakitan bersama dua entrypoint)
          internal/
            domain/<domain>/
              base.go                       (wiring domain)
@@ -43,7 +44,9 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
                base/                       (entity + rule bisnis)
                <feature>/                  (1 folder = 1 feature)
                  init.go  handler.go  params.go  usecase.go  repository.go  *_test.go
-           infra/{bus,db,http,middleware,config,static,logger,jobs}/
+           infra/{bus,db,http,middleware,config,static,logger,jobs,app}/
+                                           (app: hanya struct Deps untuk wiring domain)
+           archtest/                       (tes arsitektur; tanpa kode produksi)
            eventregistry/                  (hanya jika ada event bernama)
          lib/{common,constants,contracts,util}/
          migrations/{core,project}/        (YYYYMMDDHHMMSSmmm_<nama>.sql)
@@ -53,8 +56,9 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
          domain/<domain>/<module>/<feature>/
            components/ services/ stores/ views/ types.ts index.ts
          shared/{components,services,stores,validation,utils}/
-3.3  Kontrak REST: api/modules/<domain>/<module>.yml, di-bundle ke api/openapi.yml
-     (GENERATED, DILARANG diedit manual; jalankan make api-bundle, verifikasi make api-check).
+3.3  Kontrak REST: api/modules/<domain>/<module>.yml, dirujuk dari api/root.yml dan di-bundle
+     ke api/openapi.yml (GENERATED, DILARANG diedit manual; jalankan make api-bundle,
+     verifikasi make api-check; make api-selftest membuktikan api-check benar-benar gagal).
 3.4  Satu feature = satu folder = satu tanggung jawab (satu endpoint/aksi/handler bus/job).
      Feature baru = folder baru. DILARANG menumpuk beberapa feature dalam satu folder.
 
@@ -70,6 +74,8 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
 4.6  infra/** DILARANG meng-import domain/**. Infra tidak tahu bisnis.
 4.7  cmd/** hanya merakit (wiring, config, start/stop). Tanpa logika bisnis.
 4.8  Arah dependensi satu arah per feature: handler -> usecase -> (entity, repository). Tidak boleh terbalik.
+4.9  DILARANG: lib/** (selain yang dikecualikan 4.5 yang lebih spesifik) meng-import internal/**
+     atau cmd/**. lib netral.
 
 
 5. LAYERING (BACKEND, PER FEATURE)
@@ -216,6 +222,8 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
 13.3 Repository: tes integrasi ke Postgres nyata (container), bukan mock SQL.
 13.4 Tiap tiket: kriteria penerimaan -> tes. Penamaan tes mengikuti nomor kriteria (T05-AC3, dst.).
 13.5 Tes arsitektur (T00 F9) berjalan di CI dan menegakkan bagian 4 dan 12.
+     Tes arsitektur Go di internal/archtest; tes arsitektur FE di frontend/.dependency-cruiser.cjs
+     (`npm run test:arch`).
 13.6 Tes keamanan wajib ada: isolasi antar project, key dicabut langsung ditolak, password/isi file
      tidak masuk log/audit, sanitasi Markdown, tanpa fetch $ref eksternal.
 13.7 Tes e2e (Playwright) untuk alur utama: login -> buat project -> upload -> buat key -> panggil MCP.

@@ -72,7 +72,9 @@ Ini keputusan saya, bukan keputusan yang sudah kamu setujui.
 
 ```
 backend/
-├── cmd/{http,cli}/                 # http: server; cli: create-admin, migrate
+├── cmd/
+│   ├── {http,cli}/                 # http: server; cli: create-admin, migrate
+│   └── internal/{server,buildinfo}/ # perakitan bersama dua entrypoint
 ├── internal/
 │   ├── domain/
 │   │   ├── core/
@@ -80,7 +82,8 @@ backend/
 │   │   │   └── internal/{auth,auditlog}/
 │   │   ├── project/internal/{management,apikey,knowledge,apispec}/
 │   │   └── discovery/internal/{mcpgateway,knowledgetools,apispectools}/
-│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs}/
+│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app}/  # app: hanya struct Deps
+│   ├── archtest/                   # tes arsitektur (tanpa kode produksi)
 │   └── eventregistry/              # hanya bila ada event bernama
 ├── lib/{common,constants,contracts,util}/
 └── migrations/{core,project}/      # YYYYMMDDHHMMSSmmm_*.sql
@@ -122,11 +125,23 @@ frontend/src/
 
 Spesifikasi OpenAPI REST tiap module ada di `api/modules/<domain>/<module>.yml`, di-bundle menjadi `api/openapi.yml` (hasil generate, jangan diedit manual). Prefix REST: `/api`. MCP: `/mcp`.
 
+- Tiap module menambah `$ref` path-nya ke `api/root.yml` di PR yang sama. Komponen bersama (`Error`, responses) dirujuk dari `api/modules/infra/foundation.yml`.
+- Setelah mengubah `api/modules/**` atau `api/root.yml`, jalankan `make api-bundle` dan commit `api/openapi.yml`.
+- CI menjalankan `make api-check` (gagal bila `openapi.yml` basi/diedit manual, atau ada `api/modules/**.yml` yang tidak dirujuk `api/root.yml`) dan `make api-selftest` (membuktikan `api-check` benar-benar gagal).
+
+### Penegakan otomatis
+
+Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
+- Backend: `backend/internal/archtest` memindai seluruh import repo (termasuk `_test.go` dan tag `integration`) terhadap `rules.txt` bagian 4. Tanpa allowlist.
+- Frontend: `frontend/.dependency-cruiser.cjs` (`npm run depcruise`) dan `npm run test:arch`/`node scripts/test-arch.mjs` yang membuktikan aturan benar-benar aktif lewat fixture.
+- CI `.github/workflows/ci.yml`: job `lint`, `test`, `test-integration`, `api-check`, `depcruise`, `build`, `e2e`. Pelanggaran = build gagal.
+
 ## Katalog endpoint bus
 
 | Endpoint | Mode | Provider | Consumer |
 |---|---|---|---|
 | `core.auth.resolve-session` | Call | T01 | T00 (middleware) |
+| `core.auth.create-admin` | Call | T01 | `cmd/cli` |
 | `core.auth.get-user` | Call | T01 | T03, T04, T05, T06 |
 | `core.auth.find-developers` | Call | T01 | T03 |
 | `core.audit.record` | Call / Publish | T02 | T01, T03, T04, T05, T06, T07 |
@@ -141,6 +156,10 @@ Spesifikasi OpenAPI REST tiap module ada di `api/modules/<domain>/<module>.yml`,
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
+
+Catatan: konstanta dan kontrak `core.auth.resolve-session` didefinisikan T00 (`lib/constants/bus.go`, `lib/contracts/core/auth/resolvesession`); handler diimplementasi T01.
+
+TODO (ditambah T01): `core.auth.create-admin` (Call, provider T01, consumer `cmd/cli`). T01 menambah konstanta, kontrak, dan menyempurnakan baris katalog ini; sampai saat itu `create-admin` di CLI mencetak `create-admin belum tersedia (butuh T01)`.
 
 (`register-tool` bukan endpoint runtime; mekanisme pendaftaran tool dijelaskan di T07.)
 

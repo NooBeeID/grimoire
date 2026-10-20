@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: NooBee Grimoire API
+  version: 0.1.0
+servers:
+  - url: /
+paths:
+  /healthz:
+    $ref: ./modules/infra/foundation.yml#/paths/~1healthz
+  /readyz:
+    $ref: ./modules/infra/foundation.yml#/paths/~1readyz
+components:
+  schemas:
+    Error:
+      $ref: ./modules/infra/foundation.yml#/components/schemas/Error
+  responses:
+    BadRequest:
+      $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest
+    Unauthorized:
+      $ref: ./modules/infra/foundation.yml#/components/responses/Unauthorized
+    Forbidden:
+      $ref: ./modules/infra/foundation.yml#/components/responses/Forbidden
+    NotFound:
+      $ref: ./modules/infra/foundation.yml#/components/responses/NotFound
+    Conflict:
+      $ref: ./modules/infra/foundation.yml#/components/responses/Conflict
+    PayloadTooLarge:
+      $ref: ./modules/infra/foundation.yml#/components/responses/PayloadTooLarge
+    RateLimited:
+      $ref: ./modules/infra/foundation.yml#/components/responses/RateLimited
+    Internal:
+      $ref: ./modules/infra/foundation.yml#/components/responses/Internal

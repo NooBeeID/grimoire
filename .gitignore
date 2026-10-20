@@ -1,1 +1,11 @@
 github.pat
+.env
+bin/
+.DS_Store
+.superpowers/
+frontend/node_modules/
+frontend/dist/
+backend/internal/infra/static/dist/*
+!backend/internal/infra/static/dist/index.html
+playwright-report/
+test-results/
