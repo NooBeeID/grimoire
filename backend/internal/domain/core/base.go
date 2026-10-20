@@ -1,6 +1,11 @@
 package core
 
-import "grimoire/internal/infra/app"
+import (
+	"grimoire/internal/domain/core/internal/auditlog"
+	"grimoire/internal/infra/app"
+)
 
-// Register merakit module domain ini. No-op pada T00; diisi T01 (core), T03 (project), T07 (discovery).
-func Register(d app.Deps) {}
+// Register merakit module domain ini. T02 (audit-log) terpasang; T01 (auth) menyusul.
+func Register(d app.Deps) {
+	auditlog.Register(d)
+}

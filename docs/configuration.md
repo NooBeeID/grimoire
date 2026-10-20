@@ -33,6 +33,13 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 - `TEST_DATABASE_URL`: Postgres untuk test integrasi (wajib di CI).
 - `CI`: bila `true`, test integrasi gagal jika `TEST_DATABASE_URL` kosong.
 
+## Audit log
+
+- `AUDIT_RETENTION_DAYS` (default 90, minimal 1): entri `audit_log` yang lebih tua dihapus job `core.auditlog.purge-expired`.
+- Job purge berjalan harian pukul 03:15 UTC, menghapus per batch 5000 baris.
+- Tabel `audit_log` append-only: trigger database menolak `UPDATE`. `DELETE` tetap diizinkan karena dipakai job purge.
+- Saran deploy: cabut hak ubah dari role aplikasi dengan `REVOKE UPDATE, TRUNCATE ON audit_log FROM <app_role>;` (jangan cabut `DELETE`).
+
 ## Contoh
 
 Pengembangan: salin `.env.example` ke `.env`.

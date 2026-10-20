@@ -332,13 +332,13 @@ func TestMigrateUp_PrintsApplied(t *testing.T) {
 	dbURL, _, _ := testDBURL(t)
 	cfg := testCfg(t, dbURL, nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	for i := 0; i < 2; i++ {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\n", "tidak ada migrasi baru\n"} {
 		var out bytes.Buffer
 		if err := MigrateUp(context.Background(), cfg, log, &out); err != nil {
 			t.Fatal(err)
 		}
-		if out.String() != "tidak ada migrasi baru\n" {
-			t.Errorf("run %d: out = %q", i, out.String())
+		if out.String() != want {
+			t.Errorf("run %d: out = %q, want %q", i, out.String(), want)
 		}
 	}
 }

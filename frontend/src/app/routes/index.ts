@@ -9,11 +9,17 @@
 //   import { LoginView } from '../../domain/core/auth/login';
 //   { path: '/login', view: LoginView, meta: { layout: 'blank' } }
 import HomeView from '../views/HomeView.svelte';
+import AuditLogView from '../views/AuditLogView.svelte';
 import NotFoundView from '../views/NotFoundView.svelte';
 import type { RouteDef } from './router';
 
 export const routes: RouteDef[] = [
   { path: '/', view: HomeView, meta: { layout: 'blank', titleKey: 'home.title' } },
+  {
+    path: '/audit-log',
+    view: AuditLogView,
+    meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'auditLog.title' },
+  },
 ];
 
 export const notFoundRoute: RouteDef = {

@@ -178,7 +178,7 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
 10.1 Aksi agent dan aksi manusia yang sensitif WAJIB tercatat (katalog aksi di docs/tickets/README.md).
 10.2 Argumen dibersihkan (kunci password/token/authorization/api_key/secret ditutup; string dipotong).
 10.3 Isi file yang dibaca agent TIDAK disimpan di audit; hanya metadata (path, ukuran, jumlah hasil).
-10.4 Fail-closed untuk panggilan agent bila audit gagal ditulis (rekomendasi; keputusan final di T02/T07).
+10.4 Fail-open: bila audit gagal ditulis, error di-log level error dan panggilan agent tetap dilayani (diputuskan T02).
 10.5 Retensi AUDIT_RETENTION_DAYS (default 90), dihapus job terjadwal di dalam binary.
 
 

@@ -144,7 +144,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `core.auth.create-admin` | Call | T01 | `cmd/cli` |
 | `core.auth.get-user` | Call | T01 | T03, T04, T05, T06 |
 | `core.auth.find-developers` | Call | T01 | T03 |
-| `core.audit.record` | Call / Publish | T02 | T01, T03, T04, T05, T06, T07 |
+| `core.audit.record` | Call / Publish (satu handler untuk keduanya) | T02 | T01, T03, T04, T05, T06, T07 |
 | `project.management.check-access` | Call | T03 | T04, T05, T06 |
 | `project.management.get-project` | Call | T03 | T07 |
 | `project.apikey.verify` | Call | T04 | T07 |
@@ -157,11 +157,31 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
 
+Kontrak `core.audit.record`: `lib/contracts/core/audit/record` (konstanta `constants.BUS_CORE_AUDIT_RECORD`), request dikirim sebagai nilai `record.Request`.
+
 Catatan: konstanta dan kontrak `core.auth.resolve-session` didefinisikan T00 (`lib/constants/bus.go`, `lib/contracts/core/auth/resolvesession`); handler diimplementasi T01.
 
 TODO (ditambah T01): `core.auth.create-admin` (Call, provider T01, consumer `cmd/cli`). T01 menambah konstanta, kontrak, dan menyempurnakan baris katalog ini; sampai saat itu `create-admin` di CLI mencetak `create-admin belum tersedia (butuh T01)`.
 
 (`register-tool` bukan endpoint runtime; mekanisme pendaftaran tool dijelaskan di T07.)
+
+### Pola fail-open penulisan audit
+
+Bila audit gagal ditulis, error di-log level error dan permintaan tetap dilayani (keputusan T02). Consumer:
+
+```go
+_, err := bus.CallTyped[record.Response](ctx, d.Bus, constants.BUS_CORE_AUDIT_RECORD, req)
+if err != nil {
+	log.ErrorContext(ctx, "audit write failed", "action", req.Action, "err", err)
+}
+// lanjutkan; jangan kembalikan error ke klien/agent.
+```
+
+Untuk `Publish`, log error yang sama bila `d.Bus.Publish` mengembalikan error. Jangan me-log `Args`/`Result` dan jangan mengirim isi file (kirim metadata: path, bytes, count).
+
+### Aksi baru
+
+Tambah konstanta di `backend/lib/contracts/core/audit/record/actions.go` (dan di `Actions()`), perbarui `actions_test.go`, lalu tambahkan ke katalog di bawah.
 
 ## Katalog aksi audit
 

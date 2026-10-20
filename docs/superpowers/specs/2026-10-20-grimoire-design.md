@@ -111,6 +111,7 @@ Keputusan pengguna:
 - Hanya Super Admin yang dapat melihat audit log (halaman terfilter per aktor, project, tool, rentang waktu).
 - Retensi 90 hari; entri lebih lama dihapus otomatis oleh job terjadwal di dalam binary.
 - Log bersifat append-only dari sisi aplikasi (tidak ada UI atau API untuk mengubah/menghapus entri).
+- Kegagalan menulis audit bersifat fail-open (diputuskan T02): error di-log level error dan panggilan agent tetap dilayani; risiko sebagian aksi tak tercatat diterima demi ketersediaan MCP.
 
 Dikerjakan builder: skema tabel, indeks, mekanisme job retensi, dan cara mencatat tanpa memperlambat respons MCP (mis. insert sinkron ringan atau buffer). Entri audit tetap tersimpan walaupun project/key yang bersangkutan dihapus, sampai kedaluwarsa (simpan nama dan id sebagai salinan, bukan hanya foreign key).
 

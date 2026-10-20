@@ -303,8 +303,12 @@ func TestMigrate_ConnectionReturnedClean(t *testing.T) {
 func TestUp_EmbeddedFS(t *testing.T) {
 	d := TestDB(t)
 	res, err := Up(context.Background(), d, nil)
+	if err != nil || len(res.Applied) != 1 || res.Applied[0] != "core/20261021090000000_create_audit_log.sql" {
+		t.Fatalf("run 1: res=%v err=%v", res, err)
+	}
+	res, err = Up(context.Background(), d, nil)
 	if err != nil || len(res.Applied) != 0 {
-		t.Fatalf("res=%v err=%v", res, err)
+		t.Fatalf("run 2 (idempoten): res=%v err=%v", res, err)
 	}
 }
 
