@@ -41,6 +41,22 @@ paths:
     $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1members~1{userID}
   /api/projects/{projectID}/member-candidates:
     $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1member-candidates
+  /api/projects/{projectID}/api-keys:
+    $ref: ./modules/project/api-key.yml#/paths/~1api~1projects~1{projectID}~1api-keys
+  /api/projects/{projectID}/api-keys/{keyID}/revoke:
+    $ref: ./modules/project/api-key.yml#/paths/~1api~1projects~1{projectID}~1api-keys~1{keyID}~1revoke
+  /api/projects/{projectID}/knowledge/upload:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1upload
+  /api/projects/{projectID}/knowledge/files:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1files
+  /api/projects/{projectID}/knowledge/files/move:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1files~1move
+  /api/projects/{projectID}/knowledge/tree:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1tree
+  /api/projects/{projectID}/knowledge/folders:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1folders
+  /api/projects/{projectID}/knowledge/search:
+    $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1search
 components:
   schemas:
     Error:
@@ -73,6 +89,46 @@ components:
       $ref: ./modules/project/management.yml#/components/schemas/MemberList
     MemberCandidateList:
       $ref: ./modules/project/management.yml#/components/schemas/MemberCandidateList
+    ApiKey:
+      $ref: ./modules/project/api-key.yml#/components/schemas/ApiKey
+    CreateApiKeyRequest:
+      $ref: ./modules/project/api-key.yml#/components/schemas/CreateApiKeyRequest
+    CreateApiKeyResponse:
+      $ref: ./modules/project/api-key.yml#/components/schemas/CreateApiKeyResponse
+    ApiKeyList:
+      $ref: ./modules/project/api-key.yml#/components/schemas/ApiKeyList
+    ApiKeyEnvelope:
+      $ref: ./modules/project/api-key.yml#/components/schemas/ApiKeyEnvelope
+    KnowledgeUserRef:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeUserRef
+    KnowledgeFile:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeFile
+    KnowledgeCreateRequest:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeCreateRequest
+    KnowledgeUpdateRequest:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeUpdateRequest
+    KnowledgeMoveRequest:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeMoveRequest
+    KnowledgeFolderNode:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeFolderNode
+    KnowledgeFileNode:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeFileNode
+    KnowledgeTree:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeTree
+    KnowledgeUploadItem:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeUploadItem
+    KnowledgeUploadResult:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeUploadResult
+    KnowledgeSnippetSegment:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeSnippetSegment
+    KnowledgeSearchItem:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeSearchItem
+    KnowledgeSearchResult:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeSearchResult
+    KnowledgeConflictDetails:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeConflictDetails
+    KnowledgeDeleteFolderResult:
+      $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeDeleteFolderResult
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest

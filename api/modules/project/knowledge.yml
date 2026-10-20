@@ -1,0 +1,538 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Project Knowledge
+  version: 0.1.0
+paths:
+  /api/projects/{projectID}/knowledge/upload:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    post:
+      operationId: uploadKnowledgeFiles
+      tags: [project-knowledge]
+      summary: Upload banyak file (atau folder) sekaligus
+      description: >
+        Anggota (owner/member) dan super_admin. multipart/form-data dengan part berulang `files`;
+        `filename` setiap part membawa path relatif (mis. docs/auth/login.md). File yang valid tetap
+        masuk walau file lain ditolak; hasil dilaporkan per file sesuai urutan request. Status:
+        created, updated, unchanged, skipped (mis. hidden), rejected (mis. path_traversal, too_large,
+        unsupported_type, invalid_encoding). 400 details.reason: no_files, not_multipart,
+        too_many_files, project_file_limit. 413 details.reason upload_too_large bila total melebihi
+        batas upload. Bukan anggota atau id bukan uuid dijawab 404 yang identik.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items: { type: string, format: binary }
+      responses:
+        "200":
+          description: Laporan upload per file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeUploadResult" }
+              example:
+                summary: { created: 2, updated: 1, unchanged: 3, skipped: 1, rejected: 2 }
+                items:
+                  - { path: docs/auth/login.md, status: created }
+                  - { path: ../x.md, status: rejected, reason: path_traversal }
+                  - { path: docs/big.md, status: rejected, reason: too_large }
+                  - { path: .git/config, status: skipped, reason: hidden }
+                  - { path: docs/readme.md, status: updated }
+                  - { path: docs/a.md, status: unchanged }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "413":
+          description: Total ukuran upload melebihi batas (PAYLOAD_TOO_LARGE, reason upload_too_large)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: ukuran total upload melebihi batas
+                  details: { reason: upload_too_large, max_bytes: 52428800 }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/knowledge/files:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    post:
+      operationId: createKnowledgeFile
+      tags: [project-knowledge]
+      summary: Buat file baru
+      description: >
+        Anggota dan super_admin. Path dinormalisasi; path yang sudah ada dijawab 409 (reason
+        path_exists). 400 details.reason: path_empty, path_absolute, path_traversal,
+        path_empty_segment, path_control_char, path_too_long, segment_too_long, hidden,
+        unsupported_type, invalid_encoding, project_file_limit. 413 reason too_large bila isi
+        melebihi batas per file.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeCreateRequest" }
+            example: { path: docs/auth/login.md, content: "# Login\n\nAlur login..." }
+      responses:
+        "201":
+          description: File dibuat
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeFile" }
+              examples:
+                created: { $ref: "#/components/examples/KnowledgeFileExample" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: Path sudah dipakai (CONFLICT, reason path_exists)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: file dengan path ini sudah ada
+                  details: { reason: path_exists }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    get:
+      operationId: getKnowledgeFile
+      tags: [project-knowledge]
+      summary: Baca satu file
+      description: >
+        Anggota dan super_admin. Query `path` wajib. Respons memuat `version` (hash isi) yang harus
+        dikirim kembali saat menyimpan perubahan. File tidak ada dijawab 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Path"
+      responses:
+        "200":
+          description: Isi dan metadata file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeFile" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/KnowledgeNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    put:
+      operationId: updateKnowledgeFile
+      tags: [project-knowledge]
+      summary: Simpan perubahan isi file (optimistic locking)
+      description: >
+        Anggota dan super_admin. Query `path` wajib; body wajib memuat `version` dari getKnowledgeFile.
+        Bila isi sudah diubah pihak lain, 409 (reason version_conflict) dengan details.current berisi
+        isi dan versi terbaru; isi pihak lain tidak ditimpa. 400 reason invalid_version bila version
+        kosong/format salah. File tidak ada 404. 413 reason too_large.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+        - $ref: "#/components/parameters/Path"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeUpdateRequest" }
+            example:
+              content: "# Login\n\nAlur login v2"
+              version: 3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea
+      responses:
+        "200":
+          description: File setelah diubah (version baru)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeFile" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/KnowledgeNotFound" }
+        "409":
+          description: Versi tidak cocok (CONFLICT, reason version_conflict)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: file sudah diubah orang lain; muat ulang sebelum menyimpan
+                  details:
+                    reason: version_conflict
+                    current:
+                      content: "# Login\n\nAlur login versi Sari"
+                      version: a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90
+                      updated_at: "2026-10-24T09:05:00Z"
+                      updated_by_label: Sari
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    delete:
+      operationId: deleteKnowledgeFile
+      tags: [project-knowledge]
+      summary: Hapus satu file
+      description: Anggota dan super_admin. Query `path` wajib. File tidak ada 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+        - $ref: "#/components/parameters/Path"
+      responses:
+        "204": { description: File dihapus (tanpa body) }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/KnowledgeNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/knowledge/files/move:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    post:
+      operationId: moveKnowledgeFile
+      tags: [project-knowledge]
+      summary: Pindah atau ganti nama file
+      description: >
+        Anggota dan super_admin. Isi dan version tidak berubah. 400 reason: same_path, hidden,
+        unsupported_type, serta alasan path tidak valid. 404 bila file asal tidak ada; 409 (reason
+        path_exists) bila tujuan sudah dipakai.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeMoveRequest" }
+            example: { from: notes/todo.md, to: archive/todo.md }
+      responses:
+        "200":
+          description: File dengan path baru
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeFile" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/KnowledgeNotFound" }
+        "409": { $ref: "../infra/foundation.yml#/components/responses/Conflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/knowledge/tree:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listKnowledgeTree
+      tags: [project-knowledge]
+      summary: Pohon file satu level
+      description: >
+        Anggota dan super_admin. Mengembalikan folder dan file langsung di bawah `prefix` (kosong =
+        root). Folder diurutkan dulu, lalu file; keduanya menurut nama.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          description: Path folder; kosong untuk root.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Satu level pohon
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeTree" }
+              example:
+                prefix: docs
+                folders: [{ name: auth, path: docs/auth, file_count: 2 }]
+                files:
+                  - { name: a.md, path: docs/a.md, size_bytes: 120, updated_at: "2026-10-24T09:00:00Z" }
+                total_files: 3
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/knowledge/folders:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    delete:
+      operationId: deleteKnowledgeFolder
+      tags: [project-knowledge]
+      summary: Hapus folder beserta seluruh isinya
+      description: >
+        Anggota dan super_admin. Query `path` wajib; root tidak bisa dihapus (400 reason
+        prefix_required). Folder tidak ada atau kosong 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+        - $ref: "#/components/parameters/Path"
+      responses:
+        "200":
+          description: Jumlah file yang terhapus
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeDeleteFolderResult" }
+              example: { deleted: 3 }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/KnowledgeNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/knowledge/search:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: searchKnowledge
+      tags: [project-knowledge]
+      summary: Cari isi knowledge (full-text)
+      description: >
+        Anggota dan super_admin. Kueri tanpa kata (kosong/simbol saja) dijawab 200 dengan items []
+        dan total 0, bukan error. Hasil berurut menurut skor; snippet berupa segmen teks dengan
+        penanda sorotan. limit di luar angka (mis. abc) dijawab 400 reason invalid_limit.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: prefix
+          in: query
+          required: false
+          description: Batasi pencarian pada folder tertentu.
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Hasil pencarian
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeSearchResult" }
+              example:
+                items:
+                  - path: docs/auth/login.md
+                    title: Login
+                    score: 0.83
+                    snippet:
+                      - { text: "Alur ", highlight: false }
+                      - { text: login, highlight: true }
+                      - { text: " memakai email dan password", highlight: false }
+                total: 1
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    ProjectID:
+      name: projectID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Path:
+      name: path
+      in: query
+      required: true
+      description: Path relatif file atau folder (mis. docs/auth/login.md).
+      schema: { type: string }
+  responses:
+    ProjectNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
+        uuid (tidak bocor).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    KnowledgeNotFound:
+      description: Project, file, atau folder tidak ditemukan (NOT_FOUND)
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: file tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    FileTooLarge:
+      description: Isi file melebihi batas per file (PAYLOAD_TOO_LARGE, reason too_large)
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: PAYLOAD_TOO_LARGE
+              message: ukuran file melebihi batas 1048576 byte
+              details: { reason: too_large, max_bytes: 1048576 }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  examples:
+    KnowledgeFileExample:
+      value:
+        path: docs/auth/login.md
+        title: Login
+        content: "# Login\n\nAlur login..."
+        size_bytes: 22
+        version: 3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea
+        created_at: "2026-10-24T09:00:00Z"
+        created_by: { id: 0192f0c4-0000-7000-8000-00000000000a, label: Budi }
+        updated_at: "2026-10-24T09:00:00Z"
+        updated_by: { id: 0192f0c4-0000-7000-8000-00000000000a, label: Budi }
+  schemas:
+    KnowledgeUserRef:
+      type: object
+      required: [id, label]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+    KnowledgeFile:
+      type: object
+      required: [path, title, content, size_bytes, version, created_at, created_by, updated_at, updated_by]
+      properties:
+        path: { type: string }
+        title: { type: string }
+        content: { type: string }
+        size_bytes: { type: integer }
+        version:
+          type: string
+          description: Hash isi (64 hex); dikirim kembali pada updateKnowledgeFile.
+        created_at: { type: string, format: date-time }
+        created_by: { $ref: "#/components/schemas/KnowledgeUserRef" }
+        updated_at: { type: string, format: date-time }
+        updated_by: { $ref: "#/components/schemas/KnowledgeUserRef" }
+    KnowledgeCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [path, content]
+      properties:
+        path: { type: string }
+        content: { type: string }
+    KnowledgeUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [content, version]
+      properties:
+        content: { type: string }
+        version: { type: string, description: Nilai version dari getKnowledgeFile. }
+    KnowledgeMoveRequest:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from: { type: string }
+        to: { type: string }
+    KnowledgeFolderNode:
+      type: object
+      required: [name, path, file_count]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        file_count: { type: integer }
+    KnowledgeFileNode:
+      type: object
+      required: [name, path, size_bytes, updated_at]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        size_bytes: { type: integer }
+        updated_at: { type: string, format: date-time }
+    KnowledgeTree:
+      type: object
+      required: [prefix, folders, files, total_files]
+      properties:
+        prefix: { type: string }
+        folders:
+          type: array
+          items: { $ref: "#/components/schemas/KnowledgeFolderNode" }
+        files:
+          type: array
+          items: { $ref: "#/components/schemas/KnowledgeFileNode" }
+        total_files: { type: integer }
+    KnowledgeUploadItem:
+      type: object
+      required: [path, status]
+      properties:
+        path: { type: string }
+        status: { type: string, enum: [created, updated, unchanged, skipped, rejected] }
+        reason:
+          type: string
+          description: Alasan untuk status skipped/rejected (mis. hidden, path_traversal, too_large).
+    KnowledgeUploadResult:
+      type: object
+      required: [summary, items]
+      properties:
+        summary:
+          type: object
+          required: [created, updated, unchanged, skipped, rejected]
+          properties:
+            created: { type: integer }
+            updated: { type: integer }
+            unchanged: { type: integer }
+            skipped: { type: integer }
+            rejected: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/KnowledgeUploadItem" }
+    KnowledgeSnippetSegment:
+      type: object
+      required: [text, highlight]
+      properties:
+        text: { type: string }
+        highlight: { type: boolean }
+    KnowledgeSearchItem:
+      type: object
+      required: [path, title, score, snippet]
+      properties:
+        path: { type: string }
+        title: { type: string }
+        score: { type: number }
+        snippet:
+          type: array
+          items: { $ref: "#/components/schemas/KnowledgeSnippetSegment" }
+    KnowledgeSearchResult:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/KnowledgeSearchItem" }
+        total: { type: integer }
+    KnowledgeConflictDetails:
+      type: object
+      required: [reason, current]
+      properties:
+        reason: { type: string, enum: [version_conflict] }
+        current:
+          type: object
+          required: [content, version, updated_at, updated_by_label]
+          properties:
+            content: { type: string }
+            version: { type: string }
+            updated_at: { type: string, format: date-time }
+            updated_by_label: { type: string }
+    KnowledgeDeleteFolderResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: integer }
