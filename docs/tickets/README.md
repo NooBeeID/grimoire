@@ -5,18 +5,18 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 
 ## Daftar tiket
 
-| ID | Domain | Module | Ukuran | Bergantung pada |
-|---|---|---|---|---|
-| [T00](T00-foundation.md) | infra | foundation (bus, db, http, static, CLI) | L | – |
-| [T01](T01-core-auth.md) | core | auth | L | T00 |
-| [T02](T02-core-audit-log.md) | core | audit-log | M | T00 |
-| [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 |
-| [T04](T04-project-api-key.md) | project | api-key | M | T03 |
-| [T05](T05-project-knowledge.md) | project | knowledge | L | T03 |
-| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 |
-| [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 |
-| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 |
-| [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 |
+| ID | Domain | Module | Ukuran | Bergantung pada | Status |
+|---|---|---|---|---|---|
+| [T00](T00-foundation.md) | infra | foundation (bus, db, http, static, CLI) | L | – | Selesai (`45a7ad5`) |
+| [T01](T01-core-auth.md) | core | auth | L | T00 | Plan siap |
+| [T02](T02-core-audit-log.md) | core | audit-log | M | T00 | Belum |
+| [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Belum |
+| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Belum |
+| [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Belum |
+| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Belum |
+| [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Belum |
+| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Belum |
+| [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Belum |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
