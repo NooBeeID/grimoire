@@ -30,6 +30,37 @@ function slugFromPlanPath(p) {
   return name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
 }
 
+// Mengklasifikasikan perubahan git terhadap allowedPaths. Murni (tanpa LLM) supaya hasilnya deterministik.
+// Pada scope fullstack, frontend/ ditulis satu agent FE slicing yang berjalan paralel; tidak ada agent lain di sana yang bisa bertabrakan.
+function isolationViolations({ porcelain = [], diff = [] }, ucs, root, scope) {
+  const changes = new Map() // path -> { isNew }
+  const note = (p, isNew) => {
+    const path = p.replace(/^"|"$/g, '')
+    if (path) changes.set(path, { isNew: isNew || !!changes.get(path)?.isNew })
+  }
+  for (const line of porcelain) {
+    const xy = line.slice(0, 2), rest = line.slice(3)
+    // rename "old -> new": hanya tujuan yang dinilai (merapikan hasil kerja sendiri sah bila tujuan sah)
+    note(rest.includes(' -> ') ? rest.split(' -> ').pop() : rest, xy.includes('?') || xy.includes('A'))
+  }
+  for (const line of diff) {
+    const [st, ...paths] = line.split('\t')
+    if (st) note(paths[paths.length - 1] ?? '', st.startsWith('A'))
+  }
+  const own = ucs.flatMap((u) => u.allowedPaths)
+  const inPath = (p, base) => (base.endsWith('/') ? p.startsWith(base) : p === base)
+  const out = []
+  for (const [p, c] of changes) {
+    if (p.startsWith(`${root}/base/`) || p === `${root}/base.go` || p === 'backend/lib/constants/bus.go') { out.push(`${p} (dilarang disentuh)`); continue }
+    if (own.some((b) => inPath(p, b))) continue
+    if (scope === 'fullstack' && p.startsWith('frontend/')) continue
+    if (c.isNew && (p.startsWith('backend/lib/contracts/') || p.startsWith('backend/migrations/'))) continue
+    if (p.startsWith('.superpowers/')) continue
+    out.push(`${p} (di luar allowedPaths)`)
+  }
+  return out
+}
+
 async function runWithLimit(items, worker, limit) {
   const results = new Array(items.length); let next = 0
   async function runNext() { while (next < items.length) { const i = next++; results[i] = await worker(items[i], i) } }
@@ -155,11 +186,12 @@ async function runBody() {
     // needsHumanInput dari usecase = peringatan; completeness gate yang memutuskan lanjut/berhenti
     ucFailures.forEach((f) => { warnings.push(f); log(`Peringatan: ${f}`) })
 
-    // Guard isolasi: tidak ada diff di base/ atau base.go selama fan-out
-    const iso = must(await agent(
-      `${WT()}\nPeriksa isolasi fan-out. Jalankan "git -C ${wt} status --porcelain" dan "git -C ${wt} diff --name-only ${foundation.foundationSha}". Pelanggaran = path yang berubah/baru DAN bukan salah satu dari: (a) salah satu allowedPaths usecase: ${ucs.map((u) => `${u.slug}=[${u.allowedPaths.join(', ')}]`).join('; ')}, (b) file BARU di backend/lib/contracts/**, (c) file BARU di backend/migrations/, (d) .superpowers/**. Perubahan apa pun di ${root}/base/, ${root}/base.go, atau backend/lib/constants/bus.go juga pelanggaran. Untuk rename/pemindahan (status R) atau penghapusan: path asal dianggap sah bila path tujuan rename ada di salah satu allowedPaths, karena itu usecase merapikan hasil kerjanya sendiri. Hanya penghapusan murni file milik usecase lain, atau perubahan di base/, base.go, bus.go, yang pelanggaran. Jangan memperbaiki apa pun, hanya laporkan.`,
-      { label: 'isolation-check', model: 'haiku', effort: 'low', schema: { type: 'object', properties: { violations: { type: 'array', items: { type: 'string' } } }, required: ['violations'] } }), 'isolation-check')
-    if (iso.violations.length) halt(`isolasi usecase dilanggar: ${iso.violations.join(', ')}`)
+    // Guard isolasi. Agent hanya menyalin keluaran git; klasifikasi dilakukan di kode (isolationViolations), tanpa tafsir LLM.
+    const gitOut = must(await agent(
+      `${WT()}\nJalankan dua perintah ini apa adanya, salin keluarannya per baris tanpa menafsirkan, memfilter, atau memperbaiki apa pun, dan lewati baris kosong:\n1. git -C ${wt} status --porcelain -uall   -> isi "porcelain"\n2. git -C ${wt} diff --name-status ${foundation.foundationSha}   -> isi "diff"\nJangan menulis atau mengubah file.`,
+      { label: 'isolation-check', model: 'haiku', effort: 'low', schema: { type: 'object', properties: { porcelain: { type: 'array', items: { type: 'string' } }, diff: { type: 'array', items: { type: 'string' } } }, required: ['porcelain', 'diff'] } }), 'isolation-check')
+    const violations = isolationViolations(gitOut, ucs, root, scope)
+    if (violations.length) halt(`isolasi usecase dilanggar: ${violations.join(', ')}`)
     await progress(`| DONE | backend usecases (${ucs.length}) | limit ${limit} |`)
 
     // Wiring: satu agent
