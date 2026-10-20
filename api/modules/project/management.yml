@@ -1,0 +1,521 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Project Management
+  version: 0.1.0
+paths:
+  /api/projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: Daftar project (limit/offset)
+      description: >
+        Developer: hanya project yang diikuti. super_admin: semua project (is_member menandai
+        keanggotaan). Urutan updated_at DESC, id DESC. Parameter kosong sama dengan tidak dikirim;
+        parameter tak dikenal diabaikan. counts bernilai null bila modul isi belum tersedia.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Satu halaman project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectList" }
+              example:
+                items:
+                  - id: 0192f5a0-1111-7aaa-8bbb-000000000001
+                    name: Payments
+                    description: Layanan pembayaran internal
+                    created_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                    created_by_label: a@tim.id
+                    created_at: "2026-10-22T09:00:00Z"
+                    updated_at: "2026-10-22T10:15:00Z"
+                    my_role: member
+                    access_level: member
+                    is_member: true
+                    member_count: 2
+                    counts: { files: null, specs: null, keys: null }
+                total: 1
+                limit: 20
+                offset: 0
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Buat project
+      description: >
+        Developer yang membuat otomatis menjadi owner. super_admin membuat project tanpa anggota
+        (my_role null, access_level admin, member_count 0). Nama 2-100 karakter, deskripsi maksimal
+        1000 karakter; field tak dikenal ditolak 400.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectRequest" }
+            example: { name: Payments, description: Layanan pembayaran internal }
+      responses:
+        "201":
+          description: Project dibuat
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectSummary" }
+              example:
+                id: 0192f5a0-1111-7aaa-8bbb-000000000001
+                name: Payments
+                description: Layanan pembayaran internal
+                created_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                created_by_label: a@tim.id
+                created_at: "2026-10-22T09:00:00Z"
+                updated_at: "2026-10-22T09:00:00Z"
+                my_role: owner
+                access_level: owner
+                is_member: true
+                member_count: 1
+                counts: { files: 0, specs: 0, keys: 0 }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Detail project
+      description: >
+        Anggota (owner/member) dan super_admin. Project yang tidak ada, id bukan uuid, atau
+        project yang bukan milik pemanggil dijawab 404 yang identik (tidak bocor).
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Detail project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectDetail" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Ubah nama/deskripsi project
+      description: >
+        Owner dan super_admin. Minimal satu field (name, description). Tanpa perubahan nyata tetap
+        200 dengan data saat ini dan tanpa entri audit. Member dijawab 403; bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProjectRequest" }
+            example: { name: Payments v2 }
+      responses:
+        "200":
+          description: Project setelah diubah
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectDetail" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Hapus project (beserta isinya)
+      description: >
+        Owner dan super_admin. Body wajib memuat confirm_name yang persis sama dengan nama project;
+        bila beda 400 dengan details.reason CONFIRMATION_MISMATCH. Penghapusan berantai ke anggota
+        dan isi project. Member dijawab 403; bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeleteProjectRequest" }
+            example: { confirm_name: Payments v2 }
+      responses:
+        "204": { description: Project dihapus }
+        "400":
+          description: Body tidak valid (INVALID_ARGUMENT), atau nama konfirmasi tidak cocok (details.reason CONFIRMATION_MISMATCH)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: nama konfirmasi tidak cocok
+                  details: { reason: CONFIRMATION_MISMATCH }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/members:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listMembers
+      tags: [project-members]
+      summary: Daftar anggota project
+      description: >
+        Anggota dan super_admin. Urutan owner dulu, lalu nama, lalu id. Data user (name, email,
+        is_active) diperkaya dari modul auth; bila user tidak terbaca found=false dan name/email null.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Seluruh anggota
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemberList" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    post:
+      operationId: addMember
+      tags: [project-members]
+      summary: Tambah anggota
+      description: >
+        Owner dan super_admin. Hanya developer aktif yang bisa ditambahkan. role default member.
+        400 details.reason: USER_NOT_FOUND, USER_INACTIVE, USER_NOT_DEVELOPER. 409 details.reason
+        ALREADY_MEMBER bila sudah anggota. Member dijawab 403; bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddMemberRequest" }
+            example: { user_id: 0192f5a0-cccc-7aaa-8bbb-00000000000c, role: member }
+      responses:
+        "201":
+          description: Anggota ditambahkan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400":
+          description: Body tidak valid (details.fields) atau user tidak memenuhi syarat (details.reason)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                user_inactive:
+                  value:
+                    error:
+                      code: INVALID_ARGUMENT
+                      message: user nonaktif tidak bisa ditambahkan sebagai anggota
+                      details: { reason: USER_INACTIVE }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                user_not_developer:
+                  value:
+                    error:
+                      code: INVALID_ARGUMENT
+                      message: hanya developer yang bisa ditambahkan sebagai anggota; Super Admin tidak perlu menjadi anggota
+                      details: { reason: USER_NOT_DEVELOPER }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                user_not_found:
+                  value:
+                    error:
+                      code: INVALID_ARGUMENT
+                      message: user tidak ditemukan
+                      details: { reason: USER_NOT_FOUND }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                missing_field:
+                  value:
+                    error:
+                      code: INVALID_ARGUMENT
+                      message: permintaan tidak valid
+                      details: { fields: { user_id: wajib diisi } }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: User sudah menjadi anggota (CONFLICT, details.reason ALREADY_MEMBER)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: user sudah menjadi anggota
+                  details: { reason: ALREADY_MEMBER }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/members/{userID}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/UserID"
+    patch:
+      operationId: changeMemberRole
+      tags: [project-members]
+      summary: Ubah peran anggota
+      description: >
+        Owner dan super_admin. Peran sama dengan saat ini adalah no-op: 200 tanpa audit. Menurunkan
+        owner terakhir dijawab 409 LAST_OWNER (kecuali dilakukan super_admin). Member dijawab 403;
+        bukan anggota 404; target bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeMemberRoleRequest" }
+            example: { role: owner }
+      responses:
+        "200":
+          description: Anggota setelah diubah
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409": { $ref: "#/components/responses/LastOwner" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    delete:
+      operationId: removeMember
+      tags: [project-members]
+      summary: Keluarkan anggota atau keluar sendiri
+      description: >
+        Owner mengeluarkan anggota mana pun; anggota biasa hanya boleh mengeluarkan dirinya sendiri
+        (keluar); selain itu 403. Owner terakhir tidak bisa keluar (409 LAST_OWNER), kecuali
+        dilakukan super_admin. Tanpa body. Target bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "204": { description: Anggota dikeluarkan }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409": { $ref: "#/components/responses/LastOwner" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/member-candidates:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: searchMemberCandidates
+      tags: [project-members]
+      summary: Cari kandidat anggota (autocomplete)
+      description: >
+        Owner dan super_admin. Developer aktif yang belum menjadi anggota, dicocokkan dengan q
+        (nama atau email). q kosong menghasilkan daftar kosong. Member dijawab 403; bukan anggota 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Kandidat
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemberCandidateList" }
+              example:
+                items:
+                  - { id: 0192f5a0-cccc-7aaa-8bbb-00000000000c, name: Budiman, email: budiman@tim.id }
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    ProjectID:
+      name: projectID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserID:
+      name: userID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Q:
+      name: q
+      in: query
+      description: Mencocokkan nama project (tak peka huruf besar-kecil).
+      schema: { type: string, maxLength: 100 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+  responses:
+    ProjectNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
+        uuid (tidak bocor); untuk operasi anggota juga bila target bukan anggota.
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    LastOwner:
+      description: Owner terakhir tidak bisa keluar atau diturunkan (CONFLICT, details.reason LAST_OWNER)
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: CONFLICT
+              message: owner terakhir tidak bisa keluar atau diturunkan; angkat owner lain lebih dulu
+              details: { reason: LAST_OWNER }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  schemas:
+    ProjectRole:
+      type: string
+      enum: [owner, member]
+    ContentCounts:
+      type: object
+      description: Jumlah isi project; null bila modul isi belum tersedia atau gagal dibaca.
+      required: [files, specs, keys]
+      properties:
+        files: { type: [integer, "null"] }
+        specs: { type: [integer, "null"] }
+        keys: { type: [integer, "null"] }
+    Project:
+      type: object
+      required: [id, name, description, created_by, created_by_label, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        created_by: { type: [string, "null"], format: uuid }
+        created_by_label: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ProjectSummary:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          required: [my_role, access_level, is_member, member_count, counts]
+          properties:
+            my_role:
+              description: Peran pemanggil di project; null bila bukan anggota.
+              oneOf:
+                - $ref: "#/components/schemas/ProjectRole"
+                - type: "null"
+            access_level: { type: string, enum: [owner, member, admin] }
+            is_member: { type: boolean }
+            member_count: { type: integer, minimum: 0 }
+            counts: { $ref: "#/components/schemas/ContentCounts" }
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProjectSummary"
+        - type: object
+          required: [owner_count]
+          properties:
+            owner_count: { type: integer, minimum: 0 }
+    ProjectList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectSummary" }
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer }
+        offset: { type: integer }
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, maxLength: 1000, default: "" }
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
+    DeleteProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [confirm_name]
+      properties:
+        confirm_name: { type: string }
+    Member:
+      type: object
+      required: [user_id, name, email, is_active, found, role, added_at, added_by, added_by_label]
+      properties:
+        user_id: { type: string, format: uuid }
+        name: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        is_active: { type: boolean }
+        found: { type: boolean, description: "false bila data user gagal dibaca; name/email null." }
+        role: { $ref: "#/components/schemas/ProjectRole" }
+        added_at: { type: string, format: date-time }
+        added_by: { type: [string, "null"], format: uuid }
+        added_by_label: { type: string }
+    MemberList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Member" }
+    MemberCandidate:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+    MemberCandidateList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MemberCandidate" }
+    AddMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [user_id]
+      properties:
+        user_id: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/ProjectRole", default: member }
+    ChangeMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/ProjectRole" }

@@ -31,6 +31,16 @@ paths:
     $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1activate
   /api/users/{id}/reset-password:
     $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1reset-password
+  /api/projects:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects
+  /api/projects/{projectID}:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}
+  /api/projects/{projectID}/members:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1members
+  /api/projects/{projectID}/members/{userID}:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1members~1{userID}
+  /api/projects/{projectID}/member-candidates:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1member-candidates
 components:
   schemas:
     Error:
@@ -49,6 +59,20 @@ components:
       $ref: ./modules/core/auth.yml#/components/schemas/UserList
     UserWithTempPassword:
       $ref: ./modules/core/auth.yml#/components/schemas/UserWithTempPassword
+    Project:
+      $ref: ./modules/project/management.yml#/components/schemas/Project
+    ProjectSummary:
+      $ref: ./modules/project/management.yml#/components/schemas/ProjectSummary
+    ProjectDetail:
+      $ref: ./modules/project/management.yml#/components/schemas/ProjectDetail
+    ProjectList:
+      $ref: ./modules/project/management.yml#/components/schemas/ProjectList
+    Member:
+      $ref: ./modules/project/management.yml#/components/schemas/Member
+    MemberList:
+      $ref: ./modules/project/management.yml#/components/schemas/MemberList
+    MemberCandidateList:
+      $ref: ./modules/project/management.yml#/components/schemas/MemberCandidateList
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest
