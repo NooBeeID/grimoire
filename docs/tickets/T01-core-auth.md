@@ -42,7 +42,7 @@ SSO/OAuth, email/SMTP, reset mandiri lewat email, 2FA, registrasi mandiri, role 
 | `updateuser` | Ubah nama, email, role | `PATCH /api/users/{id}` | super_admin |
 | `setuserstatus` | Nonaktifkan / aktifkan; menonaktifkan menghapus semua sesinya | `POST /api/users/{id}/deactivate`, `/activate` | super_admin |
 | `resetpassword` | Admin menetapkan password sementara baru; flag wajib ganti aktif; sesi user dihapus | `POST /api/users/{id}/reset-password` | super_admin |
-| `createadmin` | Perintah CLI membuat Super Admin (dipanggil dari `cmd/cli`) | `./app create-admin` | operator |
+| `createadmin` | Perintah CLI membuat Super Admin (dipanggil dari `cmd/cli`) | `./grimoire create-admin` | operator |
 | `resolvesession` | Handler bus: cookie → identitas | bus `core.auth.resolve-session` | internal |
 | `getuserbus` | Handler bus: id → ringkasan user | bus `core.auth.get-user` | internal |
 | `finddevelopers` | Handler bus: cari developer aktif berdasarkan email/nama | bus `core.auth.find-developers` | internal |
@@ -95,7 +95,7 @@ Event audit yang dikirim: `auth.login.success`, `auth.login.failed` (dengan emai
 
 ## Kriteria penerimaan
 
-1. `./app create-admin` membuat Super Admin; dijalankan lagi dengan email yang sama gagal dengan pesan jelas.
+1. `./grimoire create-admin` membuat Super Admin; dijalankan lagi dengan email yang sama gagal dengan pesan jelas.
 2. Login benar menghasilkan cookie `HttpOnly`; login salah (email tak ada vs password salah) mengembalikan respons dan waktu yang setara.
 3. Setelah 5 kegagalan berturut-turut, login benar ditolak sampai jeda lewat.
 4. User dengan `must_change_password` mengakses `/api/users` → 403 `PASSWORD_CHANGE_REQUIRED`; setelah ganti password, akses normal.

@@ -1,6 +1,6 @@
-# Knowledge Hub — Daftar Tiket
+# NooBee Grimoire — Daftar Tiket
 
-Sumber: `docs/superpowers/specs/2026-10-20-knowledge-hub-design.md`.
+Sumber: `docs/superpowers/specs/2026-10-20-grimoire-design.md`.
 Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte) milik module itu.
 
 ## Daftar tiket

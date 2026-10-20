@@ -1,4 +1,4 @@
-# Knowledge Hub — Design
+# NooBee Grimoire — Design
 
 Tanggal: 2026-10-20
 Status: draft untuk review
@@ -48,7 +48,7 @@ Keputusan pengguna:
 - Satu API key = satu project.
 - Developer mana pun yang menjadi anggota project boleh membuat API key untuk project itu (tidak harus owner).
 - Pembuat project otomatis owner dan bisa mengundang developer lain.
-- Super Admin pertama dibuat lewat perintah CLI (mis. `./app create-admin`).
+- Super Admin pertama dibuat lewat perintah CLI (mis. `./grimoire create-admin`).
 
 Hak akses (keputusan pengguna):
 - Owner: menghapus project dan mengelola anggota (undang, keluarkan).

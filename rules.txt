@@ -1,7 +1,7 @@
-KNOWLEDGE HUB — ARCHITECTURE RULES
+NOOBEE GRIMOIRE — ARCHITECTURE RULES
 ==================================
 
-Sumber kebenaran aturan arsitektur. Rujukan: docs/superpowers/specs/2026-10-20-knowledge-hub-design.md
+Sumber kebenaran aturan arsitektur. Rujukan: docs/superpowers/specs/2026-10-20-grimoire-design.md
 dan docs/tickets/. Jika ada konflik, file ini menang untuk soal arsitektur; desain menang untuk soal produk.
 Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran = build gagal.
 

@@ -39,7 +39,7 @@ Akun user untuk agent, key lintas project, scope per folder/tool, kedaluwarsa ot
 
 ## Aturan bisnis
 
-- Format key: `kh_<prefix>_<secret>`; `prefix` 8 karakter acak (tampil di UI/log, unik global), `secret` ≥ 32 byte acak dari CSPRNG (base64url).
+- Format key: `gr_<prefix>_<secret>`; `prefix` 8 karakter acak (tampil di UI/log, unik global), `secret` ≥ 32 byte acak dari CSPRNG (base64url).
 - Yang disimpan hanya `SHA-256(secret)` (secret entropi tinggi, jadi hash cepat memadai) beserta prefix. Verifikasi memakai perbandingan waktu-konstan.
 - Plaintext hanya ada di respons `createkey`. Tidak ada cara menampilkannya lagi.
 - Nama wajib 2–60 karakter, unik per project (hanya antar key yang belum dicabut).
