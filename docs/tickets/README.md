@@ -156,6 +156,6 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)
 
-1. **Kegagalan audit untuk panggilan agent:** jika menulis audit gagal, panggilan MCP ditolak (fail-closed, rekomendasi saya) atau tetap dilayani dan error hanya di-log (fail-open)? Lihat T02 dan T07.
+1. ~~**Kegagalan audit untuk panggilan agent**~~ **Diputuskan: fail-open.** Jika menulis audit gagal, panggilan MCP tetap dilayani dan error hanya di-log. Lihat T02 dan T07.
 2. **Basic Auth untuk agent:** kamu awalnya menyebut "basic Auth atau apiKey". Rekomendasi saya hanya `Authorization: Bearer <key>` dan `X-API-Key`. Basic Auth dikecualikan kecuali klien MCP yang kamu pakai membutuhkannya. Lihat T07.
 3. **Kedaluwarsa API key:** apakah key perlu tanggal kedaluwarsa opsional? Saya anggap tidak untuk versi pertama. Lihat T04.

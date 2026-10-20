@@ -62,7 +62,7 @@ Setiap `tools/call` menghasilkan satu entri `core.audit.record` dengan: aktor `a
 - `mcp.auth.rejected` untuk 401 (aktor `anonymous`, prefix key bila terbaca, IP).
 - `mcp.rate_limited` untuk penolakan karena limit.
 - `tools/list` dan `initialize` dicatat ringan (`mcp.initialize`, `mcp.tools_list`) agar terlihat kapan sebuah agent terhubung.
-- Penulisan memakai `Call` sinkron. Perilaku saat gagal: lihat pertanyaan terbuka #1 (rekomendasi: fail-closed, kembalikan error tool, jangan layani).
+- Penulisan memakai `Call` sinkron. Perilaku saat gagal: **fail-open** (diputuskan): tangkap error, catat ke log aplikasi (level error), tetap layani panggilan tool.
 - Nama aksi audit harus identik dengan nama tool agar mudah difilter.
 
 ## Batas & ketahanan
@@ -103,5 +103,5 @@ Tidak ada UI sendiri. Potongan konfigurasi ada di T04; telusur aktivitas ada di 
 
 ## Pertanyaan terbuka
 
-1. **Fail-closed vs fail-open** bila audit gagal ditulis (rekomendasi: fail-closed).
+1. ~~Fail-closed vs fail-open~~ **Diputuskan: fail-open.** Audit yang gagal ditulis tidak menggagalkan panggilan tool; error di-log. Lihat T02.
 2. **Basic Auth:** perlu didukung? Kamu menyebutnya di awal. Rekomendasi: tidak; Bearer dan `X-API-Key` cukup untuk klien MCP umum.

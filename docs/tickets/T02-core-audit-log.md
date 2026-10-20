@@ -63,7 +63,7 @@ Indeks: `(occurred_at desc)`, `(project_id, occurred_at desc)`, `(actor_type, ac
 - **Isi file tidak disimpan**, hanya metadata (path, ukuran, jumlah hasil).
 - **Retensi:** `AUDIT_RETENTION_DAYS` (default 90). Job harian menghapus entri yang lebih tua, dalam batch kecil agar tidak mengunci tabel.
 - **Append-only:** tidak ada kode yang melakukan UPDATE/DELETE selain `purgeexpired`. Disarankan role DB aplikasi tanpa hak UPDATE pada tabel ini bila memungkinkan (didokumentasikan di panduan deploy).
-- **Mode tulis:** panggilan agent (`mcp.*`) dan aksi keamanan memakai `Call` (sinkron) sehingga tidak hilang saat proses mati; aksi lain boleh `Publish`. Bila `Call` gagal, perilaku mengikuti pertanyaan terbuka #1.
+- **Mode tulis:** panggilan agent (`mcp.*`) dan aksi keamanan memakai `Call` (sinkron) sehingga tidak hilang saat proses mati; aksi lain boleh `Publish`. Bila `Call` gagal, perilaku **fail-open**: pemanggil menangkap error, mencatatnya ke log aplikasi (level error), dan tetap melayani permintaan (lihat pertanyaan terbuka #1).
 - Penulisan harus murah: satu INSERT, tanpa join.
 
 ## Kontrak bus
@@ -89,8 +89,9 @@ Menu "Audit Log" khusus Super Admin:
 5. Developer memanggil `GET /api/audit-log` → 403.
 6. Entri berumur >90 hari hilang setelah job berjalan; entri baru tidak terpengaruh.
 7. Tidak ada rute atau fungsi repository yang meng-update/menghapus entri selain purge (dicek lewat tes/grep arsitektur).
-8. Filter gabungan (project + aksi + rentang waktu) memakai indeks (cek `EXPLAIN` pada data uji 1 juta baris).
+8. Bila `core.audit.record` gagal, panggilan MCP tetap berhasil dan error penulisan audit tercatat di log aplikasi (tes).
+9. Filter gabungan (project + aksi + rentang waktu) memakai indeks (cek `EXPLAIN` pada data uji 1 juta baris).
 
 ## Pertanyaan terbuka
 
-1. **Fail-closed vs fail-open** bila penulisan audit untuk panggilan agent gagal. Rekomendasi: fail-closed (panggilan MCP ditolak dengan error), karena tujuan log adalah audit. Perlu keputusanmu.
+1. ~~Fail-closed vs fail-open~~ **Diputuskan: fail-open.** Bila penulisan audit untuk panggilan agent gagal, panggilan MCP tetap dilayani; error hanya ditulis ke log aplikasi (level error) agar kegagalan terlihat. Risiko diterima: sebagian aksi agent bisa tidak tercatat saat DB audit bermasalah.
