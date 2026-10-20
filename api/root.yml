@@ -9,10 +9,20 @@ paths:
     $ref: ./modules/infra/foundation.yml#/paths/~1healthz
   /readyz:
     $ref: ./modules/infra/foundation.yml#/paths/~1readyz
+  /api/audit-log:
+    $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log
+  /api/audit-log/{id}:
+    $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log~1{id}
 components:
   schemas:
     Error:
       $ref: ./modules/infra/foundation.yml#/components/schemas/Error
+    AuditEntrySummary:
+      $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntrySummary
+    AuditEntryList:
+      $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntryList
+    AuditEntryDetail:
+      $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntryDetail
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest

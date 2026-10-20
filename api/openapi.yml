@@ -44,6 +44,175 @@ paths:
                 $ref: '#/components/schemas/HealthStatus'
               example:
                 status: unavailable
+  /api/audit-log:
+    get:
+      operationId: listAuditEntries
+      tags:
+        - audit-log
+      summary: Daftar entri audit (filter gabungan, cursor keyset)
+      description: |
+        Khusus super_admin. Urutan selalu occurred_at DESC, id DESC. Detail (args, result, ip, user_agent, trace_id) tidak ada di daftar; ambil lewat GET /api/audit-log/{id}. Parameter tak dikenal diabaikan. Tidak ada endpoint POST/PUT/PATCH/DELETE (append-only).
+      parameters:
+        - name: actor_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ActorType'
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: actor_label
+          in: query
+          description: Mengandung teks, tidak peka huruf besar-kecil.
+          schema:
+            type: string
+            maxLength: 200
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          description: Berulang (maks 20), format a.b[.c].
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              example: mcp.read_file
+        - name: status
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AuditStatus'
+        - name: from
+          in: query
+          description: RFC3339, inklusif.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: RFC3339, eksklusif.
+          schema:
+            type: string
+            format: date-time
+        - name: target
+          in: query
+          description: Mengandung teks, tidak peka huruf besar-kecil.
+          schema:
+            type: string
+            maxLength: 200
+        - name: cursor
+          in: query
+          description: Nilai opak dari next_cursor; klien tidak boleh menyusunnya.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Satu halaman entri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEntryList'
+              example:
+                items:
+                  - id: 0192f0c4-7b00-7d11-8a00-1a2b3c4d5e6f
+                    occurred_at: '2026-10-19T08:14:22.123456Z'
+                    actor_type: api_key
+                    actor_id: 0192f0c4-7a1e-7c3a-9b1d-3c4e5f6a7b8c
+                    actor_label: claude-code-budi (gk_ab12)
+                    project_id: 0192f0c4-0000-7000-8000-000000000001
+                    project_label: Payments
+                    action: mcp.read_file
+                    target_type: file
+                    target: docs/auth/login.md
+                    status: ok
+                next_cursor: MjAyNi0xMC0xOVQwODoxNDoyMFp8MDE5MmYwYzQtN2FmZi03YzAwLThiMDAtMGYwZTBkMGMwYjBh
+        '400':
+          description: Filter atau cursor tidak valid (INVALID_ARGUMENT, details.field berisi nama parameter)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: limit tidak valid
+                  details:
+                    field: limit
+                trace_id: 4f1c2b7e9a0d4e6f
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/audit-log/{id}:
+    get:
+      operationId: getAuditEntry
+      tags:
+        - audit-log
+      summary: Detail satu entri audit
+      description: |
+        Khusus super_admin. Id yang bukan uuid kanonis atau tidak ada sama-sama menghasilkan 404 dengan body identik.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Entri lengkap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEntryDetail'
+              example:
+                id: 0192f0c4-7b00-7d11-8a00-1a2b3c4d5e6f
+                occurred_at: '2026-10-19T08:14:22.123456Z'
+                actor_type: api_key
+                actor_id: 0192f0c4-7a1e-7c3a-9b1d-3c4e5f6a7b8c
+                actor_label: claude-code-budi (gk_ab12)
+                project_id: 0192f0c4-0000-7000-8000-000000000001
+                project_label: Payments
+                action: mcp.read_file
+                target_type: file
+                target: docs/auth/login.md
+                status: ok
+                args:
+                  path: docs/auth/login.md
+                  api_key: '[REDACTED]'
+                result:
+                  bytes: 4812
+                  content: '[OMITTED]'
+                ip: 203.0.113.5
+                user_agent: claude-code/2.1
+                trace_id: 9c2e41aa07b34f15
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
 components:
   schemas:
     Error:
@@ -69,6 +238,103 @@ components:
               description: Data tambahan yang aman ditampilkan (objek, array), atau null.
         trace_id:
           type: string
+    AuditEntrySummary:
+      type: object
+      required:
+        - id
+        - occurred_at
+        - actor_type
+        - actor_id
+        - actor_label
+        - project_id
+        - project_label
+        - action
+        - target_type
+        - target
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        actor_type:
+          $ref: '#/components/schemas/ActorType'
+        actor_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        actor_label:
+          type: string
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        project_label:
+          type:
+            - string
+            - 'null'
+        action:
+          type: string
+          example: mcp.read_file
+        target_type:
+          type:
+            - string
+            - 'null'
+        target:
+          type:
+            - string
+            - 'null'
+        status:
+          $ref: '#/components/schemas/AuditStatus'
+    AuditEntryList:
+      type: object
+      required:
+        - items
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntrySummary'
+        next_cursor:
+          type:
+            - string
+            - 'null'
+          description: Null pada halaman terakhir.
+    AuditEntryDetail:
+      allOf:
+        - $ref: '#/components/schemas/AuditEntrySummary'
+        - type: object
+          required:
+            - args
+            - result
+            - ip
+            - user_agent
+            - trace_id
+          properties:
+            args:
+              type: object
+              additionalProperties: true
+              description: Argumen yang sudah disanitasi.
+            result:
+              type: object
+              additionalProperties: true
+            ip:
+              type:
+                - string
+                - 'null'
+            user_agent:
+              type:
+                - string
+                - 'null'
+            trace_id:
+              type:
+                - string
+                - 'null'
     HealthStatus:
       type: object
       required:
@@ -79,6 +345,19 @@ components:
           enum:
             - ok
             - unavailable
+    ActorType:
+      type: string
+      enum:
+        - user
+        - api_key
+        - anonymous
+        - system
+    AuditStatus:
+      type: string
+      enum:
+        - ok
+        - error
+        - denied
   responses:
     BadRequest:
       description: Permintaan tidak valid (INVALID_ARGUMENT)
