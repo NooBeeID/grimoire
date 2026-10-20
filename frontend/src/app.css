@@ -1,28 +1,95 @@
+/* Token dan aturan di sini mengikuti /DESIGN.md (arah "framed-sheet"). Ubah DESIGN.md dulu, baru file ini. */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #4f46e5;
+  /* Nama lama (T00) dipertahankan sebagai alias agar komponen yang ada tetap jalan. */
+  --color-primary: #131416;
   --color-primary-fg: #ffffff;
-  --color-danger: #dc2626;
+  --color-danger: #c4242a;
   --color-surface: #ffffff;
-  --color-fg: #111827;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
-  --radius-base: 0.5rem;
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-fg: #131416;
+  --color-muted: #5d5f60;
+  --color-border: #e8eaec;
+
+  --color-ground: #f9fbfc;
+  --color-raised: #f4f6f8;
+  --color-active: #ebedee;
+  --color-rule: #f0f1f2;
+  --color-control: #cdced1;
+  --color-accent: #1b6c80;
+  --color-positive: #1e7b4f;
+  --color-warning: #92400e;
+  --color-pill-positive-bg: #dcfae5;
+  --color-pill-positive-ink: #04250e;
+  --color-pill-negative-bg: #ffedea;
+  --color-pill-negative-ink: #831c1e;
+  --color-pill-warning-bg: #fffbeb;
+  --color-pill-warning-ink: #92400e;
+  --color-pill-neutral-bg: #ebedee;
+  --color-pill-neutral-ink: #353736;
+  --color-chart-1: #1b6c80;
+  --color-chart-2: #2f70bb;
+  --color-chart-3: #a86f0c;
+
+  --radius-base: 6px;
+  --radius-card: 8px;
+  --radius-sheet: 16px;
+
+  --font-sans: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+:root {
+  --sheet-inset: 8px;
+  --sidebar-width: 228px;
+  --topbar-height: 48px;
+  --row-height: 48px;
+  --control-height: 32px;
+  --gap: 24px;
+  --pad: 24px;
+}
+
+/* Gelap (override variabel; @theme hanya boleh di level atas): elevasi lewat selisih terang, tanpa bayangan. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-surface: #0f172a;
-    --color-fg: #f1f5f9;
-    --color-muted: #94a3b8;
-    --color-border: #334155;
+    --color-primary: #f1f2f3;
+    --color-primary-fg: #131416;
+    --color-danger: #f0777b;
+    --color-surface: #16181a;
+    --color-fg: #eceef0;
+    --color-muted: #9a9ea2;
+    --color-border: #2a2d30;
+    --color-ground: #0f1113;
+    --color-raised: #1d2023;
+    --color-active: #272a2e;
+    --color-rule: #212427;
+    --color-control: #3a3e42;
+    --color-accent: #5fb4c8;
+    --color-positive: #5fc592;
+    --color-warning: #e0a45c;
+    --color-pill-positive-bg: #12301f;
+    --color-pill-positive-ink: #b6f0cd;
+    --color-pill-negative-bg: #3a1618;
+    --color-pill-negative-ink: #ffc9cb;
+    --color-pill-warning-bg: #3a2a10;
+    --color-pill-warning-ink: #f4cf9a;
+    --color-pill-neutral-bg: #272a2e;
+    --color-pill-neutral-ink: #d4d7da;
+    --color-chart-1: #5fb4c8;
+    --color-chart-2: #7ba7e0;
+    --color-chart-3: #d9a441;
   }
 }
 
 body {
-  background: var(--color-surface);
+  background: var(--color-ground);
   color: var(--color-fg);
   font-family: var(--font-sans);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }

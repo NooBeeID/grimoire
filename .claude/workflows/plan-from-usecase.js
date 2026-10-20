@@ -52,7 +52,8 @@ const CONTEXT_LOADING = `Muat konteks dengan urutan ini sebelum merancang:
 1. CLAUDE.md (jika ada)
 2. file rules di .claude/rules/ (jika ada)
 3. docs/tickets/README.md (konvensi arsitektur, katalog endpoint bus, katalog audit) dan docs/superpowers/specs/*knowledge-hub-design.md
-4. knowledge doc module terkait (docs/ atau README di folder module, jika ada)`
+4. knowledge doc module terkait (docs/ atau README di folder module, jika ada)
+5. Khusus perencanaan frontend: DESIGN.md di root repo dan skill design-taste-frontend (.claude/skills/design-taste-frontend/references/app-screens.md). Plan frontend wajib punya bagian "Visual" (pertanyaan per layar, pola DESIGN.md yang dipakai, elemen khas, token, data contoh).`
 
 const WRITE_FILE_NOTE = `PENULISAN FILE: tulis file hanya dengan Write tool. Jangan memakai heredoc atau echo (pernah gagal diam-diam dan plan hilang). Setelah menulis, Read ulang file itu untuk memastikan file ada dan isinya lengkap.`
 

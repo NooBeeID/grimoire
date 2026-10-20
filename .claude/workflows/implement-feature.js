@@ -6,6 +6,7 @@ export const meta = {
     { title: 'Setup', detail: 'git worktree add, infer scope' },
     { title: 'Backend', detail: 'decompose -> foundation -> usecase paralel -> wiring' },
     { title: 'Frontend', detail: 'slicing dengan mock (fullstack: paralel dengan backend) lalu wiring' },
+    { title: 'Design', detail: 'lint + inspect taste-skill pada FE, perbaiki FAIL (lewati bila scope backend)' },
     { title: 'Completeness', detail: 'cek gap, fix per stack, maks 2 putaran' },
   ],
 }
@@ -77,6 +78,7 @@ const progressRel = `.superpowers/sdd/${slug}/progress.md`
 
 const CONTEXT_LOADING = `Muat konteks dengan urutan: CLAUDE.md (jika ada) -> .claude/rules/ (jika ada) -> docs/tickets/README.md (konvensi arsitektur) -> knowledge doc module terkait. Lalu baca plan.`
 const NO_STOPPING_NOTE = `Selesaikan semuanya dalam satu turn. needsHumanInput=true hanya untuk ambiguitas requirement yang nyata (isi reason), bukan pertanyaan proses.`
+const DESIGN_NOTE = `DESAIN (wajib untuk kode frontend): baca DESIGN.md di root worktree dan bagian "Visual" di plan. Pakai token dari frontend/src/app.css; tanpa gradien, shadow saat diam, ikon dalam kotak berwarna, zebra, emoji, atau data contoh generik. Jalankan "node .agents/skills/design-taste-frontend/scripts/lint.mjs --app <path yang kamu ubah>" dari root worktree dan perbaiki semua FAIL.`
 const BUILD_NOTE = `Perintah verifikasi backend: "go build ./..." dan "go vet ./..." dari folder backend/. Frontend: skrip check/lint/test/build di frontend/package.json. Perbaiki sendiri error yang muncul dari pekerjaanmu.`
 
 const RESULT = {
@@ -204,7 +206,7 @@ async function runBody() {
 
   // ------------------------------------------------------------ FE helpers
   const feSlicing = async () => checkHuman(must(await agent(
-    `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nFE SLICING${scope === 'fullstack' ? ' (backend sedang dikerjakan paralel oleh agent lain)' : ''}: buat route, skeleton komponen, dan state scaffolding di frontend/src/domain/** dengan DATA MOCK. Pakai api/modules/** sebagai kontrak dan buat services/ yang memvalidasi respons dengan Zod terhadap mock. Dilarang menyentuh backend/.\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
+    `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nFE SLICING${scope === 'fullstack' ? ' (backend sedang dikerjakan paralel oleh agent lain)' : ''}: buat route, skeleton komponen, dan state scaffolding di frontend/src/domain/** dengan DATA MOCK. Pakai api/modules/** sebagai kontrak dan buat services/ yang memvalidasi respons dengan Zod terhadap mock. Dilarang menyentuh backend/.\n${DESIGN_NOTE}\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
     { label: 'implement-frontend-slicing', agentType: 'frontend-developer', schema: RESULT }), 'implement-frontend-slicing'), 'FE slicing')
 
   // -------------------------------------------------------------- Pipeline
@@ -215,7 +217,7 @@ async function runBody() {
   } else if (scope === 'frontend') {
     phase('Frontend')
     checkHuman(must(await agent(
-      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nImplementasi frontend lengkap sesuai plan, memakai API nyata dari kontrak api/modules/**. Tulis test Vitest untuk services dan komponen utama.\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
+      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nImplementasi frontend lengkap sesuai plan, memakai API nyata dari kontrak api/modules/**. Tulis test Vitest untuk services dan komponen utama.\n${DESIGN_NOTE}\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
       { label: 'implement-frontend', agentType: 'frontend-developer', schema: RESULT }), 'implement-frontend'), 'implement-frontend')
   } else {
     phase('Backend')
@@ -229,10 +231,20 @@ async function runBody() {
     phase('Frontend')
     await progress(`| DONE | FE slicing + backend pipeline | lanjut FE wiring |`)
     checkHuman(must(await agent(
-      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nFE WIRING: backend dan FE slicing sudah selesai. Ganti data mock dengan panggilan API nyata (sesuai api/modules/** dan implementasi backend yang sekarang ada), sambungkan state dan error handling, dan tulis test Vitest. Dilarang menyentuh backend/ kecuali menemukan bug kontrak: laporkan lewat needsHumanInput, jangan mengubah backend.\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
+      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}${NOTES}\n\nFE WIRING: backend dan FE slicing sudah selesai. Ganti data mock dengan panggilan API nyata (sesuai api/modules/** dan implementasi backend yang sekarang ada), sambungkan state dan error handling, dan tulis test Vitest. Dilarang menyentuh backend/ kecuali menemukan bug kontrak: laporkan lewat needsHumanInput, jangan mengubah backend.\n${DESIGN_NOTE}\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
       { label: 'implement-frontend-wiring', agentType: 'frontend-developer', schema: RESULT }), 'implement-frontend-wiring'), 'FE wiring')
   }
   await progress(`| DONE | implementasi | masuk completeness gate |`)
+
+  // ----------------------------------------------------------- Design check
+  if (scope !== 'backend') {
+    phase('Design')
+    const design = must(await agent(
+      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}\n\nDESIGN CHECK frontend. Baca DESIGN.md (root worktree) dan bagian "Visual" di plan. Dari root worktree:\n1. node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src dan perbaiki semua FAIL di file yang berasal dari fitur ini (bagian plan yang diimplementasi). WARN dianggap salah kecuali bisa dibela dalam satu kalimat; jangan menyentuh file fitur lain.\n2. Jika halaman fitur bisa dibuka tanpa backend/login (dev server Vite di port 5173, data mock), jalankan node .agents/skills/design-taste-frontend/scripts/inspect.mjs --app <url> --out .taste-skill/inspect/${slug}, lihat screenshot 1440/768/390, perbaiki hingga 3 putaran. Jika tidak bisa (butuh login/Chrome tidak ada), lewati dan tulis alasannya di summary; jangan membuat mock server baru.\n3. Bandingkan dengan DESIGN.md: token (bukan hex), tanpa shadow saat diam, mono hanya untuk ID/path/key, satu aksi utama per layar. Perbaiki penyimpangan di file fitur ini.\nJangan mengubah DESIGN.md atau token app.css. Setelah selesai jalankan check, lint, test, build frontend (BUILD_NOTE) lalu, bila ada perubahan, commit: git add -A && git commit -m "fix(${slug}): design check" dengan baris terakhir pesan "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>". Jangan push.\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
+      { label: 'design-check', agentType: 'frontend-developer', schema: RESULT }), 'design-check')
+    checkHuman(design, 'design check')
+    await progress(`| DONE | design check | ${String(design.summary).slice(0, 80)} |`)
+  }
 
   // ----------------------------------------------------------- Completeness
   phase('Completeness')
@@ -256,7 +268,7 @@ async function runBody() {
     log(`Gap ditemukan (putaran ${round}/${MAX_COMPLETENESS_ATTEMPTS}) di: ${stacks.join(', ')}`)
     // Tanpa re-decompose, tanpa re-fan-out: 1 agent fix per stack, hanya item yang kurang
     await parallel(stacks.map((st) => () => agent(
-      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}\n\nPerbaiki HANYA item yang kurang di stack ${st}:\n${result.gaps.filter((g) => g.stack === st).map((g) => `- ${g.item}`).join('\n')}\nJangan mengerjakan ulang yang sudah ada dan jangan menyentuh stack lain.\n${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
+      `${WT()}\n${CONTEXT_LOADING}\n${PLAN}\n\nPerbaiki HANYA item yang kurang di stack ${st}:\n${result.gaps.filter((g) => g.stack === st).map((g) => `- ${g.item}`).join('\n')}\nJangan mengerjakan ulang yang sudah ada dan jangan menyentuh stack lain.\n${st === 'frontend' ? DESIGN_NOTE + '\\n' : ''}${BUILD_NOTE}\n${NO_STOPPING_NOTE}`,
       { label: `fix-${st}-${round}`, agentType: st === 'backend' ? 'backend-developer' : 'frontend-developer', schema: RESULT })
       .then((r) => checkHuman(must(r, `fix-${st}`), `fix ${st}`))))
     result = await check()
