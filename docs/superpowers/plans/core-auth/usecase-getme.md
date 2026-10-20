@@ -178,7 +178,7 @@ Bukan keamanan; hanya UX (rule 12.7).
 
 ## Migration
 
-Tidak ada. `getme` tidak menyentuh tabel; seluruh data dari `reqctx.Identity`. Migrasi `20261021090000000_create_auth_tables.sql` milik F1.
+Tidak ada. `getme` tidak menyentuh tabel; seluruh data dari `reqctx.Identity`. Migrasi `20261021100000000_create_auth_tables.sql` milik F1.
 
 ## Changes
 

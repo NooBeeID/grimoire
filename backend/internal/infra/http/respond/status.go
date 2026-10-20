@@ -26,6 +26,8 @@ var (
 		errs.CodeTimeout:          http.StatusGatewayTimeout,
 		errs.CodeUnavailable:      http.StatusServiceUnavailable,
 		errs.CodeInternal:         http.StatusInternalServerError,
+
+		errs.CodePasswordChangeRequired: http.StatusForbidden,
 	}
 )
 

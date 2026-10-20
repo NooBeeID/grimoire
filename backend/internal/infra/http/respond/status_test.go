@@ -13,7 +13,7 @@ func TestStatusFor_AllCodes(t *testing.T) {
 		errs.CodeNotFound: 404, errs.CodeForbidden: 403, errs.CodeConflict: 409, errs.CodeInvalid: 400,
 		errs.CodeUnauthorized: 401, errs.CodeCSRFRequired: 403, errs.CodeRateLimited: 429,
 		errs.CodePayloadTooLarge: 413, errs.CodeMethodNotAllowed: 405, errs.CodeTimeout: 504,
-		errs.CodeUnavailable: 503, errs.CodeInternal: 500, "TIDAK_DIKENAL": 500,
+		errs.CodeUnavailable: 503, errs.CodeInternal: 500, errs.CodePasswordChangeRequired: 403, "TIDAK_DIKENAL": 500,
 	}
 	for c, want := range cases {
 		if got := StatusFor(c); got != want {

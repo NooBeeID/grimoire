@@ -10,6 +10,7 @@ import (
 	"grimoire/internal/infra/bus"
 	"grimoire/internal/infra/config"
 	"grimoire/lib/common/errs"
+	"grimoire/lib/constants"
 )
 
 func notFound(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +52,8 @@ func NewRouter(cfg config.Config, log *slog.Logger, b *bus.Registry, p Pinger) (
 	root.Head("/readyz", readyz(p))
 
 	api = chi.NewRouter()
-	api.Use(middleware.Timeout(cfg.HTTPDefaultTimeout), middleware.CSRF(), middleware.Session(b, cfg.CookieSecure))
+	api.Use(middleware.Timeout(cfg.HTTPDefaultTimeout), middleware.CSRF(), middleware.Session(b, cfg.CookieSecure),
+		middleware.PasswordChangeGate(constants.PasswordGateExempt))
 	api.NotFound(notFound)
 	api.MethodNotAllowed(methodNotAllowed(func() chi.Routes { return api }))
 	root.Mount("/api", api)

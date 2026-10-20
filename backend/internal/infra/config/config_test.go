@@ -36,6 +36,9 @@ func TestLoad_Defaults(t *testing.T) {
 		HTTPReadHeaderTimeout: 10 * time.Second, HTTPDefaultTimeout: 30 * time.Second,
 		ShutdownTimeout: 15 * time.Second, BusShutdownTimeout: 5 * time.Second,
 		LogLevel: "info", LogFormat: "json",
+		SessionIdleTimeout: 12 * time.Hour, SessionAbsoluteTimeout: 168 * time.Hour, PasswordMinLength: 10,
+		Argon2MemoryKiB: 65536, Argon2Iterations: 3, Argon2Parallelism: 2, LoginMaxFailures: 5,
+		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20,
 	}
 	if c != want {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -163,6 +166,52 @@ func TestMaskURL(t *testing.T) {
 	for in, want := range cases {
 		if got := maskURL(in); got != want {
 			t.Errorf("maskURL(%q)=%q want %q", in, got, want)
+		}
+	}
+}
+
+func TestLoad_AuthDefaults(t *testing.T) {
+	c, err := Load(env(base(nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SessionIdleTimeout != 12*time.Hour || c.SessionAbsoluteTimeout != 168*time.Hour || c.PasswordMinLength != 10 ||
+		c.Argon2MemoryKiB != 65536 || c.Argon2Iterations != 3 || c.Argon2Parallelism != 2 ||
+		c.LoginMaxFailures != 5 || c.LoginFailureWindow != 15*time.Minute || c.LoginLockDuration != 15*time.Minute ||
+		c.LoginRatePerMinute != 20 {
+		t.Fatalf("auth defaults salah: %+v", c)
+	}
+}
+
+func TestLoad_AuthOverrides(t *testing.T) {
+	c, err := Load(env(base(map[string]string{
+		"SESSION_IDLE_TIMEOUT": "1h", "SESSION_ABSOLUTE_TIMEOUT": "2h", "PASSWORD_MIN_LENGTH": "12",
+		"ARGON2_MEMORY_KIB": "8192", "ARGON2_ITERATIONS": "1", "ARGON2_PARALLELISM": "1",
+		"LOGIN_MAX_FAILURES": "3", "LOGIN_FAILURE_WINDOW": "5m", "LOGIN_LOCK_DURATION": "10m", "LOGIN_RATE_PER_MINUTE": "50",
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SessionIdleTimeout != time.Hour || c.PasswordMinLength != 12 || c.Argon2MemoryKiB != 8192 ||
+		c.LoginMaxFailures != 3 || c.LoginLockDuration != 10*time.Minute || c.LoginRatePerMinute != 50 {
+		t.Fatalf("override salah: %+v", c)
+	}
+}
+
+func TestLoad_AuthInvalid(t *testing.T) {
+	_, err := Load(env(base(map[string]string{
+		"SESSION_IDLE_TIMEOUT": "10h", "SESSION_ABSOLUTE_TIMEOUT": "1h", "PASSWORD_MIN_LENGTH": "7",
+		"ARGON2_PARALLELISM": "0", "ARGON2_MEMORY_KIB": "100", "ARGON2_ITERATIONS": "21",
+		"LOGIN_MAX_FAILURES": "101", "LOGIN_RATE_PER_MINUTE": "0", "LOGIN_LOCK_DURATION": "0s",
+	})))
+	p := strings.Join(problems(t, err), "\n")
+	for _, want := range []string{
+		"SESSION_IDLE_TIMEOUT: tidak boleh melebihi", "PASSWORD_MIN_LENGTH: minimal 8", "ARGON2_PARALLELISM: minimal 1",
+		"ARGON2_MEMORY_KIB: minimal 8192", "ARGON2_ITERATIONS: maksimal 20", "LOGIN_MAX_FAILURES: maksimal 100",
+		"LOGIN_RATE_PER_MINUTE: minimal 1", "LOGIN_LOCK_DURATION: harus lebih dari 0",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("tidak memuat %q dalam:\n%s", want, p)
 		}
 	}
 }

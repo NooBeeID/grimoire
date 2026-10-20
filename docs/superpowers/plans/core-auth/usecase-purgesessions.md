@@ -1,6 +1,6 @@
 # T01 core/auth — Usecase `purgesessions` (job `core.auth.purge-sessions`)
 
-Melengkapi `docs/superpowers/plans/core-auth/overview.md` (U15, gelombang C). Prasyarat dari foundation F1: migrasi `20261021090000000_create_auth_tables.sql` (tabel `sessions`, `login_throttles` beserta indeksnya), `base.Shared` (`Clock`, `Session.IdleTimeout`, `Throttle.Window`), `base.LoginThrottle.Expired`, `auth/base.go` dengan pola `<feature>.Init(d, shared)`. Konvensi: `docs/tickets/README.md` dan `rules.txt`. Overview menang bila ada konflik. Pola job mengikuti `docs/superpowers/plans/core-audit-log/usecase-purgeexpired.md`.
+Melengkapi `docs/superpowers/plans/core-auth/overview.md` (U15, gelombang C). Prasyarat dari foundation F1: migrasi `20261021100000000_create_auth_tables.sql` (tabel `sessions`, `login_throttles` beserta indeksnya), `base.Shared` (`Clock`, `Session.IdleTimeout`, `Throttle.Window`), `base.LoginThrottle.Expired`, `auth/base.go` dengan pola `<feature>.Init(d, shared)`. Konvensi: `docs/tickets/README.md` dan `rules.txt`. Overview menang bila ada konflik. Pola job mengikuti `docs/superpowers/plans/core-audit-log/usecase-purgeexpired.md`.
 
 ## Metadata
 
@@ -131,7 +131,7 @@ Urutan wajib. Semua file di `backend/internal/domain/core/internal/auth/purgeses
 
 ## Migration
 
-Tidak ada. Memakai tabel dan indeks dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (foundation F1): `sessions_expires_at_idx`, `sessions_last_seen_at_idx`, `login_throttles_window_idx`. Role DB aplikasi butuh hak DELETE pada kedua tabel (sudah tercakup hak tabel biasa).
+Tidak ada. Memakai tabel dan indeks dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (foundation F1): `sessions_expires_at_idx`, `sessions_last_seen_at_idx`, `login_throttles_window_idx`. Role DB aplikasi butuh hak DELETE pada kedua tabel (sudah tercakup hak tabel biasa).
 
 ## Changes
 

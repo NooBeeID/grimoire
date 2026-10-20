@@ -212,3 +212,20 @@ func TestNewServer_Settings(t *testing.T) {
 		t.Fatalf("%+v", srv.Server)
 	}
 }
+
+func TestRouter_PasswordGateAfterSession(t *testing.T) {
+	s := newStack(t, nil, nil)
+	registerSession(s.bus, func(string) (resolvesession.Response, error) {
+		return resolvesession.Response{Found: true, UserID: "u", Role: "super_admin", MustChangePassword: true}, nil
+	})
+	s.api.With(middleware.RequireAuth()).Get("/users", okHandler)
+	s.api.With(middleware.RequireAuth()).Get("/auth/me", okHandler)
+	ck := map[string]string{"Cookie": middleware.SessionCookieName + "=tok"}
+	w := do(s.root, "GET", "/api/users", ck, "")
+	if w.Code != 403 || decodeErr(t, w).Error.Code != "PASSWORD_CHANGE_REQUIRED" {
+		t.Fatalf("got %d %s", w.Code, w.Body.String())
+	}
+	if w := do(s.root, "GET", "/api/auth/me", ck, ""); w.Code != 200 {
+		t.Fatalf("me: %d", w.Code)
+	}
+}

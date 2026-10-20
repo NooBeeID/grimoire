@@ -10,6 +10,8 @@
   import { notFoundRoute } from './routes/index';
   import { current, navigate } from './routes/router';
   import PendingView from './views/PendingView.svelte';
+  import SessionErrorView from './views/SessionErrorView.svelte';
+  import { boot, bootState } from './boot';
 
   const res = $derived(resolve($current.match, $session, $current.location.fullPath));
 
@@ -28,7 +30,13 @@
     {@const View = res.route.view}
     <Layout><View params={res.params} /></Layout>
   {:else if res.kind === 'pending'}
-    <BlankLayout><PendingView /></BlankLayout>
+    <BlankLayout>
+      {#if $bootState.kind === 'failed'}
+        <SessionErrorView error={$bootState.error} onretry={() => void boot()} />
+      {:else}
+        <PendingView />
+      {/if}
+    </BlankLayout>
   {:else if res.kind === 'notfound'}
     {@const View = notFoundRoute.view}
     <BlankLayout><View /></BlankLayout>

@@ -30,6 +30,8 @@ const (
 	CodeTimeout          Code = "TIMEOUT"            // 504
 	CodeUnavailable      Code = "UNAVAILABLE"        // 503
 	CodeInternal         Code = "INTERNAL"           // 500
+
+	CodePasswordChangeRequired Code = "PASSWORD_CHANGE_REQUIRED" // 403
 )
 
 // Error adalah error terstruktur. Err tidak pernah dikirim ke klien.

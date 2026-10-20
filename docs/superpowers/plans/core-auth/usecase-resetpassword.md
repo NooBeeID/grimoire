@@ -228,7 +228,7 @@ func Init(d app.Deps, s base.Shared) {
 
 ## 4. Migration
 
-Tidak ada migrasi baru. Memakai `users` dan `sessions` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `users.password_hash`, `users.must_change_password`, `users.updated_at`; baris `sessions` dihapus per `user_id` (didukung `sessions_user_id_idx`).
+Tidak ada migrasi baru. Memakai `users` dan `sessions` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `users.password_hash`, `users.must_change_password`, `users.updated_at`; baris `sessions` dihapus per `user_id` (didukung `sessions_user_id_idx`).
 
 ---
 

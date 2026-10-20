@@ -24,7 +24,7 @@ Melengkapi `docs/superpowers/plans/core-auth/overview.md` (F1 foundation: `base.
 
 Catatan nama package (kode T00 yang sudah merge): folder middleware ada di `backend/internal/infra/middleware` (konstanta `SessionCookieName`), router di `internal/infra/http`, scheduler di `internal/infra/jobs`. Plan ini hanya memakai simbol bus (`bus.Expect`, `bus.Handler`, `Registry.Register`), `db.Querier`, `app.Deps`.
 
-Prasyarat dari F1 (jangan dikerjakan di sini; bila belum ada, hentikan dan laporkan lewat needsHumanInput): `base.Session` (`IsValid`, `NeedsTouch`), `base.User` (`CanLogin`), `base.HashToken`, `base.TokenBytes`, `base.TouchInterval`, `base.Shared` (`Session`, `Clock`), migrasi `core/20261021090000000_create_auth_tables.sql`, konfigurasi `SESSION_IDLE_TIMEOUT`/`SESSION_ABSOLUTE_TIMEOUT`.
+Prasyarat dari F1 (jangan dikerjakan di sini; bila belum ada, hentikan dan laporkan lewat needsHumanInput): `base.Session` (`IsValid`, `NeedsTouch`), `base.User` (`CanLogin`), `base.HashToken`, `base.TokenBytes`, `base.TouchInterval`, `base.Shared` (`Session`, `Clock`), migrasi `core/20261021100000000_create_auth_tables.sql`, konfigurasi `SESSION_IDLE_TIMEOUT`/`SESSION_ABSOLUTE_TIMEOUT`.
 
 ## Summary Plan
 
@@ -156,7 +156,7 @@ Tambah satu baris `resolvesession.Init(d, shared)` di `Register`. Jangan menyent
 
 ## Migration
 
-Tidak ada. Memakai tabel `sessions` dan `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1). Indeks yang diandalkan: `sessions_token_hash_key` (unik) untuk lookup, PK `users.id` untuk join.
+Tidak ada. Memakai tabel `sessions` dan `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1). Indeks yang diandalkan: `sessions_token_hash_key` (unik) untuk lookup, PK `users.id` untuk join.
 
 ## Changes
 

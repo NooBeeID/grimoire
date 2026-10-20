@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -303,12 +304,16 @@ func TestMigrate_ConnectionReturnedClean(t *testing.T) {
 func TestUp_EmbeddedFS(t *testing.T) {
 	d := TestDB(t)
 	res, err := Up(context.Background(), d, nil)
-	if err != nil || len(res.Applied) != 1 || res.Applied[0] != "core/20261021090000000_create_audit_log.sql" {
-		t.Fatalf("run 1: res=%v err=%v", res, err)
+	wantApplied := []string{"core/20261021090000000_create_audit_log.sql", "core/20261021100000000_create_auth_tables.sql"}
+	if err != nil || !reflect.DeepEqual(res.Applied, wantApplied) {
+		t.Fatalf("run 1: res=%v err=%v, want %v", res, err, wantApplied)
 	}
 	res, err = Up(context.Background(), d, nil)
 	if err != nil || len(res.Applied) != 0 {
 		t.Fatalf("run 2 (idempoten): res=%v err=%v", res, err)
+	}
+	if res2, err := Up(context.Background(), d, nil); err != nil || len(res2.Applied) != 0 {
+		t.Fatalf("idempoten: res=%v err=%v", res2, err)
 	}
 }
 

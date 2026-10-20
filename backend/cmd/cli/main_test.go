@@ -3,10 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"grimoire/cmd/internal/buildinfo"
+	"grimoire/lib/common/errs"
 )
 
 type harness struct {
@@ -159,18 +164,83 @@ func TestCreateAdmin_UnknownFlag(t *testing.T) {
 	}
 }
 
-func TestCreateAdmin_NotAvailableUntilT01(t *testing.T) {
-	h := newTestCLI(t, map[string]string{"CREATE_ADMIN_PASSWORD": "rahasia123"}, "", false)
-	if code := h.run("create-admin", "--email", "a@b.co", "--name", "Admin"); code != 1 {
+func TestCreateAdmin_Success_PassesArgs(t *testing.T) {
+	h := newTestCLI(t, map[string]string{"CREATE_ADMIN_PASSWORD": "kata-sandi-panjang"}, "", false)
+	var got createAdminArgs
+	h.c.createAdminRun = func(_ context.Context, a createAdminArgs) error {
+		got = a
+		fmt.Fprintf(h.c.stdout, "admin %s dibuat (id x)\n", a.Email)
+		return nil
+	}
+	if code := h.run("create-admin", "--email", "a@b.co", "--name", " Admin "); code != 0 {
 		t.Fatalf("code = %d", code)
 	}
-	if !strings.Contains(h.stderr.String(), "create-admin belum tersedia (butuh T01)") {
-		t.Errorf("stderr = %q", h.stderr)
+	if got != (createAdminArgs{Email: "a@b.co", Name: "Admin", Password: "kata-sandi-panjang"}) {
+		t.Errorf("args = %+v", got)
+	}
+	if h.stdout.String() != "admin a@b.co dibuat (id x)\n" || h.stderr.Len() != 0 {
+		t.Errorf("out=%q err=%q", h.stdout, h.stderr)
+	}
+}
+
+func runWithErr(t *testing.T, err error) *harness {
+	t.Helper()
+	h := newTestCLI(t, map[string]string{"CREATE_ADMIN_PASSWORD": "rahasia123"}, "", false)
+	h.c.createAdminRun = func(context.Context, createAdminArgs) error { return err }
+	if code := h.run("create-admin", "--email", "a@b.co", "--name", "Admin"); code != 1 {
+		t.Fatalf("code = %d", code)
 	}
 	if strings.Contains(h.stdout.String()+h.stderr.String(), "rahasia123") {
 		t.Error("password bocor")
 	}
-	if h.serveN+h.migN != 0 {
-		t.Error("stub terpanggil")
+	return h
+}
+
+func TestCreateAdmin_ConflictMessage(t *testing.T) {
+	h := runWithErr(t, fmt.Errorf("x: %w", errs.New(errs.CodeConflict, "email sudah terdaftar")))
+	if h.stderr.String() != "email sudah terdaftar\n" {
+		t.Errorf("stderr = %q", h.stderr)
+	}
+}
+
+func TestCreateAdmin_ValidationFieldsPrinted(t *testing.T) {
+	type fieldErrors map[string]string // meniru base.FieldErrors
+	e := errs.WithDetails(errs.CodeInvalid, "permintaan tidak valid", map[string]any{
+		"fields": fieldErrors{"password": "minimal 10 karakter", "email": "format email tidak valid"}})
+	h := runWithErr(t, e)
+	want := "permintaan tidak valid\n  email: format email tidak valid\n  password: minimal 10 karakter\n"
+	if h.stderr.String() != want {
+		t.Errorf("stderr = %q", h.stderr)
+	}
+}
+
+func TestCreateAdmin_MissingTableHint(t *testing.T) {
+	h := runWithErr(t, fmt.Errorf("createadmin: insert user: %w", &pgconn.PgError{Code: "42P01", Message: "relation users"}))
+	if !strings.Contains(h.stderr.String(), `grimoire migrate up`) || strings.Contains(h.stderr.String(), "relation") {
+		t.Errorf("stderr = %q", h.stderr)
+	}
+}
+
+func TestCreateAdmin_GenericErrorHidesDetails(t *testing.T) {
+	h := runWithErr(t, errors.New("dial tcp: password=rahasia123 salah"))
+	if h.stderr.String() != "gagal membuat admin; periksa log\n" {
+		t.Errorf("stderr = %q", h.stderr)
+	}
+}
+
+func TestCreateAdmin_AlreadyReportedPrintsNothing(t *testing.T) {
+	h := runWithErr(t, errAlreadyReported)
+	if h.stderr.Len() != 0 {
+		t.Errorf("stderr = %q", h.stderr)
+	}
+}
+
+func TestCreateAdmin_InvalidConfigReportsEnv(t *testing.T) {
+	h := newTestCLI(t, map[string]string{"CREATE_ADMIN_PASSWORD": "rahasia123"}, "", false)
+	if code := h.run("create-admin", "--email", "a@b.co", "--name", "Admin"); code != 1 {
+		t.Fatalf("code = %d", code)
+	}
+	if !strings.Contains(h.stderr.String(), "DATABASE_URL") || strings.Contains(h.stderr.String(), "rahasia123") {
+		t.Errorf("stderr = %q", h.stderr)
 	}
 }

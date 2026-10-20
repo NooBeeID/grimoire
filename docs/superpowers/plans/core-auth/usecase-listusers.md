@@ -310,7 +310,7 @@ Kunci baru di `shared/i18n/id.json` dan `en.json` (kedua file, test paritas kunc
 
 ## Migration
 
-Tidak ada. Tabel `users` dan indeks `users_role_active_idx` dibuat F1 (`backend/migrations/core/20261021090000000_create_auth_tables.sql`). Tidak ada indeks `lower(name)` (overview D6).
+Tidak ada. Tabel `users` dan indeks `users_role_active_idx` dibuat F1 (`backend/migrations/core/20261021100000000_create_auth_tables.sql`). Tidak ada indeks `lower(name)` (overview D6).
 
 ## Changes
 

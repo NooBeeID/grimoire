@@ -8,13 +8,25 @@
 // Daftarkan route dengan meng-import index.ts feature, mis.
 //   import { LoginView } from '../../domain/core/auth/login';
 //   { path: '/login', view: LoginView, meta: { layout: 'blank' } }
+import { LoginView } from '../../domain/core/auth/login';
+import ChangePasswordRouteView from '../views/ChangePasswordRouteView.svelte';
 import HomeView from '../views/HomeView.svelte';
 import AuditLogView from '../views/AuditLogView.svelte';
 import NotFoundView from '../views/NotFoundView.svelte';
+import ProfileView from '../views/ProfileView.svelte';
+import UsersView from '../views/UsersView.svelte';
 import type { RouteDef } from './router';
 
 export const routes: RouteDef[] = [
-  { path: '/', view: HomeView, meta: { layout: 'blank', titleKey: 'home.title' } },
+  { path: '/', view: HomeView, meta: { auth: true, layout: 'app', titleKey: 'home.title' } },
+  { path: '/login', view: LoginView, meta: { guestOnly: true, layout: 'blank', titleKey: 'auth.login.title' } },
+  {
+    path: '/change-password',
+    view: ChangePasswordRouteView,
+    meta: { auth: true, passwordChangeRoute: true, layout: 'blank', titleKey: 'auth.changePassword.forcedTitle' },
+  },
+  { path: '/profile', view: ProfileView, meta: { auth: true, layout: 'app', titleKey: 'auth.profile.title' } },
+  { path: '/admin/users', view: UsersView, meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'users.title' } },
   {
     path: '/audit-log',
     view: AuditLogView,

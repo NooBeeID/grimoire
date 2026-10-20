@@ -267,7 +267,7 @@ Tulis test integrasi (bagian 6) dan jalankan `go vet ./...`, `go test ./...`, `m
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `users` dan `sessions` dari migrasi F1 `backend/migrations/core/20261021090000000_create_auth_tables.sql`. Kolom yang dipakai: `users.password_hash`, `users.must_change_password`, `users.updated_at`, `sessions.user_id`, `sessions.token_hash`. Indeks `sessions_user_id_idx` sudah mendukung DELETE per user.
+Tidak ada. Memakai tabel `users` dan `sessions` dari migrasi F1 `backend/migrations/core/20261021100000000_create_auth_tables.sql`. Kolom yang dipakai: `users.password_hash`, `users.must_change_password`, `users.updated_at`, `sessions.user_id`, `sessions.token_hash`. Indeks `sessions_user_id_idx` sudah mendukung DELETE per user.
 
 ---
 

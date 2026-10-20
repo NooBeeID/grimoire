@@ -36,6 +36,17 @@ type Config struct {
 	LogLevel              string        `env:"LOG_LEVEL"`
 	LogFormat             string        `env:"LOG_FORMAT"`
 	DevViteURL            string        `env:"DEV_VITE_URL"`
+
+	SessionIdleTimeout     time.Duration `env:"SESSION_IDLE_TIMEOUT"`
+	SessionAbsoluteTimeout time.Duration `env:"SESSION_ABSOLUTE_TIMEOUT"`
+	PasswordMinLength      int           `env:"PASSWORD_MIN_LENGTH"`
+	Argon2MemoryKiB        uint32        `env:"ARGON2_MEMORY_KIB"`
+	Argon2Iterations       uint32        `env:"ARGON2_ITERATIONS"`
+	Argon2Parallelism      uint8         `env:"ARGON2_PARALLELISM"`
+	LoginMaxFailures       int           `env:"LOGIN_MAX_FAILURES"`
+	LoginFailureWindow     time.Duration `env:"LOGIN_FAILURE_WINDOW"`
+	LoginLockDuration      time.Duration `env:"LOGIN_LOCK_DURATION"`
+	LoginRatePerMinute     int           `env:"LOGIN_RATE_PER_MINUTE"`
 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
@@ -122,6 +133,16 @@ func (l *loader) int64(env string, def, min int64) (int64, bool) {
 func (l *loader) intv(env string, def, min int) (int, bool) {
 	n, ok := l.int64(env, int64(def), int64(min))
 	return int(n), ok
+}
+
+// intr membaca int dengan batas bawah dan atas (inklusif).
+func (l *loader) intr(env string, def, min, max int) (int, bool) {
+	n, ok := l.intv(env, def, min)
+	if ok && n > max {
+		l.fail(env, "maksimal %d (sekarang %d)", max, n)
+		return def, false
+	}
+	return n, ok
 }
 
 func (l *loader) dur(env string, def time.Duration) time.Duration {
@@ -211,6 +232,24 @@ func Load(getenv func(string) string) (Config, error) {
 	c.LogLevel, _ = l.enum("LOG_LEVEL", "info", "debug", "info", "warn", "error")
 	c.LogFormat, _ = l.enum("LOG_FORMAT", "json", "json", "text")
 
+	// Auth (T01).
+	c.SessionIdleTimeout = l.dur("SESSION_IDLE_TIMEOUT", 12*time.Hour)
+	c.SessionAbsoluteTimeout = l.dur("SESSION_ABSOLUTE_TIMEOUT", 168*time.Hour)
+	if c.SessionIdleTimeout > c.SessionAbsoluteTimeout {
+		l.fail("SESSION_IDLE_TIMEOUT", "tidak boleh melebihi SESSION_ABSOLUTE_TIMEOUT (%s > %s)", c.SessionIdleTimeout, c.SessionAbsoluteTimeout)
+	}
+	c.PasswordMinLength, _ = l.intr("PASSWORD_MIN_LENGTH", 10, 8, 128)
+	mem, _ := l.intr("ARGON2_MEMORY_KIB", 65536, 8192, 4194304)
+	c.Argon2MemoryKiB = uint32(mem)
+	it, _ := l.intr("ARGON2_ITERATIONS", 3, 1, 20)
+	c.Argon2Iterations = uint32(it)
+	par, _ := l.intr("ARGON2_PARALLELISM", 2, 1, 16)
+	c.Argon2Parallelism = uint8(par)
+	c.LoginMaxFailures, _ = l.intr("LOGIN_MAX_FAILURES", 5, 1, 100)
+	c.LoginFailureWindow = l.dur("LOGIN_FAILURE_WINDOW", 15*time.Minute)
+	c.LoginLockDuration = l.dur("LOGIN_LOCK_DURATION", 15*time.Minute)
+	c.LoginRatePerMinute, _ = l.intr("LOGIN_RATE_PER_MINUTE", 20, 1, 1000)
+
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
 		u, err := url.Parse(v)
@@ -290,5 +329,15 @@ func (c Config) LogValue() slog.Value {
 		slog.String("log_level", m.LogLevel),
 		slog.String("log_format", m.LogFormat),
 		slog.String("dev_vite_url", m.DevViteURL),
+		slog.Duration("session_idle_timeout", m.SessionIdleTimeout),
+		slog.Duration("session_absolute_timeout", m.SessionAbsoluteTimeout),
+		slog.Int("password_min_length", m.PasswordMinLength),
+		slog.Int("argon2_memory_kib", int(m.Argon2MemoryKiB)),
+		slog.Int("argon2_iterations", int(m.Argon2Iterations)),
+		slog.Int("argon2_parallelism", int(m.Argon2Parallelism)),
+		slog.Int("login_max_failures", m.LoginMaxFailures),
+		slog.Duration("login_failure_window", m.LoginFailureWindow),
+		slog.Duration("login_lock_duration", m.LoginLockDuration),
+		slog.Int("login_rate_per_minute", m.LoginRatePerMinute),
 	)
 }

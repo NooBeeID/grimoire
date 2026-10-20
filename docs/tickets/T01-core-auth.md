@@ -66,13 +66,16 @@ SSO/OAuth, email/SMTP, reset mandiri lewat email, 2FA, registrasi mandiri, role 
 users(id uuid pk, email citext unique, name text, password_hash text,
       role text check in ('super_admin','developer'),
       is_active bool, must_change_password bool,
-      failed_login_count int, locked_until timestamptz null,
       created_at, created_by uuid null, updated_at, last_login_at null)
 sessions(id uuid pk, user_id fk→users on delete cascade, token_hash bytea unique,
          created_at, last_seen_at, expires_at, ip inet, user_agent text)
+login_throttles(email citext pk, failed_count int, window_started_at timestamptz,
+                locked_until timestamptz null, updated_at)
 ```
 
-Migrasi di `migrations/core/`.
+`login_throttles` dikunci per email, baik email terdaftar maupun tidak (keputusan D1): lockout tidak membocorkan keberadaan akun. Karena itu `failed_login_count` dan `locked_until` TIDAK ada di `users`. Baris dibersihkan job `core.auth.purge-sessions`.
+
+Migrasi di `migrations/core/` (`20261021100000000_create_auth_tables.sql`; memerlukan ekstensi `citext`).
 
 ## Kontrak bus
 
@@ -80,8 +83,9 @@ Disediakan (`lib/contracts/core/auth/...`):
 - `core.auth.resolve-session` Call — `{Token}` → `{Found, UserID, Email, Name, Role, MustChangePassword}`.
 - `core.auth.get-user` Call — `{UserID}` → `{Found, ID, Name, Email, Role, IsActive}`.
 - `core.auth.find-developers` Call — `{Query, Limit}` → daftar `{ID, Name, Email}` developer aktif.
+- `core.auth.create-admin` Call — `{Email, Name, Password}` → `{UserID}` (consumer: `cmd/cli`).
 
-Dikonsumsi: `core.audit.record` (T02) — gunakan `Publish` untuk event di bawah, kecuali `auth.login.failed` yang boleh `Publish` juga.
+Dikonsumsi: `core.audit.record` (T02) — dikirim dengan `bus.Call` setelah transaksi commit (keputusan D2, fail-open: kegagalan audit hanya di-log). Aksi keamanan memakai Call, bukan Publish.
 
 Event audit yang dikirim: `auth.login.success`, `auth.login.failed` (dengan email yang dicoba, tanpa password), `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated` (field yang berubah), `user.deactivated`, `user.activated`.
 

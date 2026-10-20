@@ -200,7 +200,7 @@ func Init(d app.Deps, s base.Shared) {
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `users` dan `sessions` dari migrasi F1 `backend/migrations/core/20261021090000000_create_auth_tables.sql`. Index `users_role_active_idx (role, is_active)` sudah mendukung query set super admin aktif dan `sessions_user_id_idx` mendukung delete sesi per user.
+Tidak ada. Memakai tabel `users` dan `sessions` dari migrasi F1 `backend/migrations/core/20261021100000000_create_auth_tables.sql`. Index `users_role_active_idx (role, is_active)` sudah mendukung query set super admin aktif dan `sessions_user_id_idx` mendukung delete sesi per user.
 
 ---
 

@@ -154,7 +154,7 @@ Ikuti tipe `d.DB` yang dipakai feature lain. Tidak ada route HTTP.
 
 ## Migration
 
-Tidak ada. `getuserbus` hanya membaca tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (milik F1).
+Tidak ada. `getuserbus` hanya membaca tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (milik F1).
 
 ## Changes
 

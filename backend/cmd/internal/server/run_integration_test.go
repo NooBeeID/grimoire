@@ -55,7 +55,9 @@ func testDBURL(t *testing.T) (dbURL, schema string, admin *sql.DB) {
 		t.Fatal(err)
 	}
 	q := u.Query()
-	q.Set("search_path", schema)
+	// public ikut di search_path: ekstensi citext (migrasi auth) dipasang di sana.
+	_, _ = admin.Exec("CREATE EXTENSION IF NOT EXISTS citext SCHEMA public")
+	q.Set("search_path", schema+",public")
 	u.RawQuery = q.Encode()
 	return u.String(), schema, admin
 }
@@ -332,7 +334,7 @@ func TestMigrateUp_PrintsApplied(t *testing.T) {
 	dbURL, _, _ := testDBURL(t)
 	cfg := testCfg(t, dbURL, nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\n", "tidak ada migrasi baru\n"} {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\n", "tidak ada migrasi baru\n"} {
 		var out bytes.Buffer
 		if err := MigrateUp(context.Background(), cfg, log, &out); err != nil {
 			t.Fatal(err)

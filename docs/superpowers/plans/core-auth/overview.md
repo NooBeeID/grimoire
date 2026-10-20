@@ -614,7 +614,7 @@ Ubah catatan `resolve-session`: handler sudah diimplementasi T01. Ubah baris `co
 
 ## 6. Migration
 
-Satu file: `backend/migrations/core/20261021090000000_create_auth_tables.sql`
+Satu file: `backend/migrations/core/20261021100000000_create_auth_tables.sql`
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS citext;
@@ -723,7 +723,7 @@ Feature hanya saling bergantung lewat `base`, sehingga gelombang B dan C secara 
    - `lib/contracts/core/audit/record/record.go` bila belum dibuat T02.
    - Hanya stdlib (rule 4.5).
 5. **Passwordgate**: `httpx/passwordgate.go` dan `passwordgate_test.go`. Pasang di `NewRouter` setelah `Session`. Tambah satu kasus di `router_test.go` untuk urutan middleware.
-6. **Migrasi**: `backend/migrations/core/20261021090000000_create_auth_tables.sql` (bagian 6). Hapus `migrations/core/.keep` bila runner/embed tidak lagi membutuhkannya (runner mengabaikan `.keep`, jadi boleh tetap ada).
+6. **Migrasi**: `backend/migrations/core/20261021100000000_create_auth_tables.sql` (bagian 6). Hapus `migrations/core/.keep` bila runner/embed tidak lagi membutuhkannya (runner mengabaikan `.keep`, jadi boleh tetap ada).
 7. **base/** (package `base`): seluruh file bagian 4 beserta unit test.
 8. **base/store** (package `store`):
 
@@ -805,7 +805,7 @@ Infra dan lib (F1):
 - `backend/lib/contracts/core/auth/finddevelopers/finddevelopers.go` (baru).
 - `backend/lib/contracts/core/auth/createadmin/createadmin.go` (baru).
 - `backend/lib/contracts/core/audit/record/record.go` (baru bila belum ada dari T02).
-- `backend/migrations/core/20261021090000000_create_auth_tables.sql` (baru).
+- `backend/migrations/core/20261021100000000_create_auth_tables.sql` (baru).
 - `backend/go.mod`, `go.sum` (ubah): `golang.org/x/crypto`.
 
 Domain:

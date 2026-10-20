@@ -8,12 +8,22 @@ import (
 	"io"
 	"net/mail"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/term"
 
 	"grimoire/cmd/internal/buildinfo"
 	"grimoire/cmd/internal/server"
+	"grimoire/internal/infra/app"
+	"grimoire/internal/infra/bus"
+	"grimoire/internal/infra/logger"
+	"grimoire/lib/common/errs"
+	"grimoire/lib/constants"
+	"grimoire/lib/contracts/core/auth/createadmin"
 )
 
 const usage = `Pemakaian: grimoire [perintah]
@@ -36,6 +46,7 @@ type cli struct {
 	readSecret     func(prompt string) (string, error)
 	serve          func(ctx context.Context) int
 	migrateUp      func(ctx context.Context) int
+	createAdminRun func(ctx context.Context, a createAdminArgs) error
 }
 
 func newCLI(stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) *cli {
@@ -51,6 +62,7 @@ func newCLI(stdin io.Reader, stdout, stderr io.Writer, getenv func(string) strin
 	c.migrateUp = func(ctx context.Context) int {
 		return server.MigrateFromEnv(ctx, c.getenv, c.stdout, c.stderr)
 	}
+	c.createAdminRun = c.callCreateAdmin
 	return c
 }
 
@@ -117,16 +129,92 @@ func (c *cli) createAdmin(ctx context.Context, args []string) int {
 	if err != nil {
 		return c.badUsage(err.Error())
 	}
-	if err := runCreateAdmin(ctx, createAdminArgs{Email: *email, Name: strings.TrimSpace(*name), Password: pw}); err != nil {
-		fmt.Fprintln(c.stderr, err)
+	if err := c.createAdminRun(ctx, createAdminArgs{Email: *email, Name: strings.TrimSpace(*name), Password: pw}); err != nil {
+		c.reportCreateAdminError(err)
 		return 1
 	}
 	return 0
 }
 
-// TODO(T01): ganti isi fungsi ini. Rakit config, db.Open, bus, core.Register (lewat
-// server helper), lalu bus.Call(constants.BUS_CORE_AUTH_CREATE_ADMIN, ...) dan
-// cetak "admin <email> dibuat".
-func runCreateAdmin(ctx context.Context, a createAdminArgs) error {
-	return errors.New("create-admin belum tersedia (butuh T01)")
+// errAlreadyReported menandai error yang pesannya sudah dicetak (mis. config tidak valid).
+var errAlreadyReported = errors.New("sudah dilaporkan")
+
+const createAdminTimeout = 30 * time.Second
+
+// callCreateAdmin merakit domain lewat server.WithDomains lalu memanggil bus create-admin.
+func (c *cli) callCreateAdmin(ctx context.Context, a createAdminArgs) error {
+	cfg, _, ok := server.LoadConfig(c.getenv, c.stderr)
+	if !ok {
+		return errAlreadyReported
+	}
+	// Stdout CLI harus bersih; log ke stderr.
+	log := logger.NewWithWriter(cfg, c.stderr)
+	ctx, cancel := context.WithTimeout(ctx, createAdminTimeout)
+	defer cancel()
+	err := server.WithDomains(ctx, cfg, log, func(d app.Deps) error {
+		res, err := bus.CallTyped[createadmin.Response](ctx, d.Bus, constants.BUS_CORE_AUTH_CREATE_ADMIN,
+			createadmin.Request{Email: a.Email, Name: a.Name, Password: a.Password})
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(c.stdout, "admin %s dibuat (id %s)\n", a.Email, res.UserID)
+		return nil
+	})
+	if err != nil && !isReportable(err) {
+		log.Error("create-admin gagal", "error", err)
+	}
+	return err
+}
+
+func isReportable(err error) bool {
+	var e *errs.Error
+	var pgErr *pgconn.PgError
+	return errors.As(err, &e) || (errors.As(err, &pgErr) && pgErr.Code == "42P01")
+}
+
+// reportCreateAdminError mencetak pesan aman ke stderr: hanya Message dan fields dari
+// *errs.Error, tidak pernah err.Error() mentah.
+func (c *cli) reportCreateAdminError(err error) {
+	if errors.Is(err, errAlreadyReported) {
+		return
+	}
+	var e *errs.Error
+	if errors.As(err, &e) {
+		fmt.Fprintln(c.stderr, e.Message)
+		if fields := detailFields(e.Details); len(fields) > 0 {
+			keys := make([]string, 0, len(fields))
+			for k := range fields {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				fmt.Fprintf(c.stderr, "  %s: %s\n", k, fields[k])
+			}
+		}
+		return
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+		fmt.Fprintln(c.stderr, `tabel belum ada; jalankan "grimoire migrate up" lebih dulu`)
+		return
+	}
+	fmt.Fprintln(c.stderr, "gagal membuat admin; periksa log")
+}
+
+// detailFields membaca details["fields"]: map string->string apa pun tipenya
+// (FieldErrors milik domain tidak bisa diimpor dari cmd).
+func detailFields(details any) map[string]string {
+	m, ok := details.(map[string]any)
+	if !ok {
+		return nil
+	}
+	v := reflect.ValueOf(m["fields"])
+	if !v.IsValid() || v.Kind() != reflect.Map || v.Type().Key().Kind() != reflect.String || v.Type().Elem().Kind() != reflect.String {
+		return nil
+	}
+	out := make(map[string]string, v.Len())
+	for _, k := range v.MapKeys() {
+		out[k.String()] = v.MapIndex(k).String()
+	}
+	return out
 }

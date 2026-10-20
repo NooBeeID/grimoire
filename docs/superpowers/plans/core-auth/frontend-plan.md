@@ -407,7 +407,7 @@ Import `HomeView` dan `NotFoundView` yang sudah ada tetap.
 
 ## Migration
 
-Tidak ada. Frontend tidak memiliki migrasi. Tabel auth dibuat backend di `backend/migrations/core/20261021090000000_create_auth_tables.sql` (overview bagian 6).
+Tidak ada. Frontend tidak memiliki migrasi. Tabel auth dibuat backend di `backend/migrations/core/20261021100000000_create_auth_tables.sql` (overview bagian 6).
 
 ## Changes
 

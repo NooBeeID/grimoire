@@ -31,4 +31,35 @@ describe('guard', () => {
     expect(resolve(m({ roles: ['super_admin'] }), auth('super_admin'), '/').kind).toBe('render');
   });
   it('auth + developer renders', () => expect(resolve(m({ auth: true }), auth('developer'), '/').kind).toBe('render'));
+
+  describe('T01 rules', () => {
+    const must: SessionState = {
+      status: 'authenticated',
+      identity: { userId: '1', email: 'a@b.c', name: 'A', role: 'developer', mustChangePassword: true },
+    };
+    it('guestOnly: pending / render / redirect to safe next', () => {
+      const g = m({ guestOnly: true });
+      expect(resolve(g, unknown, '/login').kind).toBe('pending');
+      expect(resolve(g, anon, '/login').kind).toBe('render');
+      expect(resolve(g, auth('developer'), '/login?next=%2Fadmin%2Fusers')).toEqual({ kind: 'redirect', to: '/admin/users' });
+      expect(resolve(g, auth('developer'), '/login?next=%2F%2Fevil.com')).toEqual({ kind: 'redirect', to: '/' });
+      expect(resolve(g, auth('developer'), '/login')).toEqual({ kind: 'redirect', to: '/' });
+    });
+    it('forces change-password while flag set', () => {
+      expect(resolve(m({ auth: true }), must, '/profile?x=1')).toEqual({
+        kind: 'redirect',
+        to: '/change-password?next=%2Fprofile%3Fx%3D1',
+      });
+      expect(resolve(m({ auth: true, passwordChangeRoute: true }), must, '/change-password').kind).toBe('render');
+    });
+    it('change-password route redirects away when flag cleared', () => {
+      const r = m({ auth: true, passwordChangeRoute: true });
+      expect(resolve(r, auth('developer'), '/change-password?next=%2Fprofile')).toEqual({ kind: 'redirect', to: '/profile' });
+      expect(resolve(r, auth('developer'), '/change-password')).toEqual({ kind: 'redirect', to: '/' });
+    });
+    it('must-change takes priority over role mismatch', () => {
+      expect(resolve(m({ roles: ['super_admin'] }), must, '/admin/users').kind).toBe('redirect');
+    });
+  });
 });
+

@@ -27,6 +27,7 @@ export const KnownErrorCode = {
   TIMEOUT: 'TIMEOUT',
   UNAVAILABLE: 'UNAVAILABLE',
   INTERNAL: 'INTERNAL',
+  PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
   NETWORK: 'NETWORK',
   INVALID_RESPONSE: 'INVALID_RESPONSE',
 } as const;
@@ -36,4 +37,16 @@ export const FieldErrors = z.object({ fields: z.record(z.string()) });
 export function fieldErrorsOf(details: unknown): Record<string, string> {
   const r = FieldErrors.safeParse(details);
   return r.success ? r.data.fields : {};
+}
+
+export const RetryAfterDetails = z.object({ retry_after_seconds: z.number().int().nonnegative() });
+export function retryAfterOf(details: unknown): number | null {
+  const r = RetryAfterDetails.safeParse(details);
+  return r.success ? r.data.retry_after_seconds : null;
+}
+
+export const ReasonDetails = z.object({ reason: z.string() });
+export function reasonOf(details: unknown): string | null {
+  const r = ReasonDetails.safeParse(details);
+  return r.success ? r.data.reason : null;
 }

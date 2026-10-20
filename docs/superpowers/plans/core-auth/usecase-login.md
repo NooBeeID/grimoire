@@ -44,7 +44,7 @@ Hal yang sengaja diputuskan di plan ini (selain overview):
 
 Prasyarat dari foundation F1 (bila belum ada, hentikan dan selesaikan F1; jangan membuatnya dari dalam folder `login/`):
 
-- Migrasi `20261021090000000_create_auth_tables.sql` diterapkan.
+- Migrasi `20261021100000000_create_auth_tables.sql` diterapkan.
 - Config: `SessionSecret`, `SessionIdleTimeout`, `SessionAbsoluteTimeout`, `PasswordMinLength`, `Argon2*`, `LoginMaxFailures`, `LoginFailureWindow`, `LoginLockDuration`, `LoginRatePerMinute`, `CookieSecure`.
 - `base`: `NormalizeEmail`-nya TIDAK dipakai di login (login hanya trim+lower, lihat 3.7); yang dipakai: `User.CanLogin`, `User.ToMe` (lihat catatan di Plan langkah 1), `LoginThrottle` (+`IsLocked`, `RetryAfter`, `RegisterFailure`), `ThrottlePolicy`, `Hasher`, `Secret`, `NewSessionToken`, `HashToken`, `NewSession`, `Session.MaxAgeSeconds`, `RequestMeta`, `Clock`, `Shared`, `MeDTO`, `AccountLocked`, `ErrInvalidCreds`, `InvalidFields`, kode `CodeInvalidCredentials`/`CodeAccountLocked` yang sudah didaftarkan `registerCodes()` di `auth/base.go`.
 - `base/store`: `Store.FindUserByEmail`, `Store.WithTx`.
@@ -234,7 +234,7 @@ Semua langkah di `backend/internal/domain/core/internal/auth/login/` kecuali din
 
 ## Migration
 
-Tidak ada. Tabel `users`, `sessions`, dan `login_throttles` dibuat oleh `backend/migrations/core/20261021090000000_create_auth_tables.sql` (foundation F1). Usecase ini tidak menambah kolom atau indeks. Indeks yang dipakai: PK `login_throttles(email)`, `users_email_key`, `sessions_token_hash_key`.
+Tidak ada. Tabel `users`, `sessions`, dan `login_throttles` dibuat oleh `backend/migrations/core/20261021100000000_create_auth_tables.sql` (foundation F1). Usecase ini tidak menambah kolom atau indeks. Indeks yang dipakai: PK `login_throttles(email)`, `users_email_key`, `sessions_token_hash_key`.
 
 ## Changes
 

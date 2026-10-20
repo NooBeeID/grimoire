@@ -44,7 +44,7 @@ Keamanan:
 ### Langkah 0 — Prasyarat (cek, jangan dibuat dari dalam folder `createuser/`)
 
 Pastikan F1 sudah ada. Bila ada yang belum, selesaikan di F1 (PR foundation), bukan di PR ini:
-- Migrasi `backend/migrations/core/20261021090000000_create_auth_tables.sql` (tabel `users` dengan `created_by`, `created_by_label`, `users_email_key`).
+- Migrasi `backend/migrations/core/20261021100000000_create_auth_tables.sql` (tabel `users` dengan `created_by`, `created_by_label`, `users_email_key`).
 - `base/` lengkap (`NormalizeEmail`, `ValidateName`, `ValidRole`, `User.ToResponse`, `PasswordPolicy`, `Secret`, `Hasher`, `GeneratePassword`, `FieldErrors`, `InvalidFields`, `EmailConflict`, `ErrEmailTaken`, `RequestMeta`, `Clock`, `Shared`).
 - `base/store` dengan `InsertUser` (id kosong memakai default DB `gen_random_uuid()`; `RETURNING` seluruh kolom; 23505 pada `users_email_key` menjadi `base.ErrEmailTaken`).
 - `base/audit` dengan `Recorder`, `Event`, `BusRecorder`.
@@ -194,7 +194,7 @@ Verifikasi `api/modules/core/auth.yml` sudah memuat operasi `POST /users` (opera
 
 ## Migration
 
-Tidak ada migrasi baru. Memakai tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `email`, `name`, `password_hash`, `role`, `is_active` (default true), `must_change_password` (true), `created_by`, `created_by_label`, `created_at`, `updated_at`; `id` dari default DB. Tidak ada foreign key baru (`created_by` sengaja tanpa FK, rule 8.7).
+Tidak ada migrasi baru. Memakai tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `email`, `name`, `password_hash`, `role`, `is_active` (default true), `must_change_password` (true), `created_by`, `created_by_label`, `created_at`, `updated_at`; `id` dari default DB. Tidak ada foreign key baru (`created_by` sengaja tanpa FK, rule 8.7).
 
 ## Changes
 

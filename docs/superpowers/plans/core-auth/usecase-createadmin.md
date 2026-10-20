@@ -152,7 +152,7 @@ Urutan wajib. Prasyarat F1 harus ada; bila belum, hentikan dan laporkan, jangan 
 
 ## Migration
 
-Tidak ada migrasi baru. Memakai tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `email` (citext, unique `users_email_key`), `name`, `password_hash`, `role='super_admin'`, `is_active=true`, `must_change_password=false`, `created_by=NULL`, `created_by_label='cli'`. Prasyarat runtime: operator sudah menjalankan `grimoire migrate up` (atau `RUN_MIGRATIONS_ON_START=true` pada `serve` sebelumnya).
+Tidak ada migrasi baru. Memakai tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1). Kolom yang ditulis: `email` (citext, unique `users_email_key`), `name`, `password_hash`, `role='super_admin'`, `is_active=true`, `must_change_password=false`, `created_by=NULL`, `created_by_label='cli'`. Prasyarat runtime: operator sudah menjalankan `grimoire migrate up` (atau `RUN_MIGRATIONS_ON_START=true` pada `serve` sebelumnya).
 
 ## Changes
 

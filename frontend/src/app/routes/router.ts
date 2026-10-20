@@ -9,6 +9,8 @@ export interface RouteMeta {
   roles?: Role[];
   layout?: 'blank' | 'app';
   titleKey?: string;
+  guestOnly?: boolean;
+  passwordChangeRoute?: boolean;
 }
 export interface RouteDef {
   path: string;

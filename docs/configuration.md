@@ -26,6 +26,16 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `LOG_LEVEL` | enum | `info` | tidak | debug|info|warn|error | Level log. |
 | `LOG_FORMAT` | enum | `json` | tidak | json|text | Format log. |
 | `DEV_VITE_URL` | string | - | tidak | URL http(s); hanya saat APP_ENV=development | Proxy ke Vite dev server. |
+| `SESSION_IDLE_TIMEOUT` | duration | `12h` | tidak | durasi > 0 dan <= SESSION_ABSOLUTE_TIMEOUT | Sesi habis bila tidak dipakai selama ini. |
+| `SESSION_ABSOLUTE_TIMEOUT` | duration | `168h` | tidak | durasi > 0 | Umur maksimum sesi sejak login. |
+| `PASSWORD_MIN_LENGTH` | int | `10` | tidak | 8..128 | Panjang minimum password (rune). |
+| `ARGON2_MEMORY_KIB` | int | `65536` | tidak | 8192..4194304 | Memori argon2id (KiB). |
+| `ARGON2_ITERATIONS` | int | `3` | tidak | 1..20 | Iterasi argon2id. |
+| `ARGON2_PARALLELISM` | int | `2` | tidak | 1..16 | Paralelisme argon2id. |
+| `LOGIN_MAX_FAILURES` | int | `5` | tidak | 1..100 | Gagal login per email sebelum akun ditunda. |
+| `LOGIN_FAILURE_WINDOW` | duration | `15m` | tidak | durasi > 0 | Jendela penghitungan gagal login. |
+| `LOGIN_LOCK_DURATION` | duration | `15m` | tidak | durasi > 0 | Lama penundaan login setelah batas gagal. |
+| `LOGIN_RATE_PER_MINUTE` | int | `20` | tidak | 1..1000 | Batas login per menit per IP. |
 
 ## Env di luar Config
 
@@ -55,6 +65,7 @@ SESSION_SECRET=<string acak >= 32 byte>
 
 - `make dev` diisi oleh usecase cli-and-wiring.
 - Migrasi: satu transaksi per file; `CREATE INDEX CONCURRENTLY` tidak didukung. Detail dilengkapi usecase db-migrations.
+- Migrasi auth (T01) menjalankan `CREATE EXTENSION IF NOT EXISTS citext`: role DB aplikasi butuh hak membuat ekstensi, atau DBA menjalankannya lebih dulu.
 
 ## Pemeliharaan
 

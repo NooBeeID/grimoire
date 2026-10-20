@@ -130,7 +130,7 @@ Kontrak bus: tidak ada yang baru. Konsumsi `core.audit.record` (mode Call, fail-
 
 ## Migration
 
-Tidak ada. Memakai tabel `sessions` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1). Tidak ada perubahan skema atau indeks (`sessions_token_hash_key` sudah melayani delete).
+Tidak ada. Memakai tabel `sessions` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1). Tidak ada perubahan skema atau indeks (`sessions_token_hash_key` sudah melayani delete).
 
 ## Changes
 

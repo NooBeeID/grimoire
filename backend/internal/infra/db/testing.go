@@ -49,7 +49,9 @@ func TestDB(t testing.TB) *DB {
 		_ = admin.Close()
 		t.Fatalf("db: create schema: %v", err)
 	}
-	d, err := open(ctx, cfg, map[string]string{"search_path": schema})
+	ensureTestExtensions(ctx, t, admin)
+	// public ikut di search_path agar tipe ekstensi (citext) terlihat di semua schema test.
+	d, err := open(ctx, cfg, map[string]string{"search_path": schema + ",public"})
 	if err != nil {
 		_, _ = admin.ExecContext(ctx, "DROP SCHEMA "+schema+" CASCADE")
 		_ = admin.Close()
@@ -63,4 +65,18 @@ func TestDB(t testing.TB) *DB {
 		_ = admin.Close()
 	})
 	return d
+}
+
+// ensureTestExtensions memasang ekstensi yang dibutuhkan migrasi di schema public (sekali,
+// aman dipanggil paralel antar paket test).
+func ensureTestExtensions(ctx context.Context, t testing.TB, admin *DB) {
+	t.Helper()
+	for _, ext := range []string{"citext"} {
+		if _, err := admin.ExecContext(ctx, "CREATE EXTENSION IF NOT EXISTS "+ext+" SCHEMA public"); err != nil {
+			var n int
+			if e := admin.GetContext(ctx, &n, "SELECT count(*) FROM pg_extension WHERE extname=$1", ext); e != nil || n == 0 {
+				t.Fatalf("db: create extension %s: %v", ext, err)
+			}
+		}
+	}
 }

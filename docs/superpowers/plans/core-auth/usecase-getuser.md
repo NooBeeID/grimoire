@@ -158,7 +158,7 @@ Sesuaikan dengan `shared/services/http.ts` (opsi `schema` bila ada). Bila `UserS
 
 ## Migration
 
-Tidak ada. `getuser` hanya membaca tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (milik F1).
+Tidak ada. `getuser` hanya membaca tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (milik F1).
 
 ## Changes
 

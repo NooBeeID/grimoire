@@ -98,9 +98,9 @@ func TestBuiltBinary_MissingEnvExit1(t *testing.T) {
 	}
 }
 
-func TestBuiltBinary_CreateAdminNotAvailable(t *testing.T) {
+func TestBuiltBinary_CreateAdminInputValidation(t *testing.T) {
 	_, errOut, code := runBin(t, []string{"CREATE_ADMIN_PASSWORD=rahasia123"}, "", "create-admin", "--email", "a@b.co", "--name", "Admin")
-	if code != 1 || !strings.Contains(errOut, "create-admin belum tersedia (butuh T01)") || strings.Contains(errOut, "rahasia123") {
+	if code != 1 || !strings.Contains(errOut, "DATABASE_URL") || strings.Contains(errOut, "rahasia123") {
 		t.Fatalf("code=%d stderr=%q", code, errOut)
 	}
 	_, errOut, code = runBin(t, []string{}, "", "create-admin", "--email", "a@b.co", "--name", "Admin")
@@ -141,7 +141,9 @@ func testSchemaURL(t *testing.T) string {
 	})
 	u, _ := url.Parse(base)
 	q := u.Query()
-	q.Set("search_path", schema)
+	// public ikut di search_path: ekstensi citext (migrasi auth) dipasang di sana.
+	_, _ = admin.Exec("CREATE EXTENSION IF NOT EXISTS citext SCHEMA public")
+	q.Set("search_path", schema+",public")
 	u.RawQuery = q.Encode()
 	return u.String()
 }
@@ -205,7 +207,7 @@ func TestT00_AC2_BuiltBinaryServesWithOnlyRequiredEnv(t *testing.T) {
 func TestBuiltBinary_MigrateUpIdempotent(t *testing.T) {
 	dbURL := testSchemaURL(t)
 	env := []string{"DATABASE_URL=" + dbURL, "SESSION_SECRET=" + secret}
-	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\n", "tidak ada migrasi baru\n"} {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\n", "tidak ada migrasi baru\n"} {
 		out, errOut, code := runBin(t, env, "", "migrate", "up")
 		if code != 0 || !strings.HasSuffix(out, want) { // log JSON ikut tercetak di stdout
 			t.Fatalf("run %d: code=%d out=%q err=%q", i, code, out, errOut)

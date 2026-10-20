@@ -237,7 +237,7 @@ record.Request{
 
 ## Migration
 
-Tidak ada. Memakai tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (F1): constraint `users_email_key` (citext unique), `users_role_check`, `users_name_len`. Tidak ada indeks baru; update berdasarkan primary key.
+Tidak ada. Memakai tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (F1): constraint `users_email_key` (citext unique), `users_role_check`, `users_name_len`. Tidak ada indeks baru; update berdasarkan primary key.
 
 ## Changes
 

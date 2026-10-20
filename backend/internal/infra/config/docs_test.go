@@ -86,7 +86,7 @@ func TestT00_AC7_AllConfigFieldsDocumented(t *testing.T) {
 func formatDefault(v reflect.Value) string {
 	if d, ok := v.Interface().(interface{ String() string }); ok {
 		s := d.String()
-		return strings.NewReplacer("m0s", "m", "h0m", "h").Replace(s)
+		return strings.NewReplacer("h0m0s", "h", "m0s", "m", "h0m", "h").Replace(s)
 	}
 	switch v.Kind() {
 	case reflect.Bool:
@@ -96,6 +96,8 @@ func formatDefault(v reflect.Value) string {
 		return "false"
 	case reflect.Int, reflect.Int64:
 		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Uint8, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10)
 	}
 	return v.String()
 }

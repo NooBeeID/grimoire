@@ -204,7 +204,7 @@ Ikuti tipe `d.DB` yang dipakai feature lain. Tidak ada route HTTP.
 
 ## Migration
 
-Tidak ada. `finddevelopers` hanya membaca tabel `users` dari `backend/migrations/core/20261021090000000_create_auth_tables.sql` (milik F1). Indeks `users_role_active_idx (role, is_active)` sudah ada; tidak ada indeks tambahan (D6).
+Tidak ada. `finddevelopers` hanya membaca tabel `users` dari `backend/migrations/core/20261021100000000_create_auth_tables.sql` (milik F1). Indeks `users_role_active_idx (role, is_active)` sudah ada; tidak ada indeks tambahan (D6).
 
 ## Changes
 

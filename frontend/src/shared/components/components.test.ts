@@ -12,6 +12,7 @@ import ErrorState from './ErrorState.svelte';
 import Input from './Input.svelte';
 import LocaleSwitch from './LocaleSwitch.svelte';
 import Pagination from './Pagination.svelte';
+import Select from './Select.svelte';
 import Spinner from './Spinner.svelte';
 import Table from './Table.svelte';
 import ToastHost from './Toast.svelte';
@@ -140,5 +141,27 @@ describe('LocaleSwitch', () => {
     await userEvent.selectOptions(screen.getByLabelText('Bahasa'), 'en');
     expect(screen.getByText('No data yet')).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('en');
+  });
+});
+
+describe('Select', () => {
+  const options = [
+    { value: 'a', label: 'Opsi A' },
+    { value: 'b', label: 'Opsi B' },
+  ];
+  it('labels the control and reflects value', () => {
+    render(Select, { label: 'Pilih', options, value: 'b' });
+    expect(screen.getByLabelText('Pilih')).toHaveValue('b');
+  });
+  it('exposes error and hint accessibly', () => {
+    render(Select, { label: 'Pilih', options, error: 'Salah', hint: 'Petunjuk' });
+    const sel = screen.getByLabelText('Pilih');
+    expect(sel).toHaveAttribute('aria-invalid', 'true');
+    expect(sel.getAttribute('aria-describedby')).toContain('-err');
+    expect(screen.getByText('Salah')).toBeInTheDocument();
+  });
+  it('can be disabled', () => {
+    render(Select, { label: 'Pilih', options, disabled: true });
+    expect(screen.getByLabelText('Pilih')).toBeDisabled();
   });
 });
