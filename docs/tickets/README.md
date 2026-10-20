@@ -8,7 +8,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | ID | Domain | Module | Ukuran | Bergantung pada | Status |
 |---|---|---|---|---|---|
 | [T00](T00-foundation.md) | infra | foundation (bus, db, http, static, CLI) | L | – | Selesai (`45a7ad5`) |
-| [T01](T01-core-auth.md) | core | auth | L | T00 | Plan siap |
+| [T01](T01-core-auth.md) | core | auth | L | T00 | Selesai (`329d71d`) |
 | [T02](T02-core-audit-log.md) | core | audit-log | M | T00 | Selesai (`d0a7c19`; e2e terautentikasi menunggu T01) |
 | [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Plan siap |
 | [T04](T04-project-api-key.md) | project | api-key | M | T03 | Belum |
