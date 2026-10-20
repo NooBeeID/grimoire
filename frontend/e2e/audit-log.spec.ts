@@ -1,10 +1,12 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, request as pwRequest, test, type APIRequestContext, type Page } from '@playwright/test';
 import { ErrorEnvelopeForE2E } from './envelope';
+import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin, createReadyUserApi } from './helpers/auth';
 
 // E2E T02 core/audit-log terhadap binary sungguhan.
-// Bagian 1 berjalan sekarang (sisi penolakan tanpa sesi). Bagian 2 butuh login
-// super admin (T01) dan data audit (T07 atau seed SQL), jadi ditandai fixme
-// sampai helper di bawah diisi.
+// Bagian 1: sisi penolakan tanpa sesi. Bagian 2: sesi super admin dan developer (login dari T01).
+// Data audit dibangkitkan dari aksi nyata (login gagal -> entri auth.login.failed) dengan tag unik
+// per tes, jadi tidak butuh akses SQL dan tidak bentrok dengan data lain di DB yang sama.
+// Satu skenario masih fixme: entri aktor api_key baru ada setelah T04/T07.
 
 const ENTRY_ID = '0192f0c4-7a1e-7c3a-9b1d-3c4e5f6a7b8c';
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
@@ -40,7 +42,11 @@ test.describe('audit-log tanpa sesi', () => {
 
   test('UI /audit-log anonim tidak menampilkan data dan tidak memanggil API', async ({ page }) => {
     const errors: string[] = [];
-    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    // 401 dari GET /api/auth/me adalah pemeriksaan sesi (T01) untuk pengunjung anonim, bukan error aplikasi.
+    page.on(
+      'console',
+      (m) => m.type() === 'error' && !m.location().url.endsWith('/api/auth/me') && errors.push(m.text()),
+    );
     page.on('pageerror', (e) => errors.push(e.message));
     const apiCalls: string[] = [];
     page.on('request', (r) => new URL(r.url()).pathname.startsWith('/api/audit-log') && apiCalls.push(r.url()));
@@ -56,21 +62,81 @@ test.describe('audit-log tanpa sesi', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Bagian 2: butuh sesi super admin + data. Isi dua helper ini setelah T01 selesai.
+// Bagian 2: butuh sesi dan data audit.
 
 type Role = 'super_admin' | 'developer';
 
-async function loginAs(_page: Page, _role: Role): Promise<void> {
-  throw new Error('loginAs belum tersedia: menunggu T01 (core/auth). Login lewat UI/API lalu simpan cookie sesi.');
+const baseURL = () => test.info().project.use.baseURL as string;
+
+/** Login lewat API; cookie sesi tersimpan di context `page` sehingga page.goto dan page.request ikut login. */
+async function loginAs(page: Page, role: Role): Promise<void> {
+  if (role === 'super_admin') {
+    await apiLogin(page.request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    return;
+  }
+  const admin = await pwRequest.newContext({ baseURL: baseURL() });
+  try {
+    await apiLogin(admin, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const dev = await createReadyUserApi(admin, { role: 'developer', name: 'E2E Dev' });
+    await apiLogin(page.request, dev.email, dev.password);
+  } finally {
+    await admin.dispose();
+  }
 }
 
-async function seedAuditEntries(_n: number, _opts: { sameTimestamp?: boolean } = {}): Promise<string[]> {
-  throw new Error('seedAuditEntries belum tersedia: isi lewat INSERT SQL ke audit_log atau panggilan MCP (T07).');
+interface Seeded {
+  ids: string[];
+  /** Tag unik; pakai sebagai filter `actor_label` agar hanya entri tes ini yang terlihat. */
+  tag: string;
+}
+
+/**
+ * Membuat n entri audit asli: n percobaan login gagal dengan email unik (auth.login.failed, aktor anonymous,
+ * label = email yang dicoba; `suffix` disisipkan setelah tag unik). Mengembalikan id entri lewat API admin. Tie-break cursor untuk timestamp
+ * kembar diuji di tes integrasi backend (listentries), bukan di sini.
+ */
+async function seedAuditEntries(n: number, opts: { suffix?: string } = {}): Promise<Seeded> {
+  const tag = `e2eseed${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+  const anon = await pwRequest.newContext({ baseURL: baseURL() });
+  const admin = await pwRequest.newContext({ baseURL: baseURL() });
+  try {
+    await apiLogin(admin, ADMIN_EMAIL, ADMIN_PASSWORD);
+    for (let i = 0; i < n; i += 10) {
+      await Promise.all(
+        Array.from({ length: Math.min(10, n - i) }, (_, k) =>
+          anon.post('/api/auth/login', {
+            headers: CSRF,
+            data: { email: `${tag}${opts.suffix ?? ''}-${i + k}@tim.id`, password: 'salah-salah-1' },
+          }),
+        ),
+      );
+    }
+    let ids: string[] = [];
+    await expect
+      .poll(
+        async () => {
+          ids = [];
+          let cursor = '';
+          do {
+            const res = await admin.get(`/api/audit-log?actor_label=${encodeURIComponent(tag)}&limit=200${cursor}`);
+            expect(res.status()).toBe(200);
+            const body = (await res.json()) as { items: { id: string }[]; next_cursor?: string | null };
+            ids.push(...body.items.map((it) => it.id));
+            cursor = body.next_cursor ? `&cursor=${encodeURIComponent(body.next_cursor)}` : '';
+          } while (cursor);
+          return ids.length;
+        },
+        { message: 'entri audit login gagal belum tertulis', timeout: 10_000 },
+      )
+      .toBe(n);
+    return { ids, tag };
+  } finally {
+    await anon.dispose();
+    await admin.dispose();
+  }
 }
 
 test.describe('audit-log sebagai super admin', () => {
-  test.fixme(true, 'menunggu T01 (login) dan data audit; lihat helper loginAs/seedAuditEntries');
-
   test('1. menu tampil, tabel urut terbaru, ikon agent vs manusia', async ({ page }) => {
     await seedAuditEntries(5);
     await loginAs(page, 'super_admin');
@@ -90,9 +156,9 @@ test.describe('audit-log sebagai super admin', () => {
   });
 
   test('3. muat berikutnya memakai next_cursor tanpa duplikat; halaman terakhir tanpa tombol', async ({ page }) => {
-    await seedAuditEntries(120, { sameTimestamp: true });
+    const { tag } = await seedAuditEntries(120);
     await loginAs(page, 'super_admin');
-    await page.goto('/audit-log');
+    await page.goto(`/audit-log?actor_label=${encodeURIComponent(tag)}`);
     const ids = new Set<string>();
     page.on('response', async (r) => {
       if (new URL(r.url()).pathname === '/api/audit-log' && r.ok()) {
@@ -102,22 +168,36 @@ test.describe('audit-log sebagai super admin', () => {
         }
       }
     });
-    const more = page.getByRole('button', { name: /muat/i });
-    while (await more.isVisible()) await more.click();
-    expect(ids.size).toBe(120);
+    const more = page.getByRole('button', { name: /^(Muat berikutnya|Load more)$/ });
+    await expect
+      .poll(
+        async () => {
+          if (await more.isVisible()) await more.click();
+          return ids.size;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(120);
+    await expect(more).toHaveCount(0); // halaman terakhir tanpa tombol
   });
 
   test('4. detail memakai ?entry=<id>; args HTML tampil sebagai teks', async ({ page }) => {
-    const [id] = await seedAuditEntries(1);
+    const html = '<img src=x onerror=window.__xss=1>';
+    const {
+      ids: [id],
+      tag,
+    } = await seedAuditEntries(1, { suffix: html });
     await loginAs(page, 'super_admin');
-    await page.goto(`/audit-log?entry=${id}`);
-    await expect(page.locator('img[onerror]')).toHaveCount(0);
+    await page.goto(`/audit-log?actor_label=${encodeURIComponent(tag)}&entry=${id}`);
+    await expect(page.getByText(html, { exact: false }).first()).toBeVisible(); // tampil sebagai teks
+    await expect(page.locator('img[onerror]')).toHaveCount(0); // tidak menjadi elemen
+    expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
   });
 
-  test('5. deep link actor_type+actor_id terfilter ke key itu', async ({ page }) => {
-    const [id] = await seedAuditEntries(1);
+  // Entri aktor api_key hanya ada setelah API key (T04) dan gateway MCP (T07) ada; login gagal menghasilkan aktor anonymous.
+  test.fixme('5. deep link actor_type+actor_id terfilter ke key itu (menunggu T04/T07)', async ({ page }) => {
     await loginAs(page, 'super_admin');
-    await page.goto(`/audit-log?actor_type=api_key&actor_id=${id}`);
+    await page.goto('/audit-log?actor_type=api_key&actor_id=00000000-0000-7000-8000-000000000000');
     await expect(page.getByRole('table')).toBeVisible();
   });
 
@@ -145,8 +225,6 @@ test.describe('audit-log sebagai super admin', () => {
 });
 
 test.describe('audit-log sebagai developer', () => {
-  test.fixme(true, 'menunggu T01 (login)');
-
   test('negatif 1. UI -> halaman tidak ditemukan; API -> 403 FORBIDDEN (AC5)', async ({ page }) => {
     await loginAs(page, 'developer');
     await page.goto('/audit-log');
