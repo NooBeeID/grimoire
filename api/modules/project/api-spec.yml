@@ -1,0 +1,491 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Project API Specs
+  version: 0.1.0
+paths:
+  /api/projects/{projectID}/api-specs/upload:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    post:
+      operationId: uploadApiSpecs
+      tags: [project-api-specs]
+      summary: Upload satu atau banyak file spec OpenAPI
+      description: >
+        Anggota (owner/member) dan super_admin. Setiap file divalidasi sebagai OpenAPI 3.0.x/3.1.x
+        (maks APISPEC_MAX_FILE_BYTES per file, UTF-8, .yaml/.yml/.json). Spec bernama sama ditimpa
+        (status updated; unchanged bila isi identik). Hasil dilaporkan per file; kegagalan satu file
+        tidak membatalkan file lain. Referensi eksternal ($ref URL/file) tidak pernah di-fetch dan
+        ditolak. Field name hanya boleh dipakai saat tepat satu file.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/ApiSpecUploadRequest" }
+      responses:
+        "200":
+          description: Laporan per file (status 200 meskipun sebagian file rejected)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiSpecUploadResult" }
+              example:
+                results:
+                  - file: payment.yaml
+                    source_path: specs/payment.yaml
+                    name: payment
+                    status: updated
+                    reason_code: null
+                    reason: null
+                    issues: []
+                    openapi_version: 3.0.3
+                    title: Payment API
+                    api_version: 1.4.0
+                    endpoint_count: 12
+                  - file: package.json
+                    source_path: specs/package.json
+                    name: package
+                    status: rejected
+                    reason_code: INVALID_SPEC
+                    reason: bukan dokumen OpenAPI
+                    issues:
+                      - { code: NOT_OPENAPI, message: bukan dokumen OpenAPI, pointer: "#", line: 1 }
+                    openapi_version: null
+                    title: null
+                    api_version: null
+                    endpoint_count: null
+                summary: { created: 0, updated: 1, unchanged: 0, skipped: 0, rejected: 1 }
+        "400":
+          description: >
+            Validasi request gagal (INVALID_ARGUMENT). details.reason: NO_FILES,
+            NAME_WITH_MULTIPLE_FILES, atau INVALID_NAME (dengan details.fields.name).
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: tidak ada file
+                  details: { reason: NO_FILES }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "413": { $ref: "../infra/foundation.yml#/components/responses/PayloadTooLarge" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/api-specs/validate:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    post:
+      operationId: validateApiSpecs
+      tags: [project-api-specs]
+      summary: Validasi file spec tanpa menyimpan
+      description: >
+        Anggota (owner/member) dan super_admin. Request sama dengan upload, tetapi tidak ada yang
+        disimpan. Tidak memeriksa nama bentrok dan batas jumlah spec per project.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/ApiSpecUploadRequest" }
+      responses:
+        "200":
+          description: Hasil validasi per file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiSpecValidateResult" }
+              example:
+                results:
+                  - file: legacy.yaml
+                    source_path: legacy.yaml
+                    name: legacy
+                    status: rejected
+                    reason_code: INVALID_SPEC
+                    reason: Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1
+                    issues:
+                      - { code: NOT_OPENAPI_3, message: "Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1 (baris 1, #/swagger)", pointer: "#/swagger", line: 1 }
+                    openapi_version: null
+                    title: null
+                    api_version: null
+                    endpoint_count: null
+                summary: { valid: 0, skipped: 0, rejected: 1 }
+        "400":
+          description: Validasi request gagal (INVALID_ARGUMENT), sama seperti upload
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "413": { $ref: "../infra/foundation.yml#/components/responses/PayloadTooLarge" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/api-specs:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listApiSpecs
+      tags: [project-api-specs]
+      summary: Daftar spec project
+      description: >
+        Anggota (owner/member) dan super_admin. Diurutkan menurut nama; tanpa konten spec.
+        limit adalah batas jumlah spec per project (APISPEC_MAX_SPECS). Project yang tidak ada,
+        id bukan uuid, atau bukan milik pemanggil dijawab 404 yang identik.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Daftar spec (items selalu array)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiSpecList" }
+              example:
+                items:
+                  - name: payment
+                    title: Payment API
+                    openapi_version: 3.0.3
+                    api_version: 1.4.0
+                    format: yaml
+                    source_path: specs/payment.yaml
+                    size_bytes: 40211
+                    endpoint_count: 2
+                    created_at: "2026-10-23T09:00:00Z"
+                    created_by_label: Budi
+                    updated_at: "2026-10-24T10:00:00Z"
+                    updated_by_label: Sari
+                total: 1
+                limit: 100
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/api-specs/{name}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/SpecName"
+    get:
+      operationId: getApiSpec
+      tags: [project-api-specs]
+      summary: Metadata, indeks endpoint, dan dokumen spec terparsir
+      description: >
+        Anggota (owner/member) dan super_admin. document adalah spec lengkap sebagai JSON dengan
+        $ref internal dipertahankan apa adanya. Deskripsi Markdown di dalamnya tidak tepercaya
+        dan wajib disanitasi di klien.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Detail spec
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiSpecDetail" }
+              example:
+                spec:
+                  name: payment
+                  title: Payment API
+                  openapi_version: 3.0.3
+                  api_version: 1.4.0
+                  format: yaml
+                  source_path: specs/payment.yaml
+                  size_bytes: 40211
+                  endpoint_count: 2
+                  created_at: "2026-10-23T09:00:00Z"
+                  created_by_label: Budi
+                  updated_at: "2026-10-24T10:00:00Z"
+                  updated_by_label: Sari
+                endpoints:
+                  - { method: GET, path: /payments, operation_id: listPayments, summary: Daftar pembayaran, tags: [payments], deprecated: false }
+                  - { method: POST, path: /payments, operation_id: createPayment, summary: Buat pembayaran, tags: [payments], deprecated: false }
+                document:
+                  openapi: 3.0.3
+                  info: { title: Payment API, version: 1.4.0 }
+                  paths:
+                    /payments:
+                      get: { operationId: listPayments, responses: { "200": { description: OK } } }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/SpecNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    patch:
+      operationId: renameApiSpec
+      tags: [project-api-specs]
+      summary: Ganti nama spec
+      description: >
+        Anggota (owner/member) dan super_admin. Nama baru harus unik di project dan memenuhi pola
+        ^[a-z0-9._-]{1,80}$. Field tak dikenal ditolak 400.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenameApiSpecRequest" }
+            example: { name: payment-v2 }
+      responses:
+        "200":
+          description: Spec setelah diganti nama
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiSpecEnvelope" }
+        "400":
+          description: Validasi gagal (INVALID_ARGUMENT), mis. nama kosong atau tidak sesuai pola
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: permintaan tidak valid
+                  details: { fields: { name: wajib diisi } }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/SpecNotFound" }
+        "409":
+          description: Nama sudah dipakai spec lain di project ini (CONFLICT, details.reason NAME_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: nama spec sudah dipakai di project ini
+                  details: { reason: NAME_TAKEN }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    delete:
+      operationId: deleteApiSpec
+      tags: [project-api-specs]
+      summary: Hapus spec
+      description: Anggota (owner/member) dan super_admin. Hard delete; indeks endpoint ikut terhapus.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "204":
+          description: Terhapus (tanpa body)
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/SpecNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/api-specs/{name}/raw:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/SpecName"
+    get:
+      operationId: downloadApiSpec
+      tags: [project-api-specs]
+      summary: Unduh teks asli spec
+      description: >
+        Anggota (owner/member) dan super_admin. Mengembalikan teks asli (tanpa BOM) sebagai
+        lampiran. Error tetap JSON seragam.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Teks spec asli
+          headers:
+            Content-Disposition:
+              description: attachment; filename="<name>.<yaml|json>"
+              schema: { type: string, example: 'attachment; filename="payment.yaml"' }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+            Cache-Control:
+              schema: { type: string, example: no-store }
+          content:
+            application/yaml:
+              schema: { type: string }
+            application/json:
+              schema: { type: string }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/SpecNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    ProjectID:
+      name: projectID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SpecName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[a-z0-9._-]{1,80}$" }
+  responses:
+    ProjectNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
+        uuid (tidak bocor).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    SpecNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND): spec tidak ada, atau project tidak ada / bukan milik pemanggil /
+        id bukan uuid (tidak bocor).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: spec tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  schemas:
+    ApiSpec:
+      type: object
+      additionalProperties: false
+      required: [name, title, openapi_version, api_version, format, source_path, size_bytes, endpoint_count, created_at, created_by_label, updated_at, updated_by_label]
+      properties:
+        name: { type: string, pattern: "^[a-z0-9._-]{1,80}$" }
+        title: { type: string }
+        openapi_version: { type: string, example: 3.0.3 }
+        api_version: { type: string, example: 1.4.0 }
+        format: { type: string, enum: [yaml, json] }
+        source_path: { type: [string, "null"] }
+        size_bytes: { type: integer }
+        endpoint_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        created_by_label: { type: [string, "null"] }
+        updated_at: { type: string, format: date-time }
+        updated_by_label: { type: [string, "null"] }
+    ApiSpecList:
+      type: object
+      additionalProperties: false
+      required: [items, total, limit]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ApiSpec" }
+        total: { type: integer }
+        limit: { type: integer, description: Batas jumlah spec per project }
+    ApiSpecEnvelope:
+      type: object
+      additionalProperties: false
+      required: [spec]
+      properties:
+        spec: { $ref: "#/components/schemas/ApiSpec" }
+    ApiSpecEndpoint:
+      type: object
+      additionalProperties: false
+      required: [method, path, operation_id, summary, tags, deprecated]
+      properties:
+        method: { type: string, example: GET }
+        path: { type: string, example: /payments }
+        operation_id: { type: [string, "null"] }
+        summary: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        deprecated: { type: boolean }
+    ApiSpecDetail:
+      type: object
+      additionalProperties: false
+      required: [spec, endpoints, document]
+      properties:
+        spec: { $ref: "#/components/schemas/ApiSpec" }
+        endpoints:
+          type: array
+          items: { $ref: "#/components/schemas/ApiSpecEndpoint" }
+        document:
+          type: object
+          additionalProperties: true
+          description: Dokumen OpenAPI sebagai JSON; $ref internal dipertahankan, urutan kunci mengikuti file asli.
+    RenameApiSpecRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, pattern: "^[a-z0-9._-]{1,80}$" }
+    ApiSpecUploadRequest:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          items: { type: string, format: binary }
+          description: Satu atau banyak file; nama file (dengan path folder bila ada) menjadi source_path.
+        name:
+          type: string
+          pattern: "^[a-z0-9._-]{1,80}$"
+          description: Opsional; hanya boleh dipakai saat tepat satu file. Default nama file tanpa ekstensi.
+    ApiSpecIssue:
+      type: object
+      additionalProperties: false
+      required: [code, message, pointer, line]
+      properties:
+        code: { type: string, example: EXTERNAL_REF }
+        message: { type: string }
+        pointer: { type: [string, "null"], description: JSON pointer lokasi masalah }
+        line: { type: [integer, "null"] }
+    ApiSpecFileResult:
+      type: object
+      additionalProperties: false
+      required: [file, source_path, name, status, reason_code, reason, issues, openapi_version, title, api_version, endpoint_count]
+      properties:
+        file: { type: string }
+        source_path: { type: [string, "null"] }
+        name: { type: [string, "null"] }
+        status:
+          type: string
+          enum: [created, updated, unchanged, valid, skipped, rejected]
+          description: created/updated/unchanged hanya pada upload; valid hanya pada validate.
+        reason_code:
+          type: [string, "null"]
+          description: >
+            Mis. INVALID_SPEC, NOT_SPEC_FILE, FILE_TOO_LARGE, DUPLICATE_NAME_IN_UPLOAD, SPEC_LIMIT_REACHED.
+        reason: { type: [string, "null"] }
+        issues:
+          type: array
+          items: { $ref: "#/components/schemas/ApiSpecIssue" }
+        openapi_version: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        api_version: { type: [string, "null"] }
+        endpoint_count: { type: [integer, "null"] }
+    ApiSpecUploadResult:
+      type: object
+      additionalProperties: false
+      required: [results, summary]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/ApiSpecFileResult" }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [created, updated, unchanged, skipped, rejected]
+          properties:
+            created: { type: integer }
+            updated: { type: integer }
+            unchanged: { type: integer }
+            skipped: { type: integer }
+            rejected: { type: integer }
+    ApiSpecValidateResult:
+      type: object
+      additionalProperties: false
+      required: [results, summary]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/ApiSpecFileResult" }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [valid, skipped, rejected]
+          properties:
+            valid: { type: integer }
+            skipped: { type: integer }
+            rejected: { type: integer }

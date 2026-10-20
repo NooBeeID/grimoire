@@ -13,7 +13,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Plan siap |
 | [T04](T04-project-api-key.md) | project | api-key | M | T03 | Plan siap |
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Plan siap |
-| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Belum |
+| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Plan siap |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Belum |
 | [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Belum |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Belum |

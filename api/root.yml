@@ -57,6 +57,16 @@ paths:
     $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1folders
   /api/projects/{projectID}/knowledge/search:
     $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1search
+  /api/projects/{projectID}/api-specs/upload:
+    $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1upload
+  /api/projects/{projectID}/api-specs/validate:
+    $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1validate
+  /api/projects/{projectID}/api-specs:
+    $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs
+  /api/projects/{projectID}/api-specs/{name}:
+    $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1{name}
+  /api/projects/{projectID}/api-specs/{name}/raw:
+    $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1{name}~1raw
 components:
   schemas:
     Error:
@@ -129,6 +139,28 @@ components:
       $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeConflictDetails
     KnowledgeDeleteFolderResult:
       $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeDeleteFolderResult
+    ApiSpec:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpec
+    ApiSpecList:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecList
+    ApiSpecEnvelope:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecEnvelope
+    ApiSpecEndpoint:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecEndpoint
+    ApiSpecDetail:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecDetail
+    RenameApiSpecRequest:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/RenameApiSpecRequest
+    ApiSpecUploadRequest:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecUploadRequest
+    ApiSpecIssue:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecIssue
+    ApiSpecFileResult:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecFileResult
+    ApiSpecUploadResult:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecUploadResult
+    ApiSpecValidateResult:
+      $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecValidateResult
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest
