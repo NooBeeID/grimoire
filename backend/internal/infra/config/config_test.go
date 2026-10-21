@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -40,8 +41,9 @@ func TestLoad_Defaults(t *testing.T) {
 		Argon2MemoryKiB: 65536, Argon2Iterations: 3, Argon2Parallelism: 2, LoginMaxFailures: 5,
 		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20, APIKeyMaxActivePerProject: 20,
 		APISpecMaxFileBytes: 5242880, APISpecMaxSpecs: 100,
+		MCPRatePerMinute: 120, MCPAuthFailPerMinute: 20, MCPMaxRequestBytes: 65536, MCPToolTimeout: 10 * time.Second,
 	}
-	if c != want {
+	if !reflect.DeepEqual(c, want) {
 		t.Fatalf("got %+v\nwant %+v", c, want)
 	}
 }
@@ -270,5 +272,56 @@ func TestLoad_APISpecConfig(t *testing.T) {
 	// Batas atas = MAX_UPLOAD_BYTES (inklusif).
 	if _, err := Load(env(base(map[string]string{"APISPEC_MAX_FILE_BYTES": "52428800"}))); err != nil {
 		t.Fatalf("== MAX_UPLOAD_BYTES harus lolos: %v", err)
+	}
+}
+
+func TestLoad_MCPDefaults(t *testing.T) {
+	c, err := Load(env(base(nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MCPRatePerMinute != 120 || c.MCPAuthFailPerMinute != 20 || c.MCPMaxRequestBytes != 65536 ||
+		c.MCPToolTimeout != 10*time.Second || c.MCPAllowedOrigins != nil {
+		t.Fatalf("default salah: %+v", c)
+	}
+}
+
+func TestLoad_MCPBounds(t *testing.T) {
+	cases := []struct{ env, val, want string }{
+		{"MCP_RATE_PER_MINUTE", "0", "MCP_RATE_PER_MINUTE: minimal 1"},
+		{"MCP_RATE_PER_MINUTE", "10001", "MCP_RATE_PER_MINUTE: maksimal 10000"},
+		{"MCP_AUTH_FAIL_PER_MINUTE", "0", "MCP_AUTH_FAIL_PER_MINUTE: minimal 1"},
+		{"MCP_AUTH_FAIL_PER_MINUTE", "1001", "MCP_AUTH_FAIL_PER_MINUTE: maksimal 1000"},
+		{"MCP_MAX_REQUEST_BYTES", "1023", "MCP_MAX_REQUEST_BYTES: minimal 1024"},
+		{"MCP_TOOL_TIMEOUT", "61s", "MCP_TOOL_TIMEOUT: maksimal 60s"},
+		{"MCP_TOOL_TIMEOUT", "0s", "MCP_TOOL_TIMEOUT: harus lebih dari 0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.env+"="+tc.val, func(t *testing.T) {
+			_, err := Load(env(base(map[string]string{tc.env: tc.val})))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+		})
+	}
+	c, err := Load(env(base(map[string]string{"MCP_RATE_PER_MINUTE": "10000", "MCP_AUTH_FAIL_PER_MINUTE": "1000", "MCP_TOOL_TIMEOUT": "60s"})))
+	if err != nil || c.MCPToolTimeout != 60*time.Second {
+		t.Fatalf("batas atas valid ditolak: %v", err)
+	}
+}
+
+func TestLoad_MCPAllowedOrigins(t *testing.T) {
+	c, err := Load(env(base(map[string]string{"MCP_ALLOWED_ORIGINS": " https://a.com , ,http://b.com:8080,"})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.MCPAllowedOrigins) != 2 || c.MCPAllowedOrigins[0] != "https://a.com" || c.MCPAllowedOrigins[1] != "http://b.com:8080" {
+		t.Fatalf("got %v", c.MCPAllowedOrigins)
+	}
+	for _, bad := range []string{"example.com", "https://a.com/path", "ftp://a", "https://a.com?x=1", "https://u@a.com", "https://a.com#x"} {
+		_, err := Load(env(base(map[string]string{"MCP_ALLOWED_ORIGINS": bad})))
+		if err == nil || !strings.Contains(err.Error(), "MCP_ALLOWED_ORIGINS") {
+			t.Errorf("%q harus ditolak, got %v", bad, err)
+		}
 	}
 }

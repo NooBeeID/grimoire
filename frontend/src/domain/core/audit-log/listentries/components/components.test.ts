@@ -35,6 +35,13 @@ describe('AuditTable', () => {
     expect(screen.getByRole('img', { name: 'Pengguna' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Aktor' })).toBeInTheDocument();
   });
+  it('row without target shows a dash and keeps the agent icon name', () => {
+    const rows = [mockSummary(1, { action: 'mcp.tools_list', target_type: null, target: null })];
+    const { container } = render(AuditTable, { ...baseProps(), rows });
+    expect(screen.getByRole('img', { name: 'API key (agent)' })).toBeInTheDocument();
+    expect(container.textContent).toContain('mcp.tools_list');
+    expect(container.textContent).toContain('mcp.tools_list-Berhasil');
+  });
   it('renders XSS actor_label as text', () => {
     const x = '<img src=x onerror=alert(1)>';
     const { container } = render(AuditTable, { ...baseProps(), rows: [mockSummary(1, { actor_label: x })] });
@@ -97,6 +104,14 @@ describe('ActionPicker', () => {
     expect(screen.getByText('Lainnya')).toBeInTheDocument();
     await userEvent.type(screen.getByRole('searchbox'), 'read_file');
     expect(b.container.querySelectorAll('input[type=checkbox]')).toHaveLength(1);
+  });
+  it('searching unknown shows only mcp.unknown_tool and checking it reports it', async () => {
+    const onchange = vi.fn();
+    const r = render(ActionPicker, { value: [], onchange });
+    await userEvent.type(screen.getByRole('searchbox'), 'unknown');
+    expect(r.container.querySelectorAll('input[type=checkbox]')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('checkbox'));
+    expect(onchange).toHaveBeenCalledWith(['mcp.unknown_tool']);
   });
 });
 

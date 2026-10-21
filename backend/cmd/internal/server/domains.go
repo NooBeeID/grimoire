@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"grimoire/cmd/internal/buildinfo"
 	"grimoire/internal/domain/core"
 	"grimoire/internal/domain/discovery"
 	"grimoire/internal/domain/project"
@@ -30,7 +31,7 @@ func WithDomains(ctx context.Context, cfg config.Config, log *slog.Logger, fn fu
 
 	srvCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	_, api, mcp := httpx.NewRouter(cfg, log, b, d)
-	deps := app.Deps{Ctx: srvCtx, Config: cfg, Log: log, DB: d, Bus: b, Jobs: sched, API: api, MCP: mcp}
+	deps := app.Deps{Ctx: srvCtx, Config: cfg, Log: log, DB: d, Bus: b, Jobs: sched, API: api, MCP: mcp, Version: buildinfo.Version}
 	core.Register(deps)
 	project.Register(deps)
 	discovery.Register(deps)

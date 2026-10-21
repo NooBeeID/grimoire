@@ -41,6 +41,11 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `PUBLIC_URL` | string | - | tidak | URL absolut http(s) dengan host, tanpa query/fragment/userinfo; trailing slash dibuang | URL publik server; dipakai membentuk `mcp_url` (`<PUBLIC_URL>/mcp`) di respons buat key. |
 | `APISPEC_MAX_FILE_BYTES` | int64 | `5242880` | tidak | 1..MAX_UPLOAD_BYTES | Ukuran maksimum satu file API spec (OpenAPI). |
 | `APISPEC_MAX_SPECS` | int | `100` | tidak | >= 1 | Jumlah API spec maksimum per project. |
+| `MCP_RATE_PER_MINUTE` | int | `120` | tidak | 1..10000 | Batas panggilan MCP per menit per API key. |
+| `MCP_AUTH_FAIL_PER_MINUTE` | int | `20` | tidak | 1..1000 | Batas autentikasi MCP yang gagal per menit per IP. |
+| `MCP_MAX_REQUEST_BYTES` | int | `65536` | tidak | >= 1024 | Batas ukuran body request `POST /mcp` (byte). |
+| `MCP_TOOL_TIMEOUT` | duration | `10s` | tidak | durasi > 0 dan <= 60s | Batas waktu eksekusi satu tool MCP. |
+| `MCP_ALLOWED_ORIGINS` | list | - | tidak | dipisah koma; tiap entri `scheme://host[:port]` (http/https) | Origin browser yang diizinkan memanggil `/mcp`; klien tanpa header Origin selalu lolos. |
 
 ## Env di luar Config
 

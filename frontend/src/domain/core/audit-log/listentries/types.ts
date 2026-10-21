@@ -19,6 +19,9 @@ export const ACTION_GROUPS = [
       'mcp.get_api_endpoint',
       'mcp.auth.rejected',
       'mcp.rate_limited',
+      'mcp.initialize',
+      'mcp.tools_list',
+      'mcp.unknown_tool',
     ],
   },
   {

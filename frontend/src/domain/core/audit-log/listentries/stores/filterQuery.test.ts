@@ -35,6 +35,12 @@ describe('filterQuery', () => {
     expect(filterFromQuery(new URLSearchParams('range=7d')).range).toBe('7d');
     expect(filterFromQuery(new URLSearchParams('')).range).toBe('all');
   });
+  it('keeps mcp.unknown_tool and mcp.tools_list through a round-trip', () => {
+    const q = new URLSearchParams('action=mcp.unknown_tool&action=mcp.tools_list');
+    const f = filterFromQuery(q);
+    expect(f.actions).toEqual(['mcp.unknown_tool', 'mcp.tools_list']);
+    expect(filterToQuery(f).toString()).toBe(q.toString());
+  });
   it('filterKey ignores entry', () => {
     expect(filterKey(filterFromQuery(new URLSearchParams('action=a.b&entry=1')))).toBe(
       filterKey(filterFromQuery(new URLSearchParams('action=a.b'))),

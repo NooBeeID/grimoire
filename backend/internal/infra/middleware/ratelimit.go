@@ -102,6 +102,24 @@ func (l *Limiter) Allow(key string) (bool, time.Duration) {
 	return true, 0
 }
 
+// Peek memeriksa apakah key masih punya token tanpa mengonsumsi dan tanpa membuat entri.
+// Key belum dikenal -> (true, 0).
+func (l *Limiter) Peek(key string) (bool, time.Duration) {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	e, ok := l.entries[key]
+	if !ok {
+		return true, 0
+	}
+	tokens := e.lim.TokensAt(now)
+	if tokens >= 1 {
+		return true, 0
+	}
+	wait := time.Duration((1 - tokens) / float64(l.rule.Rate) * float64(time.Second))
+	return false, wait
+}
+
 // RateLimit menolak dengan 429 + Retry-After bila token habis.
 func RateLimit(l *Limiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

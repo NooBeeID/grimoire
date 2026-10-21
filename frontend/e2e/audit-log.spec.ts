@@ -1,12 +1,14 @@
 import { expect, request as pwRequest, test, type APIRequestContext, type Page } from '@playwright/test';
 import { ErrorEnvelopeForE2E } from './envelope';
+import { createKeyApi, uniqueKeyName } from './helpers/apikeys';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, apiLogin, createReadyUserApi } from './helpers/auth';
+import { initializeBody, mcpPost, toolsListBody } from './helpers/mcp';
+import { createProjectApi } from './helpers/projects';
 
 // E2E T02 core/audit-log terhadap binary sungguhan.
 // Bagian 1: sisi penolakan tanpa sesi. Bagian 2: sesi super admin dan developer (login dari T01).
 // Data audit dibangkitkan dari aksi nyata (login gagal -> entri auth.login.failed) dengan tag unik
 // per tes, jadi tidak butuh akses SQL dan tidak bentrok dengan data lain di DB yang sama.
-// Satu skenario masih fixme: entri aktor api_key baru ada setelah T04/T07.
 
 const ENTRY_ID = '0192f0c4-7a1e-7c3a-9b1d-3c4e5f6a7b8c';
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
@@ -194,11 +196,22 @@ test.describe('audit-log sebagai super admin', () => {
     expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
   });
 
-  // Entri aktor api_key hanya ada setelah API key (T04) dan gateway MCP (T07) ada; login gagal menghasilkan aktor anonymous.
-  test.fixme('5. deep link actor_type+actor_id terfilter ke key itu (menunggu T04/T07)', async ({ page }) => {
+  test('5. deep link actor_type+actor_id terfilter ke key itu', async ({ page, request }) => {
     await loginAs(page, 'super_admin');
-    await page.goto('/audit-log?actor_type=api_key&actor_id=00000000-0000-7000-8000-000000000000');
+    const proj = await createProjectApi(page.request);
+    const keyName = uniqueKeyName('audit');
+    const created = await createKeyApi(page.request, proj.id, keyName);
+    await mcpPost(request, created.raw_key, initializeBody(1));
+    await mcpPost(request, created.raw_key, toolsListBody(2));
+    await page.goto(`/audit-log?actor_type=api_key&actor_id=${created.key.id}`);
     await expect(page.getByRole('table')).toBeVisible();
+    for (const action of ['mcp.initialize', 'mcp.tools_list']) {
+      const row = page.getByRole('row').filter({ hasText: action });
+      await expect(row).toHaveCount(1);
+      await expect(row).toContainText(`${keyName} (${created.key.prefix})`);
+      await expect(row).toContainText(proj.name);
+    }
+    await expect(page.getByRole('img', { name: 'API key (agent)' })).toHaveCount(2);
   });
 
   test('negatif 3. parameter tidak valid -> 400 INVALID_ARGUMENT dengan details.field', async ({ page }) => {

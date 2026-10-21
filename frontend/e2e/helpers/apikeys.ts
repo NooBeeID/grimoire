@@ -6,6 +6,7 @@ export interface ApiKeyApi {
   name: string;
   prefix: string;
   status: string;
+  last_used_at: string | null;
 }
 
 /** Nama key unik per test agar paralel aman. */

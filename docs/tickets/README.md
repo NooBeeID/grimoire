@@ -159,7 +159,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.list-specs` | Call | T06 | T09 |
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
-| `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
+| `discovery.mcpgateway.register-tool` | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07 | T08, T09 |
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
@@ -197,7 +197,7 @@ Tambah konstanta di `backend/lib/contracts/core/audit/record/actions.go` (dan di
 
 Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 
-- Agent: `mcp.list_files`, `mcp.read_file`, `mcp.search_knowledge`, `mcp.list_api_specs`, `mcp.list_api_endpoints`, `mcp.get_api_endpoint`, `mcp.auth.rejected`, `mcp.rate_limited`.
+- Agent: `mcp.list_files`, `mcp.read_file`, `mcp.search_knowledge`, `mcp.list_api_specs`, `mcp.list_api_endpoints`, `mcp.get_api_endpoint`, `mcp.auth.rejected`, `mcp.rate_limited`, `mcp.initialize`, `mcp.tools_list`, `mcp.unknown_tool`.
 - Auth/user: `auth.login.success`, `auth.login.failed`, `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated`, `user.deactivated`, `user.activated`.
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`.
 - Key: `apikey.created`, `apikey.revoked`.
@@ -206,5 +206,5 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)
 
 1. ~~**Kegagalan audit untuk panggilan agent**~~ **Diputuskan: fail-open.** Jika menulis audit gagal, panggilan MCP tetap dilayani dan error hanya di-log. Lihat T02 dan T07.
-2. **Basic Auth untuk agent:** kamu awalnya menyebut "basic Auth atau apiKey". Rekomendasi saya hanya `Authorization: Bearer <key>` dan `X-API-Key`. Basic Auth dikecualikan kecuali klien MCP yang kamu pakai membutuhkannya. Lihat T07.
+2. ~~**Basic Auth untuk agent:**~~ **Diputuskan: tidak didukung (hanya Bearer dan `X-API-Key`).** kamu awalnya menyebut "basic Auth atau apiKey". Rekomendasi saya hanya `Authorization: Bearer <key>` dan `X-API-Key`. Basic Auth dikecualikan kecuali klien MCP yang kamu pakai membutuhkannya. Lihat T07.
 3. **Kedaluwarsa API key:** apakah key perlu tanggal kedaluwarsa opsional? Saya anggap tidak untuk versi pertama. Lihat T04.

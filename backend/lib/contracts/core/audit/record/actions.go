@@ -11,6 +11,9 @@ const (
 	ActionMCPGetAPIEndpoint   = "mcp.get_api_endpoint"
 	ActionMCPAuthRejected     = "mcp.auth.rejected"
 	ActionMCPRateLimited      = "mcp.rate_limited"
+	ActionMCPInitialize       = "mcp.initialize"
+	ActionMCPToolsList        = "mcp.tools_list"
+	ActionMCPUnknownTool      = "mcp.unknown_tool"
 
 	ActionAuthLoginSuccess    = "auth.login.success"
 	ActionAuthLoginFailed     = "auth.login.failed"
@@ -49,6 +52,7 @@ func Actions() []string {
 		ActionMCPListFiles, ActionMCPReadFile, ActionMCPSearchKnowledge,
 		ActionMCPListAPISpecs, ActionMCPListAPIEndpoints, ActionMCPGetAPIEndpoint,
 		ActionMCPAuthRejected, ActionMCPRateLimited,
+		ActionMCPInitialize, ActionMCPToolsList, ActionMCPUnknownTool,
 		ActionAuthLoginSuccess, ActionAuthLoginFailed, ActionAuthLogout,
 		ActionAuthPasswordChanged, ActionAuthPasswordReset,
 		ActionUserCreated, ActionUserUpdated, ActionUserDeactivated, ActionUserActivated,

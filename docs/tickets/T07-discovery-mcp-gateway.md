@@ -33,9 +33,9 @@ Tool yang menulis/mengubah data, OAuth untuk MCP, sesi stateful atau streaming S
 |---|---|---|---|
 | `endpoint` | Endpoint MCP Streamable HTTP; routing JSON-RPC (`initialize`, `ping`, `tools/list`, `tools/call`) | `POST /mcp` | agent |
 | `authenticate` | Ekstrak key dari header, verifikasi lewat bus, tetapkan project pada context | internal | – |
-| `toolregistry` | Katalog tool; menerima pendaftaran tool dari module T08/T09 | wiring | internal |
+| `toolregistry` | Katalog tool; menerima pendaftaran tool dari module T08/T09. Diimplementasi sebagai foundation/wiring (`toolkit` + `base/catalog.go`), bukan usecase | wiring | internal |
 | `callaudit` | Bungkus tiap `tools/call`: ukur durasi, tulis audit, terapkan batas ukuran/timeout | internal | – |
-| `ratelimit` | Pembatas per key dan per IP (kegagalan auth) | internal | – |
+| `ratelimit` | Pembatas per key dan per IP (kegagalan auth). Digabung ke `authenticate` (keputusan K1) | internal | – |
 
 `GET /mcp` mengembalikan `405` (tidak ada stream server→klien).
 
@@ -104,4 +104,4 @@ Tidak ada UI sendiri. Potongan konfigurasi ada di T04; telusur aktivitas ada di 
 ## Pertanyaan terbuka
 
 1. ~~Fail-closed vs fail-open~~ **Diputuskan: fail-open.** Audit yang gagal ditulis tidak menggagalkan panggilan tool; error di-log. Lihat T02.
-2. **Basic Auth:** perlu didukung? Kamu menyebutnya di awal. Rekomendasi: tidak; Bearer dan `X-API-Key` cukup untuk klien MCP umum.
+2. ~~**Basic Auth:**~~ **Diputuskan: tidak didukung.** Pertanyaan semula: perlu didukung? Kamu menyebutnya di awal. Rekomendasi: tidak; Bearer dan `X-API-Key` cukup untuk klien MCP umum.

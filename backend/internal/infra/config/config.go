@@ -54,6 +54,12 @@ type Config struct {
 
 	APISpecMaxFileBytes int64 `env:"APISPEC_MAX_FILE_BYTES"`
 	APISpecMaxSpecs     int   `env:"APISPEC_MAX_SPECS"`
+	// MCP gateway (T07).
+	MCPRatePerMinute     int           `env:"MCP_RATE_PER_MINUTE"`
+	MCPAuthFailPerMinute int           `env:"MCP_AUTH_FAIL_PER_MINUTE"`
+	MCPMaxRequestBytes   int64         `env:"MCP_MAX_REQUEST_BYTES"`
+	MCPToolTimeout       time.Duration `env:"MCP_TOOL_TIMEOUT"`
+	MCPAllowedOrigins    []string      `env:"MCP_ALLOWED_ORIGINS"`
 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
@@ -277,6 +283,29 @@ func Load(getenv func(string) string) (Config, error) {
 		l.fail("APISPEC_MAX_FILE_BYTES", "harus <= MAX_UPLOAD_BYTES (%d > %d)", specFile, c.MaxUploadBytes)
 	}
 	c.APISpecMaxSpecs, _ = l.intv("APISPEC_MAX_SPECS", 100, 1)
+	// MCP gateway (T07).
+	c.MCPRatePerMinute, _ = l.intr("MCP_RATE_PER_MINUTE", 120, 1, 10000)
+	c.MCPAuthFailPerMinute, _ = l.intr("MCP_AUTH_FAIL_PER_MINUTE", 20, 1, 1000)
+	c.MCPMaxRequestBytes, _ = l.int64("MCP_MAX_REQUEST_BYTES", 65536, 1024)
+	c.MCPToolTimeout = l.dur("MCP_TOOL_TIMEOUT", 10*time.Second)
+	if c.MCPToolTimeout > 60*time.Second {
+		l.fail("MCP_TOOL_TIMEOUT", "maksimal 60s (sekarang %s)", c.MCPToolTimeout)
+	}
+	if v, ok := l.raw("MCP_ALLOWED_ORIGINS"); ok {
+		for _, e := range strings.Split(v, ",") {
+			e = strings.TrimSpace(e)
+			if e == "" {
+				continue
+			}
+			u, err := url.Parse(e)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+				u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.User != nil || strings.Contains(e, "#") {
+				l.fail("MCP_ALLOWED_ORIGINS", "entri %q harus berbentuk scheme://host[:port]", e)
+				continue
+			}
+			c.MCPAllowedOrigins = append(c.MCPAllowedOrigins, e)
+		}
+	}
 
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
@@ -372,5 +401,10 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("api_key_max_active_per_project", m.APIKeyMaxActivePerProject),
 		slog.Int64("apispec_max_file_bytes", m.APISpecMaxFileBytes),
 		slog.Int("apispec_max_specs", m.APISpecMaxSpecs),
+		slog.Int("mcp_rate_per_minute", m.MCPRatePerMinute),
+		slog.Int("mcp_auth_fail_per_minute", m.MCPAuthFailPerMinute),
+		slog.Int64("mcp_max_request_bytes", m.MCPMaxRequestBytes),
+		slog.Duration("mcp_tool_timeout", m.MCPToolTimeout),
+		slog.Any("mcp_allowed_origins", m.MCPAllowedOrigins),
 	)
 }

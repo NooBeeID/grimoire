@@ -3,7 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const external = process.env.E2E_BASE_URL;
 const baseURL = external ?? 'http://localhost:8080';
 const limitsURL = 'http://localhost:8081';
-const serverEnv = { COOKIE_SECURE: 'false', LOGIN_RATE_PER_MINUTE: '1000' };
+// MCP_AUTH_FAIL_PER_MINUTE: semua tes memakai IP 127.0.0.1; limiter gagal-auth /mcp per IP (default 20/menit)
+// akan mengunci tes paralel lain. Bila E2E_BASE_URL dipakai, operator wajib menyetel env yang sama.
+const serverEnv = { COOKIE_SECURE: 'false', LOGIN_RATE_PER_MINUTE: '1000', MCP_AUTH_FAIL_PER_MINUTE: '1000' };
 
 export default defineConfig({
   testDir: 'e2e',

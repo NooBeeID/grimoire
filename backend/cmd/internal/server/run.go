@@ -71,7 +71,7 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger, opts ...Optio
 	// Ctx server tidak ikut batal saat sinyal; dibatalkan setelah HTTP drain.
 	srvCtx, cancelSrv := context.WithCancel(context.WithoutCancel(ctx))
 	root, api, mcp := httpx.NewRouter(cfg, log, b, d)
-	deps := app.Deps{Ctx: srvCtx, Config: cfg, Log: log, DB: d, Bus: b, Jobs: sched, API: api, MCP: mcp}
+	deps := app.Deps{Ctx: srvCtx, Config: cfg, Log: log, DB: d, Bus: b, Jobs: sched, API: api, MCP: mcp, Version: buildinfo.Version}
 	core.Register(deps)
 	project.Register(deps)
 	discovery.Register(deps)

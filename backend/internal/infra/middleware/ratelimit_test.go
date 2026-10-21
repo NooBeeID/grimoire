@@ -141,3 +141,34 @@ func TestNewLimiter_InvalidRulePanics(t *testing.T) {
 	mustPanic(t, func() { NewLimiter(ctx, Rule{Rate: 1, Burst: 0, KeyFunc: KeyByIP}) })
 	mustPanic(t, func() { NewLimiter(ctx, Rule{Rate: 1, Burst: 1}) })
 }
+
+func TestLimiter_Peek(t *testing.T) {
+	clk := &fakeClock{t: time.Unix(1000, 0)}
+	l := testLimiter(t, Rule{Name: "t", Rate: 1, Burst: 2, KeyFunc: KeyByIP}, clk)
+	for i := 0; i < 5; i++ {
+		if ok, _ := l.Peek("k"); !ok {
+			t.Fatal("key baru harus lolos")
+		}
+	}
+	if l.size() != 0 {
+		t.Fatalf("Peek tidak boleh membuat entri, size=%d", l.size())
+	}
+	for i := 0; i < 2; i++ {
+		if ok, _ := l.Allow("k"); !ok {
+			t.Fatalf("Allow %d ditolak setelah Peek", i)
+		}
+		if i == 0 {
+			for j := 0; j < 3; j++ {
+				l.Peek("k")
+			}
+		}
+	}
+	ok, wait := l.Peek("k")
+	if ok || wait <= 0 {
+		t.Fatalf("burst habis: ok=%v wait=%v", ok, wait)
+	}
+	clk.Add(2 * time.Second)
+	if ok, _ := l.Peek("k"); !ok {
+		t.Fatal("setelah waktu maju Peek harus true")
+	}
+}

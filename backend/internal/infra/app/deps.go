@@ -26,4 +26,6 @@ type Deps struct {
 	// API adalah sub-router /api; MCP adalah sub-router /mcp.
 	API chi.Router
 	MCP chi.Router
+	// Version adalah versi build untuk serverInfo MCP; diisi cmd/internal/server dari buildinfo.Version.
+	Version string
 }
