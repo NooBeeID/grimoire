@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ApiError, del, get, isApiError, notifyUnauthorized, post, request, setUnauthorizedHandler, toApiError } from './http';
+import { ApiError, del, get, getBlob, isApiError, notifyUnauthorized, post, request, setUnauthorizedHandler, toApiError } from './http';
 import { HealthStatus } from '../validation/error';
 import { setLocale } from '../stores/i18n';
 
@@ -230,5 +230,30 @@ describe('notifyUnauthorized', () => {
     history.pushState({}, '', '/login');
     notifyUnauthorized();
     expect(h).not.toHaveBeenCalled();
+  });
+});
+
+describe('getBlob', () => {
+  it('returns the blob and content type without CSRF header', async () => {
+    fetchMock.mockResolvedValue(new Response('openapi: 3.0.3', { status: 200, headers: { 'content-type': 'application/yaml' } }));
+    const r = await getBlob('/api/x/raw');
+    expect(await r.blob.text()).toBe('openapi: 3.0.3');
+    expect(r.contentType).toBe('application/yaml');
+    expect(lastInit().headers).not.toHaveProperty('X-Requested-With');
+  });
+  it('404 envelope -> ApiError with server message', async () => {
+    fetchMock.mockResolvedValue(envelope('NOT_FOUND', 404));
+    await expect(getBlob('/api/x/raw')).rejects.toMatchObject({ status: 404, message: 'pesan server' });
+  });
+  it('401 calls the unauthorized handler', async () => {
+    const h = vi.fn();
+    setUnauthorizedHandler(h);
+    fetchMock.mockResolvedValue(envelope('UNAUTHENTICATED', 401));
+    await expect(getBlob('/api/x/raw')).rejects.toBeInstanceOf(ApiError);
+    expect(h).toHaveBeenCalled();
+  });
+  it('network failure -> NETWORK', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fail'));
+    await expect(getBlob('/api/x/raw')).rejects.toMatchObject({ code: 'NETWORK' });
   });
 });

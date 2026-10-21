@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: 5
+  version: 6
+paths:
+  /p0:
+    get:
+      tags: oops0
+      responses:
+        '200': {description: OK}
+  /p1:
+    get:
+      tags: oops1
+      responses:
+        '200': {description: OK}
+  /p2:
+    get:
+      tags: oops2
+      responses:
+        '200': {description: OK}
+  /p3:
+    get:
+      tags: oops3
+      responses:
+        '200': {description: OK}
+  /p4:
+    get:
+      tags: oops4
+      responses:
+        '200': {description: OK}
+  /p5:
+    get:
+      tags: oops5
+      responses:
+        '200': {description: OK}
+  /p6:
+    get:
+      tags: oops6
+      responses:
+        '200': {description: OK}
+  /p7:
+    get:
+      tags: oops7
+      responses:
+        '200': {description: OK}
+  /p8:
+    get:
+      tags: oops8
+      responses:
+        '200': {description: OK}
+  /p9:
+    get:
+      tags: oops9
+      responses:
+        '200': {description: OK}
+  /p10:
+    get:
+      tags: oops10
+      responses:
+        '200': {description: OK}
+  /p11:
+    get:
+      tags: oops11
+      responses:
+        '200': {description: OK}
+  /p12:
+    get:
+      tags: oops12
+      responses:
+        '200': {description: OK}
+  /p13:
+    get:
+      tags: oops13
+      responses:
+        '200': {description: OK}
+  /p14:
+    get:
+      tags: oops14
+      responses:
+        '200': {description: OK}
+  /p15:
+    get:
+      tags: oops15
+      responses:
+        '200': {description: OK}
+  /p16:
+    get:
+      tags: oops16
+      responses:
+        '200': {description: OK}
+  /p17:
+    get:
+      tags: oops17
+      responses:
+        '200': {description: OK}
+  /p18:
+    get:
+      tags: oops18
+      responses:
+        '200': {description: OK}
+  /p19:
+    get:
+      tags: oops19
+      responses:
+        '200': {description: OK}
+  /p20:
+    get:
+      tags: oops20
+      responses:
+        '200': {description: OK}
+  /p21:
+    get:
+      tags: oops21
+      responses:
+        '200': {description: OK}
+  /p22:
+    get:
+      tags: oops22
+      responses:
+        '200': {description: OK}
+  /p23:
+    get:
+      tags: oops23
+      responses:
+        '200': {description: OK}
+  /p24:
+    get:
+      tags: oops24
+      responses:
+        '200': {description: OK}
+  /p25:
+    get:
+      tags: oops25
+      responses:
+        '200': {description: OK}
+  /p26:
+    get:
+      tags: oops26
+      responses:
+        '200': {description: OK}
+  /p27:
+    get:
+      tags: oops27
+      responses:
+        '200': {description: OK}
+  /p28:
+    get:
+      tags: oops28
+      responses:
+        '200': {description: OK}
+  /p29:
+    get:
+      tags: oops29
+      responses:
+        '200': {description: OK}

@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info: {title: X, version: "1"}
+x-foo:
+  $ref: http://evil.example/x
+paths:
+  /a:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  $ref: http://evil.example/y
+                properties:
+                  example:
+                    type: string
+              examples:
+                one:
+                  value:
+                    $ref: file:///etc/passwd

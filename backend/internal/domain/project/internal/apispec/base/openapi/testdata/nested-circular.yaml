@@ -1,0 +1,57 @@
+openapi: 3.0.3
+info: {title: Circ, version: "1"}
+servers:
+  - url: https://root.example
+security:
+  - bearer: []
+paths:
+  /nodes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string}
+      - name: verbose
+        in: query
+        schema: {type: boolean}
+    get:
+      operationId: getNode
+      summary: Ambil node
+      parameters:
+        - name: verbose
+          in: query
+          description: override
+          schema: {type: string}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+    other: {type: apiKey, name: k, in: header}
+  schemas:
+    Node:
+      type: object
+      description: node
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    Meta:
+      type: object
+      properties:
+        deep:
+          $ref: '#/components/schemas/Deep'
+    Deep:
+      type: object
+      properties:
+        leaf: {type: string}
+    Unused:
+      type: string

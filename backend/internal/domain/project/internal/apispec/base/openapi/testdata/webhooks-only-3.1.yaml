@@ -1,0 +1,8 @@
+openapi: 3.1.0
+info: {title: Hooks, version: "1"}
+webhooks:
+  newPet:
+    post:
+      operationId: newPetHook
+      responses:
+        '200': {description: OK}

@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Petstore
+  version: 1.0.0
+  description: Contoh **Markdown**
+servers:
+  - url: https://api.example.com
+tags:
+  - name: pets
+paths:
+  /pets:
+    parameters:
+      - $ref: '#/components/parameters/Trace'
+    get:
+      operationId: listPets
+      summary: Daftar hewan
+      tags: [pets, pets, read]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+    post:
+      operationId: createPet
+      summary: Buat hewan
+      tags: [pets]
+      security:
+        - bearer: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '201':
+          description: Created
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      deprecated: true
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        default:
+          $ref: '#/components/responses/Err'
+components:
+  parameters:
+    Trace:
+      name: X-Trace
+      in: header
+      schema: {type: string}
+  responses:
+    Err:
+      description: Error
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+    unused:
+      type: apiKey
+      name: k
+      in: header
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        owner:
+          $ref: '#/components/schemas/Owner'
+    Owner:
+      type: object
+      properties:
+        name: {type: string}
+    Unused:
+      type: string

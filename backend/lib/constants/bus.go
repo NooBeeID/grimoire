@@ -43,3 +43,10 @@ const BUS_PROJECT_KNOWLEDGE_READ_FILE = "project.knowledge.read-file"
 
 // Provider: T05. Consumer: T08. Kontrak: lib/contracts/project/knowledge/search. Snippet bersorot **term**.
 const BUS_PROJECT_KNOWLEDGE_SEARCH = "project.knowledge.search"
+
+// Provider: T06 project/apispec. Consumer: T09 (discovery/apispectools).
+// Kontrak: lib/contracts/project/apispec/{listspecs,listendpoints,getendpoint}.
+// Handler TIDAK memeriksa akses user; WAJIB membatasi query pada ProjectID request (rule 6.10).
+const BUS_PROJECT_APISPEC_LIST_SPECS = "project.apispec.list-specs"
+const BUS_PROJECT_APISPEC_LIST_ENDPOINTS = "project.apispec.list-endpoints"
+const BUS_PROJECT_APISPEC_GET_ENDPOINT = "project.apispec.get-endpoint"

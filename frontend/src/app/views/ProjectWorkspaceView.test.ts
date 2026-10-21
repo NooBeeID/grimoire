@@ -41,6 +41,7 @@ function stub(level: 'owner' | 'member' | 'admin') {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
+      if (url.endsWith('/api-specs')) return new Response(JSON.stringify({ items: [], total: 0, limit: 100 }), { status: 200 });
       if (url.endsWith('/members')) return new Response(JSON.stringify(members), { status: 200 });
       return new Response(JSON.stringify(detail(level)), { status: 200 });
     }),
@@ -101,6 +102,17 @@ describe('ProjectWorkspaceView', () => {
     stub('owner');
     render(View, { params: { projectID: PID, tab: 'api-keys' } });
     const link = await screen.findByRole('link', { name: 'API Keys' });
+    expect(link).toHaveAttribute('aria-current', 'page');
+  });
+  it('item on a tab without supportsItem shows tab notFound', async () => {
+    stub('owner');
+    render(View, { params: { projectID: PID, tab: 'members', item: 'x' } });
+    expect(await screen.findByText('Bagian ini tidak tersedia')).toBeInTheDocument();
+  });
+  it('api-specs tab is marked current on the detail page', async () => {
+    stub('owner');
+    render(View, { params: { projectID: PID, tab: 'api-specs', item: 'payment' } });
+    const link = await screen.findByRole('link', { name: 'API Specs' });
     expect(link).toHaveAttribute('aria-current', 'page');
   });
 });

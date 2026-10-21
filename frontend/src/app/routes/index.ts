@@ -30,6 +30,11 @@ export const routes: RouteDef[] = [
     view: ProjectWorkspaceView,
     meta: { auth: true, layout: 'app', titleKey: 'project.workspace.title' },
   },
+  {
+    path: '/projects/:projectID/:tab/:item',
+    view: ProjectWorkspaceView,
+    meta: { auth: true, layout: 'app', titleKey: 'project.workspace.title' },
+  },
   { path: '/login', view: LoginView, meta: { guestOnly: true, layout: 'blank', titleKey: 'auth.login.title' } },
   {
     path: '/change-password',

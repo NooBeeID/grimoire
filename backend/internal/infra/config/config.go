@@ -51,6 +51,9 @@ type Config struct {
 
 	APIKeyMaxActivePerProject int    `env:"API_KEY_MAX_ACTIVE_PER_PROJECT"`
 	PublicURL                 string `env:"PUBLIC_URL"`
+
+	APISpecMaxFileBytes int64 `env:"APISPEC_MAX_FILE_BYTES"`
+	APISpecMaxSpecs     int   `env:"APISPEC_MAX_SPECS"`
 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
@@ -267,6 +270,14 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	// API spec (T06).
+	specFile, specFileOK := l.int64("APISPEC_MAX_FILE_BYTES", 5242880, 1)
+	c.APISpecMaxFileBytes = specFile
+	if specFileOK && uploadOK && specFile > c.MaxUploadBytes {
+		l.fail("APISPEC_MAX_FILE_BYTES", "harus <= MAX_UPLOAD_BYTES (%d > %d)", specFile, c.MaxUploadBytes)
+	}
+	c.APISpecMaxSpecs, _ = l.intv("APISPEC_MAX_SPECS", 100, 1)
+
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
 		u, err := url.Parse(v)
@@ -359,5 +370,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("login_rate_per_minute", m.LoginRatePerMinute),
 		slog.String("public_url", m.PublicURL),
 		slog.Int("api_key_max_active_per_project", m.APIKeyMaxActivePerProject),
+		slog.Int64("apispec_max_file_bytes", m.APISpecMaxFileBytes),
+		slog.Int("apispec_max_specs", m.APISpecMaxSpecs),
 	)
 }

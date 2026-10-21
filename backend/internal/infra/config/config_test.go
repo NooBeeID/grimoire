@@ -39,6 +39,7 @@ func TestLoad_Defaults(t *testing.T) {
 		SessionIdleTimeout: 12 * time.Hour, SessionAbsoluteTimeout: 168 * time.Hour, PasswordMinLength: 10,
 		Argon2MemoryKiB: 65536, Argon2Iterations: 3, Argon2Parallelism: 2, LoginMaxFailures: 5,
 		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20, APIKeyMaxActivePerProject: 20,
+		APISpecMaxFileBytes: 5242880, APISpecMaxSpecs: 100,
 	}
 	if c != want {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -48,7 +49,7 @@ func TestLoad_Defaults(t *testing.T) {
 func TestLoad_OverridesApplied(t *testing.T) {
 	c, err := Load(env(base(map[string]string{
 		"HTTP_ADDR": "127.0.0.1:9000", "APP_ENV": "development", "COOKIE_SECURE": "false",
-		"AUDIT_RETENTION_DAYS": "7", "MAX_FILE_BYTES": "10", "MAX_UPLOAD_BYTES": "20", "MAX_UPLOAD_FILES": "3",
+		"AUDIT_RETENTION_DAYS": "7", "MAX_FILE_BYTES": "10", "MAX_UPLOAD_BYTES": "20", "APISPEC_MAX_FILE_BYTES": "20", "MAX_UPLOAD_FILES": "3",
 		"MCP_MAX_RESPONSE_BYTES": "2048", "RUN_MIGRATIONS_ON_START": "true", "DB_MAX_OPEN_CONNS": "10",
 		"DB_MAX_IDLE_CONNS": "2", "DB_CONN_MAX_LIFETIME": "1h", "HTTP_DEFAULT_BODY_BYTES": "99",
 		"HTTP_READ_HEADER_TIMEOUT": "1s", "HTTP_DEFAULT_TIMEOUT": "2s", "SHUTDOWN_TIMEOUT": "3s",
@@ -122,6 +123,10 @@ func TestLoad_InvalidValues(t *testing.T) {
 		{"logformat", "LOG_FORMAT", map[string]string{"LOG_FORMAT": "xml"}},
 		{"apikey-max-zero", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "0"}},
 		{"apikey-max-nan", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "abc"}},
+		{"apispec-file-zero", "APISPEC_MAX_FILE_BYTES", map[string]string{"APISPEC_MAX_FILE_BYTES": "0"}},
+		{"apispec-file-nan", "APISPEC_MAX_FILE_BYTES", map[string]string{"APISPEC_MAX_FILE_BYTES": "abc"}},
+		{"apispec-file>upload", "APISPEC_MAX_FILE_BYTES", map[string]string{"APISPEC_MAX_FILE_BYTES": "52428801"}},
+		{"apispec-specs-zero", "APISPEC_MAX_SPECS", map[string]string{"APISPEC_MAX_SPECS": "0"}},
 		{"public-ftp", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "ftp://x"}},
 		{"public-nohost", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "g.tim.id"}},
 		{"public-query", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "https://g.tim.id?a=1"}},
@@ -251,5 +256,19 @@ func TestLoad_APIKeyConfig(t *testing.T) {
 				t.Fatalf("got %q / %d", c.PublicURL, c.APIKeyMaxActivePerProject)
 			}
 		})
+	}
+}
+
+func TestLoad_APISpecConfig(t *testing.T) {
+	c, err := Load(env(base(map[string]string{"APISPEC_MAX_FILE_BYTES": "1024", "APISPEC_MAX_SPECS": "7"})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.APISpecMaxFileBytes != 1024 || c.APISpecMaxSpecs != 7 {
+		t.Fatalf("got %d / %d", c.APISpecMaxFileBytes, c.APISpecMaxSpecs)
+	}
+	// Batas atas = MAX_UPLOAD_BYTES (inklusif).
+	if _, err := Load(env(base(map[string]string{"APISPEC_MAX_FILE_BYTES": "52428800"}))); err != nil {
+		t.Fatalf("== MAX_UPLOAD_BYTES harus lolos: %v", err)
 	}
 }

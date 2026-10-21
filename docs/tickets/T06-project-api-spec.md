@@ -37,8 +37,13 @@ Swagger 2.0, "Try it out"/eksekusi request ke server API, mock server, diff anta
 | `downloadspec` | Unduh teks asli | `GET /api/projects/{id}/api-specs/{name}/raw` | anggota, super_admin |
 | `renamespec` | Ganti nama spec | `PATCH /api/projects/{id}/api-specs/{name}` | anggota, super_admin |
 | `deletespec` | Hapus spec | `DELETE /api/projects/{id}/api-specs/{name}` | anggota, super_admin |
-| `validatespec` | Logika validasi/parsing (dipakai upload; juga endpoint "validasi tanpa menyimpan") | `POST /api/projects/{id}/api-specs/validate` | anggota, super_admin |
-| `busreader` | Handler bus untuk agent: `list-specs`, `list-endpoints`, `get-endpoint` | bus `project.apispec.*` | internal |
+| `validatespec` | Validasi tanpa menyimpan (parser OpenAPI bersama ada di `base/openapi`) | `POST /api/projects/{id}/api-specs/validate` (multipart) | anggota, super_admin |
+| `listspecsbus` | Handler bus `list-specs` untuk agent | bus `project.apispec.list-specs` | internal |
+| `listendpoints` | Handler bus `list-endpoints` (filter spec/tag/teks, paginasi) | bus `project.apispec.list-endpoints` | internal |
+| `getendpoint` | Handler bus `get-endpoint` (operasi dengan `$ref` ter-inline) | bus `project.apispec.get-endpoint` | internal |
+| `countspecs` | Handler bus `count-specs` (kontrak `contentcount` T03) | bus `project.apispec.count-specs` | internal |
+
+Keputusan D1: feature `busreader` dipecah menjadi empat feature di atas (satu feature = satu handler bus).
 
 ## Aturan bisnis
 
@@ -50,7 +55,7 @@ Swagger 2.0, "Try it out"/eksekusi request ke server API, mock server, diff anta
 ### Validasi
 - Format: `.yaml`, `.yml`, `.json`. Ukuran maks 5 MB (konfigurabel). UTF-8.
 - Harus dokumen OpenAPI **3.0.x atau 3.1.x** yang valid secara struktural (`openapi`, `info`, `paths`/`webhooks`/`components`, tipe field benar). `$ref` internal (`#/...`) harus terselesaikan.
-- **Keamanan parser (wajib):** referensi eksternal (URL atau file) **tidak pernah di-fetch** (mencegah SSRF dan pembacaan file server); spec dengan `$ref` eksternal ditolak dengan pesan jelas atau ref-nya dibiarkan tidak terselesaikan dan ditandai (pilihan builder, tetapi tanpa fetch). YAML dibatasi terhadap "billion laughs" (batas alias/kedalaman/ukuran).
+- **Keamanan parser (wajib):** referensi eksternal (URL atau file) **tidak pernah di-fetch** (mencegah SSRF dan pembacaan file server); spec dengan `$ref` eksternal (URL, file, relatif, `$id`-relatif 3.1) DITOLAK (`rejected`, issue `EXTERNAL_REF`) tanpa fetch (keputusan D3). YAML dibatasi terhadap "billion laughs" (batas alias/kedalaman/ukuran).
 - File `.json`/`.yaml` yang bukan OpenAPI (mis. `package.json`) → `rejected` dengan alasan "bukan OpenAPI".
 - Pesan error validasi menyebut lokasi (baris/JSON pointer) bila memungkinkan.
 
@@ -92,7 +97,7 @@ Disediakan (`lib/contracts/project/apispec/...`), dibatasi pada `ProjectID` pema
 - `project.apispec.list-endpoints` — `{ProjectID, Spec?, Tag?, Query?, Limit, Offset}` → `{Items[{Spec, Method, Path, OperationID, Summary, Tags, Deprecated}], Total, Truncated}`.
 - `project.apispec.get-endpoint` — `{ProjectID, Spec, Method?, Path?, OperationID?, SchemaDepth}` → `{Found, Spec, Method, Path, Operation(json), Servers, SecuritySchemes, Truncated}` (`Found=false` disertai `Similar[]`).
 
-Dikonsumsi: `project.management.check-access`, `core.auth.get-user`, `core.audit.record`.
+Dikonsumsi: `project.management.check-access`, `core.audit.record`. `core.auth.get-user` tidak dikonsumsi: label pelaku diambil dari identitas request (D6).
 
 Event audit: `apispec.uploaded` (nama, versi OpenAPI, jumlah endpoint, apakah menimpa), `apispec.updated` (rename), `apispec.deleted`.
 
@@ -114,6 +119,11 @@ Tab "API Specs":
 6. Spec 3.0 dan 3.1 sama-sama dapat diunggah dan dirender (termasuk `nullable` vs tipe array 3.1).
 7. Non-anggota mendapat 404; handler bus tidak pernah mengembalikan data project lain.
 8. Deskripsi berisi HTML/skrip tidak dieksekusi di tampilan.
+
+## Catatan implementasi
+
+- Konfigurasi: `APISPEC_MAX_FILE_BYTES` (default 5 MiB, <= `MAX_UPLOAD_BYTES`) dan `APISPEC_MAX_SPECS` (default 100); lihat `docs/configuration.md`.
+- Parser sendiri di atas `go.yaml.in/yaml/v3` (D2), tanpa library OpenAPI.
 
 ## Pertanyaan terbuka
 

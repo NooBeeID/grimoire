@@ -144,6 +144,29 @@ export async function request<T = unknown>(method: string, url: string, o: Reque
   throw err;
 }
 
+export interface BlobResult {
+  blob: Blob;
+  contentType: string | null;
+}
+
+// GET non-JSON (unduhan). Gagal -> ApiError dengan envelope dan handler 401 yang sama dengan request().
+export async function getBlob(url: string, o: { signal?: AbortSignal; skipAuthRedirect?: boolean } = {}): Promise<BlobResult> {
+  const full = buildUrl(url);
+  let res: Response;
+  try {
+    res = await fetch(full, { method: 'GET', headers: { Accept: '*/*' }, credentials: 'same-origin', signal: o.signal });
+  } catch (e) {
+    if ((e instanceof DOMException && e.name === 'AbortError') || o.signal?.aborted) throw e;
+    throw new ApiError({ status: 0, code: 'NETWORK', message: tr('error.network') });
+  }
+  const requestId = res.headers.get('X-Request-Id') ?? undefined;
+  if (res.ok) return { blob: await res.blob(), contentType: res.headers.get('Content-Type') };
+  const text = await res.text().catch(() => '');
+  const err = toApiError(res.status, text, requestId);
+  if (res.status === 401 && !o.skipAuthRedirect) notifyUnauthorized();
+  throw err;
+}
+
 type NoBody<T> = Omit<RequestOptions<T>, 'body'>;
 export const get = <T>(url: string, o?: NoBody<T>) => request<T>('GET', url, o);
 export const post = <T>(url: string, body?: unknown, o?: RequestOptions<T>) => request<T>('POST', url, { ...o, body });

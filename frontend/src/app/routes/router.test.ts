@@ -116,4 +116,10 @@ describe('project workspace routes', () => {
     expect(get(current).location.query.get('path')).toBe('docs/a.md');
     stopRouter();
   });
+
+  it('detail route captures :item and decodes it', async () => {
+    const { routes } = await import('./index');
+    expect(match('/projects/p1/api-specs/payment.v2', routes)?.params).toEqual({ projectID: 'p1', tab: 'api-specs', item: 'payment.v2' });
+    expect(match('/projects/p1/api-specs/a%2Fb', routes)?.params.item).toBe('a/b');
+  });
 });

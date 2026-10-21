@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info: {title: Merge, version: "1"}
+paths:
+  /a:
+    get:
+      x-base: &base
+        description: dari base
+        summary: base
+      responses:
+        '200': {description: OK}
+x-merged:
+  <<: *base
+  summary: eksplisit
