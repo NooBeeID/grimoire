@@ -58,7 +58,7 @@ Middleware berurutan: recover → trace id (`X-Request-Id`, dibuat jika tidak ad
 - Mode dev: proxy ke Vite dev server agar tidak perlu rebuild.
 
 ### F6. Konfigurasi (`infra/config`)
-Env var, divalidasi saat start, gagal cepat dengan pesan jelas. Minimal: `DATABASE_URL`, `HTTP_ADDR`, `SESSION_SECRET`/kunci cookie, `COOKIE_SECURE`, `AUDIT_RETENTION_DAYS` (default 90), batas upload (`MAX_FILE_BYTES`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_FILES`), batas respons MCP, `RUN_MIGRATIONS_ON_START`. Dokumentasikan semuanya di `docs/configuration.md`.
+Env var, divalidasi saat start, gagal cepat dengan pesan jelas. Minimal: `DATABASE_URL`, `HTTP_ADDR`, `SESSION_SECRET`/kunci cookie, `COOKIE_SECURE`, `AUDIT_RETENTION_DAYS` (default 90), batas upload (`MAX_FILE_BYTES`, `MAX_UPLOAD_BYTES`, `MAX_UPLOAD_FILES`), batas respons MCP, `RUN_MIGRATION`. Dokumentasikan semuanya di `docs/configuration.md`.
 
 ### F7. Job terjadwal (`infra/jobs`)
 Scheduler ringan di dalam proses (interval/harian) dengan penguncian agar aman bila lebih dari satu instance (Postgres advisory lock). Module mendaftarkan job-nya (dipakai T01 untuk sesi kedaluwarsa dan T02 untuk retensi audit).

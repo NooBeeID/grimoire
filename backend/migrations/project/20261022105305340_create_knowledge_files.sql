@@ -1,5 +1,5 @@
 -- T05 project/knowledge. Forward-only. gen_random_uuid() bawaan Postgres >= 13.
-CREATE TABLE knowledge_files (
+CREATE TABLE IF NOT EXISTS knowledge_files (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id       uuid        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     path             text        NOT NULL,
@@ -24,5 +24,5 @@ CREATE TABLE knowledge_files (
     CONSTRAINT knowledge_files_project_id_path_key UNIQUE (project_id, path)
 );
 
-CREATE INDEX knowledge_files_search_gin ON knowledge_files USING gin (search);
-CREATE INDEX knowledge_files_project_path_prefix ON knowledge_files (project_id, path text_pattern_ops);
+CREATE INDEX IF NOT EXISTS knowledge_files_search_gin ON knowledge_files USING gin (search);
+CREATE INDEX IF NOT EXISTS knowledge_files_project_path_prefix ON knowledge_files (project_id, path text_pattern_ops);

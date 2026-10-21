@@ -31,7 +31,7 @@ Paket: `backend/internal/infra/db` (runner) dan `backend/migrations` (file SQL t
 ## Penggunaan
 
 - CLI: `grimoire migrate up` atau `make migrate` (lihat `scripts/make/db.mk` untuk target tambahan).
-- Otomatis saat start: `RUN_MIGRATIONS_ON_START=true`.
+- Otomatis saat start: `RUN_MIGRATION=true`.
 - Kode: `db.Up(ctx, d, log)` untuk FS ter-embed, `db.Migrate(ctx, d, fsys, log)` untuk FS lain (test).
 
 ## Transaksi dan test

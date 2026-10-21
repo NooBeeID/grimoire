@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: postgres://grimoire:${POSTGRES_PASSWORD}@db:5432/grimoire?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:?isi SESSION_SECRET di .env (>= 32 byte)}
-      RUN_MIGRATIONS_ON_START: "true"
+      RUN_MIGRATION: "true"
       # false hanya untuk akses via http://localhost; set true bila di belakang HTTPS.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}

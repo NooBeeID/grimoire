@@ -35,7 +35,7 @@ dev-test-db: dev-db
 	  || $(COMPOSE) exec -T db createdb -U grimoire grimoire_test
 
 dev-backend:
-	cd backend && APP_ENV=development RUN_MIGRATIONS_ON_START=true COOKIE_SECURE=false \
+	cd backend && APP_ENV=development RUN_MIGRATION=true COOKIE_SECURE=false \
 	  DEV_VITE_URL=http://localhost:5173 go run ./cmd/http
 
 dev-frontend:

@@ -279,12 +279,12 @@ func tableExists(t *testing.T, admin *sql.DB, schema, table string) bool {
 	return n > 0
 }
 
-func TestServe_RunMigrationsOnStart(t *testing.T) {
+func TestServe_RunMigration(t *testing.T) {
 	for _, on := range []bool{true, false} {
 		dbURL, schema, admin := testDBURL(t)
 		extra := map[string]string{}
 		if on {
-			extra["RUN_MIGRATIONS_ON_START"] = "true"
+			extra["RUN_MIGRATION"] = "true"
 		}
 		r := startRun(t, testCfg(t, dbURL, extra))
 		got := tableExists(t, admin, schema, "schema_migrations")
@@ -293,7 +293,7 @@ func TestServe_RunMigrationsOnStart(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got != on {
-			t.Errorf("RUN_MIGRATIONS_ON_START=%v: schema_migrations ada = %v", on, got)
+			t.Errorf("RUN_MIGRATION=%v: schema_migrations ada = %v", on, got)
 		}
 	}
 }

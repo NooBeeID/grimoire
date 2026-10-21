@@ -36,7 +36,7 @@ Exit code: `0` sukses, `1` kegagalan runtime (config tidak valid, DB mati, bind 
 
 1. Load config dan logger (config tidak valid: semua masalah dicetak sekaligus, exit 1, tanpa nilai secret).
 2. Buka DB (ping gagal berarti berhenti).
-3. Migrasi bila `RUN_MIGRATIONS_ON_START=true`.
+3. Migrasi bila `RUN_MIGRATION=true`.
 4. Bus dan jobs, router (`/api`, `/mcp`, `/healthz`, `/readyz`), `Register` domain.
 5. Static SPA dipasang sebagai NotFound root; `/api/**` yang tidak cocok tetap 404 JSON.
 6. Jobs start, listener dibuka, server melayani.

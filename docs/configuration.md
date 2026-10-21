@@ -15,7 +15,7 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `MAX_UPLOAD_FILES` | int | `500` | tidak | >= 1 | Jumlah file maksimum per upload. |
 | `MAX_PROJECT_FILES` | int | `5000` | tidak | >= 1 | Jumlah file knowledge maksimum per project. |
 | `MCP_MAX_RESPONSE_BYTES` | int | `102400` | tidak | >= 1024 | Batas ukuran respons MCP. |
-| `RUN_MIGRATIONS_ON_START` | bool | `false` | tidak | boolean | Jalankan migrasi saat start. |
+| `RUN_MIGRATION` | bool | `false` | tidak | boolean | Jalankan migrasi saat start. |
 | `DB_MAX_OPEN_CONNS` | int | `20` | tidak | >= 1 | Maksimum koneksi terbuka. |
 | `DB_MAX_IDLE_CONNS` | int | `5` | tidak | >= 0 dan <= open | Maksimum koneksi idle. |
 | `DB_CONN_MAX_LIFETIME` | duration | `30m` | tidak | durasi > 0 | Umur maksimum koneksi. |

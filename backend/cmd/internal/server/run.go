@@ -56,7 +56,7 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger, opts ...Optio
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
-	if cfg.RunMigrationsOnStart {
+	if cfg.RunMigration {
 		res, err := db.Migrate(ctx, d, migrations.FS, log)
 		if err != nil {
 			_ = d.Close()

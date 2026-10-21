@@ -84,7 +84,7 @@ func (e *mcpEnv) countAudit(action string) int {
 func setupMCP(t *testing.T) *mcpEnv {
 	t.Helper()
 	dbURL, schema, admin := testDBURL(t)
-	cfg := testCfg(t, dbURL, map[string]string{"RUN_MIGRATIONS_ON_START": "true", "COOKIE_SECURE": "false"})
+	cfg := testCfg(t, dbURL, map[string]string{"RUN_MIGRATION": "true", "COOKIE_SECURE": "false"})
 	depsCh := make(chan app.Deps, 1)
 	r := startRun(t, cfg, WithAppHook(func(d app.Deps) { depsCh <- d }))
 	d := <-depsCh

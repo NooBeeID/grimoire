@@ -1,7 +1,7 @@
 -- T04 project/api-key. gen_random_uuid() bawaan Postgres >= 13.
 -- Hanya prefix dan SHA-256(secret) yang disimpan; plaintext key tidak pernah masuk DB.
 
-CREATE TABLE api_keys (
+CREATE TABLE IF NOT EXISTS api_keys (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id       uuid        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name             text        NOT NULL,
@@ -20,6 +20,6 @@ CREATE TABLE api_keys (
     CONSTRAINT api_keys_revoked_consistent CHECK (revoked_at IS NOT NULL OR (revoked_by IS NULL AND revoked_by_label IS NULL))
 );
 
-CREATE UNIQUE INDEX api_keys_prefix_key ON api_keys (prefix);
-CREATE UNIQUE INDEX api_keys_project_active_name_key ON api_keys (project_id, name) WHERE revoked_at IS NULL;
-CREATE INDEX api_keys_project_idx ON api_keys (project_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS api_keys_prefix_key ON api_keys (prefix);
+CREATE UNIQUE INDEX IF NOT EXISTS api_keys_project_active_name_key ON api_keys (project_id, name) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS api_keys_project_idx ON api_keys (project_id, created_at DESC);

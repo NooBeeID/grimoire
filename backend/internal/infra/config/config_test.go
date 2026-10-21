@@ -52,7 +52,7 @@ func TestLoad_OverridesApplied(t *testing.T) {
 	c, err := Load(env(base(map[string]string{
 		"HTTP_ADDR": "127.0.0.1:9000", "APP_ENV": "development", "COOKIE_SECURE": "false",
 		"AUDIT_RETENTION_DAYS": "7", "MAX_FILE_BYTES": "10", "MAX_UPLOAD_BYTES": "20", "APISPEC_MAX_FILE_BYTES": "20", "MAX_UPLOAD_FILES": "3",
-		"MCP_MAX_RESPONSE_BYTES": "2048", "RUN_MIGRATIONS_ON_START": "true", "DB_MAX_OPEN_CONNS": "10",
+		"MCP_MAX_RESPONSE_BYTES": "2048", "RUN_MIGRATION": "true", "DB_MAX_OPEN_CONNS": "10",
 		"DB_MAX_IDLE_CONNS": "2", "DB_CONN_MAX_LIFETIME": "1h", "HTTP_DEFAULT_BODY_BYTES": "99",
 		"HTTP_READ_HEADER_TIMEOUT": "1s", "HTTP_DEFAULT_TIMEOUT": "2s", "SHUTDOWN_TIMEOUT": "3s",
 		"BUS_SHUTDOWN_TIMEOUT": "4s", "LOG_LEVEL": "debug", "LOG_FORMAT": "text", "DEV_VITE_URL": "http://localhost:5173",
@@ -60,7 +60,7 @@ func TestLoad_OverridesApplied(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.HTTPAddr != "127.0.0.1:9000" || c.CookieSecure || c.AuditRetentionDays != 7 || !c.RunMigrationsOnStart ||
+	if c.HTTPAddr != "127.0.0.1:9000" || c.CookieSecure || c.AuditRetentionDays != 7 || !c.RunMigration ||
 		c.DBConnMaxLifetime != time.Hour || c.BusShutdownTimeout != 4*time.Second || c.LogFormat != "text" ||
 		c.DevViteURL != "http://localhost:5173" || c.MaxUploadBytes != 20 {
 		t.Fatalf("overrides not applied: %+v", c)

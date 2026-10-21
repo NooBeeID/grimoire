@@ -1,6 +1,6 @@
 -- T06 project/apispec. Butuh tabel projects (T03).
 
-CREATE TABLE api_specs (
+CREATE TABLE IF NOT EXISTS api_specs (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id       uuid        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name             text        NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE api_specs (
     CONSTRAINT api_specs_hash_len CHECK (octet_length(content_hash) = 32)
 );
 
-CREATE TABLE api_spec_endpoints (
+CREATE TABLE IF NOT EXISTS api_spec_endpoints (
     spec_id      uuid    NOT NULL REFERENCES api_specs(id) ON DELETE CASCADE,
     method       text    NOT NULL,
     path         text    NOT NULL,
@@ -37,5 +37,5 @@ CREATE TABLE api_spec_endpoints (
     CONSTRAINT api_spec_endpoints_method_check
         CHECK (method IN ('GET','PUT','POST','DELETE','OPTIONS','HEAD','PATCH','TRACE'))
 );
-CREATE INDEX api_spec_endpoints_opid_idx ON api_spec_endpoints (spec_id, operation_id)
+CREATE INDEX IF NOT EXISTS api_spec_endpoints_opid_idx ON api_spec_endpoints (spec_id, operation_id)
     WHERE operation_id IS NOT NULL;

@@ -25,7 +25,7 @@ type Config struct {
 	MaxUploadFiles        int           `env:"MAX_UPLOAD_FILES"`
 	MaxProjectFiles       int           `env:"MAX_PROJECT_FILES"`
 	MCPMaxResponseBytes   int           `env:"MCP_MAX_RESPONSE_BYTES"`
-	RunMigrationsOnStart  bool          `env:"RUN_MIGRATIONS_ON_START"`
+	RunMigration          bool          `env:"RUN_MIGRATION"`
 	DBMaxOpenConns        int           `env:"DB_MAX_OPEN_CONNS"`
 	DBMaxIdleConns        int           `env:"DB_MAX_IDLE_CONNS"`
 	DBConnMaxLifetime     time.Duration `env:"DB_CONN_MAX_LIFETIME"`
@@ -229,7 +229,7 @@ func Load(getenv func(string) string) (Config, error) {
 	c.MaxUploadFiles, _ = l.intv("MAX_UPLOAD_FILES", 500, 1)
 	c.MaxProjectFiles, _ = l.intv("MAX_PROJECT_FILES", 5000, 1)
 	c.MCPMaxResponseBytes, _ = l.intv("MCP_MAX_RESPONSE_BYTES", 102400, 1024)
-	c.RunMigrationsOnStart = l.boolean("RUN_MIGRATIONS_ON_START", false)
+	c.RunMigration = l.boolean("RUN_MIGRATION", false)
 
 	var openOK, idleOK bool
 	c.DBMaxOpenConns, openOK = l.intv("DB_MAX_OPEN_CONNS", 20, 1)
@@ -375,7 +375,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("max_upload_files", m.MaxUploadFiles),
 		slog.Int("max_project_files", m.MaxProjectFiles),
 		slog.Int("mcp_max_response_bytes", m.MCPMaxResponseBytes),
-		slog.Bool("run_migrations_on_start", m.RunMigrationsOnStart),
+		slog.Bool("run_migration", m.RunMigration),
 		slog.Int("db_max_open_conns", m.DBMaxOpenConns),
 		slog.Int("db_max_idle_conns", m.DBMaxIdleConns),
 		slog.Duration("db_conn_max_lifetime", m.DBConnMaxLifetime),

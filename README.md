@@ -48,7 +48,7 @@ Setelah `make dev`:
 
 Login dengan akun hasil seed (lihat bagian [Seeding](#seeding)). Akun ini wajib ganti password pada login pertama.
 
-> `make dev` sudah menjalankan `RUN_MIGRATIONS_ON_START=true`, jadi langkah 3 boleh dilewati untuk dev. Langkah 3 tetap berguna bila Anda ingin migrasi tanpa menjalankan server, dan `make seed` butuh tabel `users` sudah ada, jadi migrasi harus sudah pernah jalan sebelum seed.
+> `make dev` sudah menjalankan `RUN_MIGRATION=true`, jadi langkah 3 boleh dilewati untuk dev. Langkah 3 tetap berguna bila Anda ingin migrasi tanpa menjalankan server, dan `make seed` butuh tabel `users` sudah ada, jadi migrasi harus sudah pernah jalan sebelum seed.
 
 ## Konfigurasi
 
@@ -92,7 +92,7 @@ backend/migrations/
 ```bash
 make migrate                         # setara: cd backend && go run ./cmd/cli migrate up
 ./bin/grimoire migrate up            # dari binary hasil make build
-RUN_MIGRATIONS_ON_START=true         # jalankan otomatis saat server start
+RUN_MIGRATION=true         # jalankan otomatis saat server start
 ```
 
 Perilaku runner:
@@ -289,7 +289,7 @@ docker run -d --name grimoire-db --network grimoire \
 docker run -d --name grimoire --network grimoire -p 8080:8080 \
   -e DATABASE_URL='postgres://grimoire:ganti-ini@grimoire-db:5432/grimoire?sslmode=disable' \
   -e SESSION_SECRET="$(openssl rand -base64 48)" \
-  -e RUN_MIGRATIONS_ON_START=true -e COOKIE_SECURE=false \
+  -e RUN_MIGRATION=true -e COOKIE_SECURE=false \
   achimonchi/grimoire:scratch
 
 docker exec -it grimoire /grimoire create-admin --email admin@perusahaan.id --name "Nama Admin"
