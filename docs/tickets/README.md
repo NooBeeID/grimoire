@@ -13,9 +13,9 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Selesai (`1b25823`) |
 | [T04](T04-project-api-key.md) | project | api-key | M | T03 | Selesai (`d4265df`) |
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Selesai (`3221efc`) |
-| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Plan siap |
+| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Selesai (0a26586) |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Plan siap |
-| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Belum |
+| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Plan siap |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Belum |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
