@@ -31,7 +31,7 @@ const (
 	MaxActorLabelBytes   = 256
 	MaxProjectLabelBytes = 256
 	MaxTargetTypeBytes   = 64
-	MaxTargetBytes       = 1024
+	MaxTargetBytes       = record.MaxTargetBytes
 	MaxUserAgentBytes    = 512
 	MaxTraceIDBytes      = 128
 )

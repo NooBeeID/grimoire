@@ -50,3 +50,11 @@ const BUS_PROJECT_KNOWLEDGE_SEARCH = "project.knowledge.search"
 const BUS_PROJECT_APISPEC_LIST_SPECS = "project.apispec.list-specs"
 const BUS_PROJECT_APISPEC_LIST_ENDPOINTS = "project.apispec.list-endpoints"
 const BUS_PROJECT_APISPEC_GET_ENDPOINT = "project.apispec.get-endpoint"
+
+// Provider: T02 core/auditlog (feature scanentries, ditambah T11). Consumer: T11 (discovery/knowledgetools searchquality).
+// Kontrak: lib/contracts/core/audit/scanentries. Baca-saja, selalu dibatasi ProjectID (rule 6.10).
+const BUS_CORE_AUDIT_SCAN_ENTRIES = "core.audit.scan-entries"
+
+// Provider: T11 discovery/knowledgetools (searchquality). Consumer: cmd/cli.
+// Kontrak: lib/contracts/discovery/knowledgetools/searchquality. Baca-saja.
+const BUS_DISCOVERY_KNOWLEDGETOOLS_SEARCH_QUALITY_REPORT = "discovery.knowledgetools.search-quality-report"

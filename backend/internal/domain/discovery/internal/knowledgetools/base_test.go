@@ -236,6 +236,10 @@ func TestT08_AC7_ImportAllowlist(t *testing.T) {
 		"grimoire/lib/contracts/project/knowledge/search":     true,
 		"grimoire/lib/contracts/discovery/mcpgateway/toolkit": true,
 		"grimoire/lib/common/errs":                            true,
+		// T11: batas audit, kontrak scan audit, dan kontrak laporan kualitas pencarian.
+		"grimoire/lib/contracts/core/audit/record":                      true,
+		"grimoire/lib/contracts/core/audit/scanentries":                 true,
+		"grimoire/lib/contracts/discovery/knowledgetools/searchquality": true,
 	}
 	const self = "grimoire/internal/domain/discovery/internal/knowledgetools"
 	const recordPkg = "grimoire/lib/contracts/core/audit/record"

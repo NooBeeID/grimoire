@@ -33,3 +33,19 @@ func TestOneLine(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestTruncateUTF8(t *testing.T) {
+	if TruncateUTF8("abc", 0) != "" || TruncateUTF8("abc", -1) != "" {
+		t.Fatal("max <= 0")
+	}
+	if TruncateUTF8("abcdef", 3) != "abc" || TruncateUTF8("abc", 10) != "abc" || TruncateUTF8("abc", 3) != "abc" {
+		t.Fatal("ascii")
+	}
+	// "é" = 2 byte; batas di tengah karakter mundur ke batas rune.
+	if got := TruncateUTF8("ééé", 3); got != "é" {
+		t.Fatalf("%q", got)
+	}
+	if got := TruncateUTF8("ééé", 4); got != "éé" {
+		t.Fatalf("%q", got)
+	}
+}

@@ -2,8 +2,11 @@ package base
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
+	"grimoire/lib/contracts/core/audit/record"
 	"grimoire/lib/contracts/project/knowledge/search"
 )
 
@@ -40,7 +43,103 @@ func TestSearchHits_EmptyAndTotalFloor(t *testing.T) {
 
 func TestSearchHits_ResultAudit(t *testing.T) {
 	r := NewSearchHits("rahasia", "docs", search.Response{Items: []search.Item{{Path: "p", Snippet: "s"}}, Total: 2}).Result()
-	if r.TargetType != "folder" || r.Target != "docs" || len(r.Summary) != 2 || r.Summary["count"] != 1 || r.Summary["total"] != 2 {
+	if r.TargetType != "folder" || r.Target != "docs" || len(r.Summary) != 3 || r.Summary["count"] != 1 || r.Summary["total"] != 2 {
 		t.Fatalf("%+v", r)
+	}
+}
+
+func hitsOf(n int, path func(i int) string, total int) SearchHits {
+	items := make([]search.Item, n)
+	for i := range items {
+		items[i] = search.Item{Path: path(i), Score: 1, Snippet: "s"}
+	}
+	return NewSearchHits("q", "", search.Response{Items: items, Total: total})
+}
+
+func TestSummary_ResultPaths(t *testing.T) {
+	h := hitsOf(3, func(i int) string { return "docs/" + string(rune('a'+i)) + ".md" }, 3)
+	s := h.Summary()
+	if got := s["result_paths"].([]string); len(got) != 3 || got[0] != "docs/a.md" || got[2] != "docs/c.md" {
+		t.Fatalf("%v", got)
+	}
+	if s["count"] != 3 || s["total"] != 3 {
+		t.Fatalf("%v", s)
+	}
+	if _, ok := s["result_paths_truncated"]; ok {
+		t.Fatal("tidak boleh ada truncated")
+	}
+
+	s = hitsOf(15, func(i int) string { return "d/" + string(rune('a'+i)) }, 40).Summary()
+	if len(s["result_paths"].([]string)) != 10 || s["count"] != 15 || s["total"] != 40 {
+		t.Fatalf("%v", s)
+	}
+	if _, ok := s["result_paths_truncated"]; ok {
+		t.Fatal("batas 10 bukan truncated")
+	}
+}
+
+func TestSummary_EmptyIsJSONArray(t *testing.T) {
+	s := NewSearchHits("x", "", search.Response{}).Summary()
+	b, _ := json.Marshal(s)
+	if string(b) != `{"count":0,"result_paths":[],"total":0}` {
+		t.Fatal(string(b))
+	}
+}
+
+func TestSummary_LongMultibytePathTruncated(t *testing.T) {
+	long := strings.Repeat("é", 750) // 1500 byte
+	paths, trunc := hitsOf(1, func(int) string { return long }, 1).ResultPaths()
+	if trunc || len(paths) != 1 || len(paths[0]) > record.MaxTargetBytes || !utf8.ValidString(paths[0]) {
+		t.Fatalf("len=%d trunc=%v", len(paths[0]), trunc)
+	}
+}
+
+func TestSummary_Budget(t *testing.T) {
+	h := hitsOf(10, func(i int) string { return strings.Repeat(string(rune('a'+i)), 1024) }, 10)
+	s := h.Summary()
+	paths := s["result_paths"].([]string)
+	if s["result_paths_truncated"] != true || len(paths) >= 10 || len(paths) == 0 {
+		t.Fatalf("n=%d %v", len(paths), s["result_paths_truncated"])
+	}
+	pb, _ := json.Marshal(paths)
+	if len(pb) > ResultPathsBudgetBytes {
+		t.Fatalf("budget %d", len(pb))
+	}
+	b, _ := json.Marshal(s)
+	if len(b)+512 >= record.MaxResultJSONBytes {
+		t.Fatalf("summary %d terlalu besar", len(b))
+	}
+}
+
+func TestSummary_BudgetUsesEscapedLength(t *testing.T) {
+	// "<" di-escape jadi 6 karakter; 1024 byte mentah -> ~6144 encoded, satu path saja muat.
+	h := hitsOf(3, func(int) string { return strings.Repeat("<", 1024) }, 3)
+	paths, trunc := h.ResultPaths()
+	if !trunc || len(paths) != 0 && len(paths) != 1 {
+		t.Fatalf("n=%d trunc=%v", len(paths), trunc)
+	}
+	pb, _ := json.Marshal(paths)
+	if len(pb) > ResultPathsBudgetBytes {
+		t.Fatalf("budget %d", len(pb))
+	}
+}
+
+func TestSummary_NoLeakedKeys(t *testing.T) {
+	s := hitsOf(2, func(i int) string { return "p" }, 2).Summary()
+	for _, k := range []string{"snippet", "score", "content", "query", "items"} {
+		if _, ok := s[k]; ok {
+			t.Fatalf("kunci %s bocor", k)
+		}
+	}
+}
+
+func TestSearchHits_StructuredRegression(t *testing.T) {
+	h := NewSearchHits("q", "", search.Response{Items: []search.Item{{Path: "a.md", Score: 0.5, Snippet: "x"}}, Total: 1})
+	b, _ := json.Marshal(h.Structured())
+	if string(b) != `{"items":[{"path":"a.md","score":0.5,"snippet":"x"}],"query":"q","total":1}` {
+		t.Fatal(string(b))
+	}
+	if want := "1 dari 1 hasil untuk \"q\"\n1. a.md  (skor 0.500)\n   x\nBaca isi lengkap dengan read_file(path)."; h.Text() != want {
+		t.Fatal(h.Text())
 	}
 }

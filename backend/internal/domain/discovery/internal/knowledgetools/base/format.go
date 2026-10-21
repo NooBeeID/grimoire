@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // HumanSize memformat ukuran byte (basis 1024, satu desimal) sesuai D9.
@@ -43,3 +44,19 @@ var oneLineReplacer = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t
 
 // OneLine mengganti pemisah baris dan tab dengan satu spasi.
 func OneLine(s string) string { return oneLineReplacer.Replace(s) }
+
+// TruncateUTF8 memotong s ke paling banyak max byte pada batas karakter UTF-8.
+// max <= 0 menghasilkan string kosong.
+func TruncateUTF8(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if len(s) <= max {
+		return s
+	}
+	n := max
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
+}

@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "path": "a.md",
+      "score": 0.9,
+      "snippet": "**a** satu"
+    },
+    {
+      "path": "b/a.md",
+      "score": 0.5,
+      "snippet": "**a** dua"
+    }
+  ],
+  "query": "a",
+  "total": 9
+}

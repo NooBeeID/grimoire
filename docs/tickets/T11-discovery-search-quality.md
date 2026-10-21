@@ -65,8 +65,12 @@ Fixture dan golden set: `backend/testdata/searcheval/` (korpus markdown kecil + 
 
 ## Kontrak bus
 
-Tidak ada endpoint bus baru.
-`searchquality` membaca `audit_log` lewat bus T02 bila sudah ada endpoint baca yang cukup, atau lewat query repository sendiri yang hanya `SELECT` (periksa dulu; lihat keputusan K2).
+**Catatan keputusan (D1/K2):** T11 menambah dua endpoint bus baca-saja, menyimpang dari kalimat awal "Tidak ada endpoint bus baru". Alasan: `rules.txt` 2.4 melarang module membaca tabel module lain dan 4.7 membatasi `cmd/**` pada wiring, sehingga `audit_log` dibaca lewat bus, bukan SQL di discovery atau CLI (fallback yang disebut K2).
+
+- `core.audit.scan-entries` (provider T02 core/auditlog, feature `scanentries`; consumer `searchquality`). Kontrak: `lib/contracts/core/audit/scanentries`.
+- `discovery.knowledgetools.search-quality-report` (provider `searchquality`; consumer `cmd/cli`). Kontrak: `lib/contracts/discovery/knowledgetools/searchquality`.
+
+Semula: `searchquality` membaca `audit_log` lewat bus T02 bila sudah ada endpoint baca yang cukup, atau lewat query repository sendiri yang hanya `SELECT` (periksa dulu; lihat keputusan K2).
 
 ## UI
 

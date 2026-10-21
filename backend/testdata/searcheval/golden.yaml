@@ -1,0 +1,121 @@
+pairs:
+  - query: "rate-limit"
+    expect: ["api/rate-limit.md"]
+    kind: exact-name
+  - query: "idempotency keys"
+    expect: ["payments/idempotency-keys.md"]
+    kind: exact-name
+  - query: "webhook signature"
+    expect: ["webhook/webhook-signature.md"]
+    kind: exact-name
+  - query: "refund policy"
+    expect: ["payments/refund-policy.md"]
+    kind: exact-name
+  - query: "error codes"
+    expect: ["api/error-codes.md"]
+    kind: exact-name
+  - query: "first week checklist"
+    expect: ["onboarding/first-week-checklist.md"]
+    kind: exact-name
+  - query: "incident response"
+    expect: ["ops/incident-response.md"]
+    kind: exact-name
+  - query: "rollback"
+    expect: ["deploy/rollback.md"]
+    kind: exact-name
+  - query: "SAML Okta"
+    expect: ["auth/sso-saml.md"]
+    kind: keyword
+  - query: "Retry-After 429"
+    expect: ["api/rate-limit.md"]
+    kind: keyword
+  - query: "HMAC"
+    expect: ["webhook/webhook-signature.md"]
+    kind: keyword
+  - query: "Midtrans virtual account"
+    expect: ["payments/payment-gateway-midtrans.md"]
+    kind: keyword
+  - query: "DATABASE_URL"
+    expect: ["deploy/env-variables.md"]
+    kind: keyword
+  - query: "cursor pagination"
+    expect: ["api/pagination.md"]
+    kind: keyword
+  - query: "postmortem on-call"
+    expect: ["ops/incident-response.md"]
+    kind: keyword
+  - query: "refresh token session cookie"
+    expect: ["auth/login-flow.md"]
+    kind: keyword
+  - query: "changelog tag"
+    expect: ["deploy/release-process.md"]
+    kind: keyword
+  - query: "reset token"
+    expect: ["auth/password-reset.md"]
+    kind: keyword
+  - query: "kembalikan versi lama"
+    expect: ["deploy/rollback.md"]
+    kind: synonym
+  - query: "batas permintaan"
+    expect: ["api/rate-limit.md"]
+    kind: synonym
+  - query: "pengembalian dana"
+    expect: ["payments/refund-policy.md"]
+    kind: synonym
+  - query: "tagihan pelanggan"
+    expect: ["payments/invoice-generation.md"]
+    kind: synonym
+  - query: "kredensial akses programatik"
+    expect: ["auth/api-keys.md"]
+    kind: synonym
+  - query: "lupa kata sandi"
+    expect: ["auth/password-reset.md"]
+    kind: synonym
+  - query: "callback pelanggan"
+    expect: ["webhook/event-catalog.md", "webhook/retry-policy.md"]
+    kind: synonym
+  - query: "karyawan baru"
+    expect: ["onboarding/first-week-checklist.md"]
+    kind: synonym
+  - query: "rate limt"
+    expect: ["api/rate-limit.md"]
+    kind: typo
+  - query: "pagnation"
+    expect: ["api/pagination.md"]
+    kind: typo
+  - query: "idempotency kyes"
+    expect: ["payments/idempotency-keys.md"]
+    kind: typo
+  - query: "loggin flow"
+    expect: ["auth/login-flow.md"]
+    kind: typo
+  - query: "rollbak"
+    expect: ["deploy/rollback.md"]
+    kind: typo
+  - query: "retrry backoff"
+    expect: ["webhook/retry-policy.md"]
+    kind: typo
+  - query: "enviroment variables"
+    expect: ["deploy/env-variables.md"]
+    kind: typo
+  - query: '"rate limit" per API key'
+    expect: ["api/rate-limit.md"]
+    kind: phrase
+  - query: '"reset password"'
+    expect: ["auth/password-reset.md"]
+    kind: phrase
+  - query: '"exponential backoff"'
+    expect: ["webhook/retry-policy.md"]
+    kind: phrase
+  - query: '"code review" checklist'
+    expect: ["onboarding/code-review-guidelines.md"]
+    kind: phrase
+  - query: '"database migration" production'
+    expect: ["deploy/database-migration.md"]
+    kind: phrase
+  - query: '"virtual account" kadaluarsa'
+    expect: ["payments/payment-gateway-midtrans.md"]
+    kind: phrase
+  - query: '"on-call" rotation'
+    expect: ["ops/incident-response.md"]
+    kind: phrase

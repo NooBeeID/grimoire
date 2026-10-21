@@ -58,7 +58,7 @@ func TestHandler_Success(t *testing.T) {
 	if r.TargetType != "folder" || r.Target != "docs" {
 		t.Fatalf("audit target: %s %s", r.TargetType, r.Target)
 	}
-	if len(r.Summary) != 2 || r.Summary["count"] != 1 || r.Summary["total"] != 1 {
+	if len(r.Summary) != 3 || r.Summary["count"] != 1 || r.Summary["total"] != 1 {
 		t.Fatalf("summary: %v", r.Summary)
 	}
 	sb, _ := json.Marshal(r.Summary)

@@ -70,6 +70,27 @@ Hasil sukses: `{"content":[{"type":"text","text":"..."}],"isError":false}`. Kega
 
 `endpoint` menulis `mcp.initialize` (status `ok`, atau `error` bila versi tidak didukung) dan `mcp.tools_list`. Setiap `tools/call` menghasilkan tepat satu entri `mcp.<tool>` atau `mcp.unknown_tool` (ditulis `callaudit`). `ping`, `-32601`, notification, params tidak valid, dan penolakan transport tidak diaudit di sini. Penolakan auth menjadi `mcp.auth.rejected`, rate limit menjadi `mcp.rate_limited`. Audit fail-open dan tidak pernah memuat isi file.
 
+### Ringkasan audit `search_knowledge`
+
+Entri `mcp.search_knowledge` membawa `result` berikut (selain `bytes`, `original_bytes`, `truncated`, `duration_ms`, dan `error_code` dari gateway):
+
+| Kunci | Tipe | Keterangan |
+|---|---|---|
+| `count` | integer | Jumlah hasil yang dikembalikan ke agent |
+| `total` | integer | Jumlah dokumen cocok sebelum `limit` |
+| `result_paths` | array string | Path hasil teratas, urut sama dengan keluaran, maksimal 10. Tiap path dipotong pada batas UTF-8 1024 byte (sama dengan batas `target` audit `read_file`, sehingga bisa dicocokkan persis). Tanpa hasil: `[]` (bukan `null`) |
+| `result_paths_truncated` | boolean | Hanya ada (`true`) bila sebagian path dibuang karena anggaran ukuran (6144 byte JSON) agar `result` tidak melewati batas 8192 byte `Sanitize` |
+
+Contoh:
+
+```json
+{"count": 15, "total": 42, "result_paths": ["docs/a.md", "docs/b.md", "...hingga 10 path"], "bytes": 3120, "original_bytes": 3120, "truncated": false, "duration_ms": 21}
+```
+
+Snippet, skor, isi file, dan query tidak masuk ke `result` (query tercatat di `args.query`). Path adalah metadata yang juga tercatat sebagai `target` saat `read_file`, bukan isi file.
+
+Alasan membalik keputusan T08 ("tanpa path hasil"): metrik kualitas pencarian T11 (follow-up `read_file`, rank yang dibuka, reformulasi) hanya dapat dihitung bila urutan hasil tercatat. Batas 10 path dan anggaran 6144 byte menjaga baris audit kecil; `result` yang melewati 8192 byte akan diganti seluruhnya oleh `{_truncated, ...}` dan `count`/`total` hilang, sehingga entity memotong sebelum itu terjadi. Entri sebelum T11 tidak memiliki `result_paths` dan dilewati oleh laporan kualitas pencarian.
+
 ## Environment
 
 | Env | Default | Fungsi |
@@ -91,7 +112,7 @@ Katalog tidak valid membuat server panic saat start dengan pesan berawalan `mcpg
 
 ## Tool knowledge
 
-Module `discovery/knowledge-tools` (T08) mendaftarkan tiga tool read-only. Project selalu dari API key; tidak ada argumen `project_id` (argumen itu ditolak). Argumen ketat (`additionalProperties: false`): field tak dikenal atau tipe salah menghasilkan `isError` dengan penjelasan field yang salah. Nilai di luar rentang ditolak, bukan dipotong. Hasil sukses membawa teks, `structuredContent` (object JSON), dan metadata audit tanpa isi file.
+Module `discovery/knowledge-tools` (T08) mendaftarkan tiga tool read-only. Project selalu dari API key; tidak ada argumen `project_id` (argumen itu ditolak). Argumen ketat (`additionalProperties: false`): field tak dikenal atau tipe salah menghasilkan `isError` dengan penjelasan field yang salah. Nilai di luar rentang ditolak, bukan dipotong. Hasil sukses membawa teks, `structuredContent` (object JSON), dan metadata audit tanpa isi file (path hasil pencarian dicatat sebagai `result_paths`, lihat Audit).
 
 | Tool | Argumen | Keterangan |
 |---|---|---|

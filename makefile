@@ -14,7 +14,7 @@ REDOCLY := @redocly/cli@1.34.5
 # DB test TERPISAH dari DB dev: test migrasi menjalankan DROP TABLE schema_migrations di schema public.
 TEST_DATABASE_URL ?= postgres://grimoire:grimoire@localhost:5432/grimoire_test?sslmode=disable
 
-.PHONY: help db-up db-down dev dev-db dev-test-db dev-backend dev-frontend build test vet test-integration test-e2e lint migrate
+.PHONY: help db-up db-down dev dev-db dev-test-db dev-backend dev-frontend build test vet test-integration test-search-eval search-eval-baseline test-e2e lint migrate
 
 help: ## daftar target
 	@grep -E "^[a-zA-Z_-]+:.*##" $(MAKEFILE_LIST) | sed "s/:.*##/ -/"
@@ -57,6 +57,14 @@ vet: ## go vet
 
 test-integration: dev-test-db ## test integrasi (butuh Postgres)
 	cd backend && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" go test -race -tags integration ./...
+
+test-search-eval: dev-test-db ## golden set kualitas pencarian vs baseline (butuh Postgres)
+	cd backend && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" SEARCH_EVAL_TOLERANCE="$(SEARCH_EVAL_TOLERANCE)" \
+	  go test -count=1 -tags integration -run TestSearchEval -v ./cmd/internal/server/
+
+search-eval-baseline: dev-test-db ## tulis ulang testdata/searcheval/baseline.json dari implementasi saat ini
+	cd backend && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" SEARCH_EVAL_UPDATE_BASELINE=1 \
+	  go test -count=1 -tags integration -run TestSearchEval -v ./cmd/internal/server/
 
 test-e2e: build ## Playwright terhadap bin/grimoire
 	@set -e; \

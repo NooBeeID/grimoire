@@ -24,6 +24,7 @@ import (
 	"grimoire/lib/common/errs"
 	"grimoire/lib/constants"
 	"grimoire/lib/contracts/core/auth/createadmin"
+	"grimoire/lib/contracts/discovery/knowledgetools/searchquality"
 )
 
 const usage = `Pemakaian: grimoire [perintah]
@@ -32,6 +33,9 @@ Perintah:
   serve                                    jalankan server (default)
   migrate up                               jalankan migrasi database
   create-admin --email E --name N          buat akun super admin pertama
+  search-quality report --project ID --since 7d
+                                           laporan kualitas pencarian dari audit
+                                           (opsi: --until, --window 120s, --json)
   version                                  tampilkan versi
   help                                     tampilkan bantuan
 
@@ -47,6 +51,9 @@ type cli struct {
 	serve          func(ctx context.Context) int
 	migrateUp      func(ctx context.Context) int
 	createAdminRun func(ctx context.Context, a createAdminArgs) error
+
+	now              func() time.Time
+	searchQualityRun func(ctx context.Context, a searchQualityArgs) (searchquality.Report, error)
 }
 
 func newCLI(stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) *cli {
@@ -63,6 +70,8 @@ func newCLI(stdin io.Reader, stdout, stderr io.Writer, getenv func(string) strin
 		return server.MigrateFromEnv(ctx, c.getenv, c.stdout, c.stderr)
 	}
 	c.createAdminRun = c.callCreateAdmin
+	c.now = time.Now
+	c.searchQualityRun = c.callSearchQuality
 	return c
 }
 
@@ -98,6 +107,8 @@ func (c *cli) run(ctx context.Context, args []string) int {
 		return 0
 	case "create-admin":
 		return c.createAdmin(ctx, args[1:])
+	case "search-quality":
+		return c.searchQuality(ctx, args[1:])
 	}
 	return c.badUsage(fmt.Sprintf("perintah tidak dikenal: %q", args[0]))
 }

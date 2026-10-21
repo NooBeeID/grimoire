@@ -167,6 +167,8 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07 | T08, T09 |
+| `core.audit.scan-entries` | Call (baca-saja) | T02 (feature `scanentries`, ditambah T11) | T11 |
+| `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli` |
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
@@ -175,6 +177,8 @@ Kontrak `project.apikey.verify` dan `project.apikey.touch` ada di `lib/contracts
 Kontrak `project.apispec.list-specs`, `list-endpoints`, `get-endpoint` ada di `lib/contracts/project/apispec/{listspecs,listendpoints,getendpoint}` (konstanta `BUS_PROJECT_APISPEC_LIST_SPECS`, `BUS_PROJECT_APISPEC_LIST_ENDPOINTS`, `BUS_PROJECT_APISPEC_GET_ENDPOINT`); handler bus T06 tidak memeriksa akses user tetapi selalu membatasi query pada `ProjectID` request. `project.apispec.count-specs` memakai kontrak `contentcount`. Respons `get-endpoint` membawa penanda versi aditif `OpenAPIVersion` ("2.0" hanya untuk Swagger 2.0, "" untuk OpenAPI 3.x) beserta `Consumes`/`Produces` (array JSON, nil untuk 3.x).
 
 Kontrak `core.audit.record`: `lib/contracts/core/audit/record` (konstanta `constants.BUS_CORE_AUDIT_RECORD`), request dikirim sebagai nilai `record.Request`.
+
+Kontrak `core.audit.scan-entries`: `lib/contracts/core/audit/scanentries` (konstanta `BUS_CORE_AUDIT_SCAN_ENTRIES`); selalu dibatasi `ProjectID`, filter `Actions` dan `[From, To)`, keyset ASC `(occurred_at, id)`, `Limit` maks 1000, hanya `SELECT`. Kontrak `discovery.knowledgetools.search-quality-report`: `lib/contracts/discovery/knowledgetools/searchquality` (konstanta `BUS_DISCOVERY_KNOWLEDGETOOLS_SEARCH_QUALITY_REPORT`). Batas audit bersama `record.MaxTargetBytes`/`record.MaxResultJSONBytes` di `lib/contracts/core/audit/record/limits.go`. T11 sengaja menambah bus alih-alih membaca `audit_log` dari discovery/CLI (rules 2.4, 4.7).
 
 Catatan: konstanta dan kontrak `core.auth.resolve-session` didefinisikan T00 (`lib/constants/bus.go`, `lib/contracts/core/auth/resolvesession`); handler diimplementasi T01.
 

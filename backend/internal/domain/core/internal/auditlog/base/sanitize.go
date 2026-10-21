@@ -5,12 +5,14 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"grimoire/lib/contracts/core/audit/record"
 )
 
 // Batas dan penanda sanitasi args/result.
 const (
 	MaxStringBytes  = 2048
-	MaxJSONBytes    = 8192
+	MaxJSONBytes    = record.MaxResultJSONBytes
 	MaxDepth        = 5
 	MaxSummaryKeys  = 50
 	Redacted        = "[REDACTED]"

@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "path": "docs/guides/b.md",
+      "score": 0.6079,
+      "snippet": "**rate**\n**limiting** per key"
+    },
+    {
+      "path": "docs/guides/c.md",
+      "score": 0.4,
+      "snippet": ""
+    },
+    {
+      "path": "docs/d.md",
+      "score": 0.12345,
+      "snippet": "batas **rate** harian"
+    }
+  ],
+  "query": "rate limit",
+  "total": 3
+}
