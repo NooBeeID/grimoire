@@ -11,9 +11,10 @@ LDFLAGS := -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PK
 COMPOSE := docker compose -f docker-compose.dev.yml
 DIST    := backend/internal/infra/static/dist
 REDOCLY := @redocly/cli@1.34.5
-TEST_DATABASE_URL ?= postgres://grimoire:grimoire@localhost:5432/grimoire?sslmode=disable
+# DB test TERPISAH dari DB dev: test migrasi menjalankan DROP TABLE schema_migrations di schema public.
+TEST_DATABASE_URL ?= postgres://grimoire:grimoire@localhost:5432/grimoire_test?sslmode=disable
 
-.PHONY: help db-up db-down dev dev-db dev-backend dev-frontend build test vet test-integration test-e2e lint migrate
+.PHONY: help db-up db-down dev dev-db dev-test-db dev-backend dev-frontend build test vet test-integration test-e2e lint migrate
 
 help: ## daftar target
 	@grep -E "^[a-zA-Z_-]+:.*##" $(MAKEFILE_LIST) | sed "s/:.*##/ -/"
@@ -28,6 +29,10 @@ dev: dev-db ## Postgres + backend (:8080) + Vite (:5173)
 
 dev-db:
 	$(COMPOSE) up -d --wait db
+
+dev-test-db: dev-db
+	@$(COMPOSE) exec -T db psql -U grimoire -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='grimoire_test'" | grep -q 1 \
+	  || $(COMPOSE) exec -T db createdb -U grimoire grimoire_test
 
 dev-backend:
 	cd backend && APP_ENV=development RUN_MIGRATIONS_ON_START=true COOKIE_SECURE=false \
@@ -50,7 +55,7 @@ test: ## unit test backend dan frontend
 vet: ## go vet
 	cd backend && go vet ./...
 
-test-integration: dev-db ## test integrasi (butuh Postgres)
+test-integration: dev-test-db ## test integrasi (butuh Postgres)
 	cd backend && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" go test -race -tags integration ./...
 
 test-e2e: build ## Playwright terhadap bin/grimoire
