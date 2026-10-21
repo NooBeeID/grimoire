@@ -71,7 +71,7 @@ func (u *Usecase) Execute(ctx context.Context, in Input) ([]base.CandidateDTO, e
 		if _, skip := isMember[d.ID]; skip {
 			continue
 		}
-		out = append(out, base.CandidateDTO{ID: d.ID, Name: d.Name, Email: d.Email})
+		out = append(out, base.CandidateDTO{ID: d.ID, Name: d.Name, Email: d.Email, InvitationPending: d.InvitationPending})
 		if len(out) == qry.Limit {
 			break
 		}

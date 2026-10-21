@@ -63,3 +63,14 @@ describe('LoginView', () => {
     expect(screen.getByText('ID jejak: tr-1')).toBeInTheDocument();
   });
 });
+
+describe('LoginView: teks bantu undangan', () => {
+  it('menampilkan hint undangan dan tetap memakai pesan 401 yang sama', async () => {
+    fetchMock.mockResolvedValue(json({ error: { code: 'INVALID_CREDENTIALS', message: 'x' } }, 401));
+    render(LoginView);
+    expect(screen.getByText(/Diundang lewat email\?/)).toBeInTheDocument();
+    await fill();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/kedaluwarsa/i)).toBeNull();
+  });
+});

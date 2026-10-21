@@ -79,6 +79,10 @@ func (m Member) ToDTO(u getuser.Response) MemberDTO {
 	if u.Found {
 		name, email := u.Name, u.Email
 		d.Name, d.Email, d.Found, d.IsActive = &name, &email, true, u.IsActive
+		if u.Invitation != nil {
+			exp := u.Invitation.ExpiresAt.UTC()
+			d.InvitationPending, d.InvitationExpiresAt = true, &exp
+		}
 	}
 	return d
 }

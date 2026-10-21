@@ -195,3 +195,23 @@ func TestRepo_FindUserByEmail_CaseInsensitive(t *testing.T) {
 		t.Fatalf("%+v %v %v", u, found, err)
 	}
 }
+
+func TestRepo_FindInvitation(t *testing.T) {
+	d, r := setupRepo(t)
+	ctx := context.Background()
+	id := seedUser(t, d, "inv@tim.id")
+	if _, found, err := r.FindInvitation(ctx, id); err != nil || found {
+		t.Fatalf("%v %v", found, err)
+	}
+	exp := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
+	if _, err := d.ExecContext(ctx, `INSERT INTO user_invitations (user_id, invited_by, issued_at, expires_at) VALUES ($1::uuid,$1::uuid,now(),$2)`, id, exp); err != nil {
+		t.Fatal(err)
+	}
+	inv, found, err := r.FindInvitation(ctx, id)
+	if err != nil || !found || inv.UserID != id || !inv.ExpiresAt.Equal(exp) || inv.AcceptedAt != nil || !inv.IsPending() {
+		t.Fatalf("%+v %v %v", inv, found, err)
+	}
+	if _, found, err := r.FindInvitation(ctx, "bukan-uuid"); err != nil || found {
+		t.Fatalf("%v %v", found, err)
+	}
+}

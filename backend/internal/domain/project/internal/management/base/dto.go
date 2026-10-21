@@ -47,12 +47,18 @@ type MemberDTO struct {
 	AddedAt      time.Time `json:"added_at"`
 	AddedBy      *string   `json:"added_by"`
 	AddedByLabel *string   `json:"added_by_label"`
+	// InvitationPending true bila akun masih undangan menunggu (juga yang kedaluwarsa);
+	// InvitationExpiresAt terisi bersamaan (T12).
+	InvitationPending   bool       `json:"invitation_pending"`
+	InvitationExpiresAt *time.Time `json:"invitation_expires_at"`
 }
 
 type CandidateDTO struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+	// InvitationPending true bila akun masih undangan menunggu (T12).
+	InvitationPending bool `json:"invitation_pending"`
 }
 
 // NewSummary: myRole "" -> MyRole nil, IsMember false.

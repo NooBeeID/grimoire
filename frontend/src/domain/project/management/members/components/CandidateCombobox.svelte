@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { t } from '../../../../../shared/stores/i18n';
   import type { CandidateState } from '../stores/candidateSearch.store';
+  import { normalizeEmail } from '../model/invite';
   import type { Candidate } from '../types';
 
   let {
@@ -10,6 +12,7 @@
     onmove,
     onselect,
     onclear,
+    oninvite,
   }: {
     search: CandidateState;
     selected?: Candidate | null;
@@ -17,12 +20,17 @@
     onmove: (delta: number) => void;
     onselect: (c: Candidate) => void;
     onclear: () => void;
+    oninvite?: (email: string) => void;
   } = $props();
 
   const uid = $props.id();
   const inputId = `cb-${uid}`;
   const listId = `cb-list-${uid}`;
   let text = $state('');
+  // Dipakai saat kembali dari mode undang: pencarian sudah berisi email tadi.
+  onMount(() => {
+    text = search.q;
+  });
   let focused = $state(false);
   let dismissed = $state(false);
 
@@ -30,14 +38,22 @@
   const open = $derived(focused && !dismissed && !selected && hasQuery);
   const optionId = (i: number) => `${listId}-opt-${i}`;
   const active = $derived(search.activeIndex >= 0 ? optionId(search.activeIndex) : undefined);
-  const announce = $derived(
-    search.status === 'ready' && search.items.length > 0 ? $t('project.members.add.resultCount', { n: search.items.length }) : '',
-  );
+  const canInvite = $derived(search.inviteOption === 'invite' && !!oninvite);
+  const inviteIndex = $derived(search.items.length);
+  const announce = $derived.by(() => {
+    const base = search.status === 'ready' && search.items.length > 0 ? $t('project.members.add.resultCount', { n: search.items.length }) : '';
+    return canInvite ? `${base} ${$t('project.members.add.inviteAnnounce')}`.trim() : base;
+  });
 
   function input(e: Event) {
     text = (e.currentTarget as HTMLInputElement).value;
     dismissed = false;
     oninput(text);
+  }
+  function invite() {
+    text = '';
+    dismissed = false;
+    oninvite?.(normalizeEmail(search.q));
   }
   function choose(c: Candidate) {
     text = '';
@@ -58,6 +74,9 @@
       if (c) {
         e.preventDefault();
         choose(c);
+      } else if (open && canInvite && search.activeIndex === inviteIndex) {
+        e.preventDefault();
+        invite();
       }
     } else if (e.key === 'Escape' && open) {
       // Escape pertama hanya menutup daftar; Escape kedua diteruskan ke Dialog.
@@ -111,9 +130,10 @@
         <li role="presentation" class="px-3 py-2 text-sm text-muted">{$t('project.members.add.searching')}</li>
       {:else if search.status === 'error'}
         <li role="presentation" class="px-3 py-2 text-sm text-danger">{$t('project.members.add.searchError')}</li>
-      {:else if search.status === 'ready' && search.items.length === 0}
-        <li role="presentation" class="px-3 py-2 text-sm text-muted">{$t('project.members.add.noCandidates')}</li>
       {:else}
+        {#if search.items.length === 0}
+          <li role="presentation" class="px-3 py-2 text-sm text-muted">{$t('project.members.add.noCandidates')}</li>
+        {/if}
         {#each search.items as c, i (c.id)}
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <li
@@ -126,9 +146,28 @@
             }}
             class="cursor-pointer px-3 py-2 text-sm {i === search.activeIndex ? 'bg-active' : 'hover:bg-raised'}"
           >
-            <span class="break-words">{c.name}</span> <span class="break-all text-muted">{c.email}</span>
+            <span class="break-words">{c.name}</span> <span class="break-all text-muted">{c.email}</span>{#if c.invitation_pending}
+              <span class="text-muted"> {$t('project.members.add.candidatePending')}</span>{/if}
           </li>
         {/each}
+        {#if canInvite}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <li
+            id={optionId(inviteIndex)}
+            role="option"
+            aria-selected={search.activeIndex === inviteIndex}
+            onmousedown={(e) => {
+              e.preventDefault();
+              invite();
+            }}
+            class="cursor-pointer px-3 py-2 text-sm {search.items.length > 0 ? 'border-t border-rule' : ''} {search.activeIndex === inviteIndex ? 'bg-active' : 'hover:bg-raised'}"
+            data-testid="invite-option"
+          >
+            {#each $t('project.members.invite.option', { email: '\u0000' }).split('\u0000') as part, k (k)}{#if k === 1}<span class="font-medium break-all">{normalizeEmail(search.q)}</span>{/if}{part}{/each}
+          </li>
+        {:else if search.inviteOption === 'member'}
+          <li role="presentation" class="px-3 py-2 text-sm text-muted">{$t('project.members.invite.alreadyMember')}</li>
+        {/if}
       {/if}
     {/if}
   </ul>

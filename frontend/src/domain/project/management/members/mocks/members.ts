@@ -11,6 +11,8 @@ export const mockMember = (n: number, over: Record<string, unknown> = {}) => ({
   added_at: '2026-10-22T09:00:00Z',
   added_by: uid(1),
   added_by_label: 'user1@tim.id',
+  invitation_pending: false,
+  invitation_expires_at: null as string | null,
   ...over,
 });
 export const mockMemberList = (...items: ReturnType<typeof mockMember>[]) => ({ items });
@@ -18,6 +20,7 @@ export const mockCandidate = (n: number, over: Record<string, unknown> = {}) => 
   id: uid(100 + n),
   name: `Budi ${n}`,
   email: `budi${n}@tim.id`,
+  invitation_pending: false,
   ...over,
 });
 export const mockCandidateList = (...items: ReturnType<typeof mockCandidate>[]) => ({ items });

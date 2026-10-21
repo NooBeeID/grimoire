@@ -56,7 +56,7 @@ func TestChangeRepo_UpdatesHashAndFlag(t *testing.T) {
 	id := seedUser(t, d, "a@tim.id", true)
 	keep := seedSession(t, d, id, "s1")
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	if _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "new-hash", KeepTokenHash: keep, Now: now}); err != nil {
+	if _, _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "new-hash", KeepTokenHash: keep, Now: now}); err != nil {
 		t.Fatal(err)
 	}
 	var row struct {
@@ -80,7 +80,7 @@ func TestChangeRepo_RevokesOtherSessionsKeepsCurrent(t *testing.T) {
 	seedSession(t, d, id, "s2")
 	seedSession(t, d, id, "s3")
 	seedSession(t, d, other, "o1")
-	n, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
+	n, _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
 	if err != nil || n != 2 {
 		t.Fatalf("n=%d err=%v", n, err)
 	}
@@ -100,7 +100,7 @@ func TestChangeRepo_StaleHashRollsBack(t *testing.T) {
 	id := seedUser(t, d, "a@tim.id", true)
 	keep := seedSession(t, d, id, "s1")
 	seedSession(t, d, id, "s2")
-	_, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "salah", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
+	_, _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "salah", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
 	if !errors.Is(err, ErrStale) {
 		t.Fatalf("%v", err)
 	}
@@ -115,7 +115,7 @@ func TestChangeRepo_StaleHashRollsBack(t *testing.T) {
 func TestChangeRepo_InactiveUserNotUpdated(t *testing.T) {
 	d, r := setupRepo(t)
 	id := seedUser(t, d, "a@tim.id", false)
-	_, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: []byte("k"), Now: time.Now()})
+	_, _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: []byte("k"), Now: time.Now()})
 	if !errors.Is(err, ErrStale) {
 		t.Fatalf("%v", err)
 	}
@@ -131,7 +131,7 @@ func TestChangeRepo_ConcurrentSameOldHash(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
+			_, _, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
 			errsC <- err
 		}()
 	}
@@ -150,5 +150,132 @@ func TestChangeRepo_ConcurrentSameOldHash(t *testing.T) {
 	}
 	if ok != 1 || stale != 1 {
 		t.Fatalf("ok=%d stale=%d", ok, stale)
+	}
+}
+
+func seedInv(t *testing.T, d *db.DB, userID string, accepted *time.Time) {
+	t.Helper()
+	if _, err := d.ExecContext(context.Background(), `INSERT INTO user_invitations (user_id, invited_by, issued_at, expires_at, accepted_at)
+		VALUES ($1::uuid, $1::uuid, now(), now()+interval '7 days', $2)`, userID, accepted); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func acceptedAt(t *testing.T, d *db.DB, userID string) *time.Time {
+	t.Helper()
+	var at *time.Time
+	if err := d.GetContext(context.Background(), &at, `SELECT accepted_at FROM user_invitations WHERE user_id=$1::uuid`, userID); err != nil {
+		t.Fatal(err)
+	}
+	return at
+}
+
+func TestChangeRepo_Accept_MarksAcceptedAt(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	keep := seedSession(t, d, id, "s1")
+	seedSession(t, d, id, "s2")
+	seedInv(t, d, id, nil)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	revoked, accepted, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "new-hash", KeepTokenHash: keep, Now: now})
+	if err != nil || !accepted || revoked != 1 {
+		t.Fatalf("%d %v %v", revoked, accepted, err)
+	}
+	if at := acceptedAt(t, d, id); at == nil || !at.Equal(now) {
+		t.Fatalf("%v", at)
+	}
+	if n := count(t, d, `SELECT count(*) FROM users WHERE id=$1::uuid AND password_hash='new-hash' AND NOT must_change_password`, id); n != 1 {
+		t.Fatal("password tidak berubah")
+	}
+}
+
+func TestChangeRepo_Accept_OnlyOnce(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	keep := seedSession(t, d, id, "s1")
+	seedInv(t, d, id, nil)
+	first := time.Now().UTC().Truncate(time.Microsecond)
+	if _, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "h2", KeepTokenHash: keep, Now: first}); err != nil || !acc {
+		t.Fatalf("%v %v", acc, err)
+	}
+	_, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "h2", NewHash: "h3", KeepTokenHash: keep, Now: first.Add(time.Hour)})
+	if err != nil || acc {
+		t.Fatalf("%v %v", acc, err)
+	}
+	if at := acceptedAt(t, d, id); at == nil || !at.Equal(first) {
+		t.Fatalf("%v", at)
+	}
+}
+
+func TestChangeRepo_NoInvitationRow(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	_, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: []byte("k"), Now: time.Now()})
+	if err != nil || acc || count(t, d, `SELECT count(*) FROM user_invitations`) != 0 {
+		t.Fatalf("%v %v", acc, err)
+	}
+}
+
+func TestChangeRepo_Stale_RollsBackAccept(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	seedInv(t, d, id, nil)
+	_, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "salah", NewHash: "n", KeepTokenHash: []byte("k"), Now: time.Now()})
+	if !errors.Is(err, ErrStale) || acc || acceptedAt(t, d, id) != nil {
+		t.Fatalf("%v %v", acc, err)
+	}
+	if count(t, d, `SELECT count(*) FROM users WHERE id=$1::uuid AND password_hash='old-hash'`, id) != 1 {
+		t.Fatal("hash berubah")
+	}
+}
+
+func TestChangeRepo_AlreadyAccepted(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	old := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	seedInv(t, d, id, &old)
+	_, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: []byte("k"), Now: time.Now()})
+	if err != nil || acc {
+		t.Fatalf("%v %v", acc, err)
+	}
+	if at := acceptedAt(t, d, id); at == nil || !at.Equal(old) {
+		t.Fatalf("%v", at)
+	}
+}
+
+func TestChangeRepo_ConcurrentChange_AcceptedExactlyOnce(t *testing.T) {
+	d, r := setupRepo(t)
+	id := seedUser(t, d, "a@tim.id", true)
+	keep := seedSession(t, d, id, "s1")
+	seedInv(t, d, id, nil)
+	var wg sync.WaitGroup
+	type res struct {
+		acc bool
+		err error
+	}
+	out := make(chan res, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, acc, err := r.Change(context.Background(), ChangeInput{UserID: id, OldHash: "old-hash", NewHash: "n", KeepTokenHash: keep, Now: time.Now()})
+			out <- res{acc, err}
+		}()
+	}
+	wg.Wait()
+	close(out)
+	acc, stale := 0, 0
+	for o := range out {
+		switch {
+		case o.err == nil && o.acc:
+			acc++
+		case errors.Is(o.err, ErrStale):
+			stale++
+		default:
+			t.Fatalf("%+v", o)
+		}
+	}
+	if acc != 1 || stale != 1 || acceptedAt(t, d, id) == nil {
+		t.Fatalf("acc=%d stale=%d", acc, stale)
 	}
 }

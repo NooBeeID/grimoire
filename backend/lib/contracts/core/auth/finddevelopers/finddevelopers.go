@@ -15,6 +15,8 @@ type Request struct {
 
 type Developer struct {
 	ID, Name, Email string
+	// InvitationPending true bila akun masih undangan menunggu (belum diterima; termasuk kedaluwarsa).
+	InvitationPending bool
 }
 
 // Response.Items tidak pernah nil; kosong = []Developer{}.

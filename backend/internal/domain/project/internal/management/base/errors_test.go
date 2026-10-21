@@ -43,3 +43,12 @@ func TestFieldErrors(t *testing.T) {
 		t.Error("error pertama menang")
 	}
 }
+
+func TestErrInvitationNotPending(t *testing.T) {
+	if ErrInvitationNotPending.Code != errs.CodeConflict {
+		t.Fatalf("code %s", ErrInvitationNotPending.Code)
+	}
+	if got := ErrInvitationNotPending.Details.(map[string]any)["reason"]; got != ReasonInvitationNotPending {
+		t.Fatalf("reason %v", got)
+	}
+}

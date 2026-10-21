@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"grimoire/internal/domain/core/internal/auth/base"
 	"grimoire/internal/infra/middleware"
@@ -67,4 +68,26 @@ func TestHandler_ValidationErrorBodyHasNoSecrets(t *testing.T) {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 	_ = reqctx.Identity{}
+}
+
+func TestHandler_ExpiredInvitation400(t *testing.T) {
+	e := setup(t)
+	e.repo.hasInv = true
+	e.repo.inv = base.Invitation{UserID: "u1", ExpiresAt: time.Now().Add(-time.Minute)}
+	w := doReq(e, `{"current_password":"`+oldPW+`","new_password":"`+newPW+`"}`, true)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), "INVALID_ARGUMENT") ||
+		!strings.Contains(w.Body.String(), msgInvitationExpired) || !strings.Contains(w.Body.String(), `"current_password"`) {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+}
+
+func TestHandler_PendingInvitationSuccess204(t *testing.T) {
+	e := setup(t)
+	e.repo.hasInv = true
+	e.repo.accepted = true
+	e.repo.inv = base.Invitation{UserID: "u1", ExpiresAt: time.Now().Add(time.Hour)}
+	w := doReq(e, `{"current_password":"`+oldPW+`","new_password":"`+newPW+`"}`, true)
+	if w.Code != 204 || w.Body.Len() != 0 {
+		t.Fatalf("%d %q", w.Code, w.Body)
+	}
 }

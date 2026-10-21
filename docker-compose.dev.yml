@@ -15,5 +15,13 @@ services:
       timeout: 3s
       retries: 10
 
+  # Backend dev berjalan di host: SMTP localhost:1025, UI http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
 volumes:
   grimoire_pgdata:

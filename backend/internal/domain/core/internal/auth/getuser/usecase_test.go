@@ -13,11 +13,22 @@ import (
 )
 
 type fakeRepo struct {
-	user  base.User
-	found bool
-	err   error
-	gotID string
+	user   base.User
+	found  bool
+	err    error
+	gotID  string
+	inv    base.Invitation
+	hasInv bool
+	invErr error
 }
+
+func (f *fakeRepo) FindInvitation(context.Context, string) (base.Invitation, bool, error) {
+	return f.inv, f.hasInv, f.invErr
+}
+
+var fixedNow = time.Date(2026, 10, 21, 10, 0, 0, 0, time.UTC)
+
+func fixedClock() time.Time { return fixedNow }
 
 func (f *fakeRepo) FindUserByID(_ context.Context, id string) (base.User, bool, error) {
 	f.gotID = id
@@ -44,7 +55,7 @@ func TestUsecase_Execute_Found(t *testing.T) {
 			l := time.Date(2026, 10, 21, 9, 10, 0, 0, time.UTC)
 			u.LastLoginAt = &l
 		}
-		got, err := NewUsecase(&fakeRepo{user: u, found: true}).Execute(context.Background(), u.ID)
+		got, err := NewUsecase(&fakeRepo{user: u, found: true}, fixedClock).Execute(context.Background(), u.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +72,7 @@ func TestUsecase_Execute_Found(t *testing.T) {
 }
 
 func TestUsecase_Execute_NotFound(t *testing.T) {
-	_, err := NewUsecase(&fakeRepo{}).Execute(context.Background(), "x")
+	_, err := NewUsecase(&fakeRepo{}, fixedClock).Execute(context.Background(), "x")
 	if !errors.Is(err, base.ErrUserNotFound) {
 		t.Fatalf("err=%v", err)
 	}
@@ -74,7 +85,7 @@ func TestUsecase_Execute_NotFound(t *testing.T) {
 func TestUsecase_Execute_InactiveUserStillReturned(t *testing.T) {
 	u := sampleUser()
 	u.IsActive = false
-	got, err := NewUsecase(&fakeRepo{user: u, found: true}).Execute(context.Background(), u.ID)
+	got, err := NewUsecase(&fakeRepo{user: u, found: true}, fixedClock).Execute(context.Background(), u.ID)
 	if err != nil || got.IsActive {
 		t.Fatalf("got=%+v err=%v", got, err)
 	}
@@ -82,7 +93,7 @@ func TestUsecase_Execute_InactiveUserStillReturned(t *testing.T) {
 
 func TestUsecase_Execute_RepoError(t *testing.T) {
 	base0 := errors.New("db down")
-	_, err := NewUsecase(&fakeRepo{err: base0}).Execute(context.Background(), "x")
+	_, err := NewUsecase(&fakeRepo{err: base0}, fixedClock).Execute(context.Background(), "x")
 	if !errors.Is(err, base0) {
 		t.Fatalf("err=%v", err)
 	}
@@ -94,12 +105,56 @@ func TestUsecase_Execute_RepoError(t *testing.T) {
 
 func TestUsecase_Execute_DTOHasNoHash(t *testing.T) {
 	u := sampleUser()
-	got, err := NewUsecase(&fakeRepo{user: u, found: true}).Execute(context.Background(), u.ID)
+	got, err := NewUsecase(&fakeRepo{user: u, found: true}, fixedClock).Execute(context.Background(), u.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(got)
 	if strings.Contains(string(b), "password_hash") || strings.Contains(string(b), testHash) {
 		t.Fatalf("bocor: %s", b)
+	}
+}
+
+func TestUsecase_Execute_InvitationPending(t *testing.T) {
+	u := sampleUser()
+	inv := base.Invitation{
+		UserID: u.ID, CreatedAt: fixedNow.Add(-time.Hour), IssuedAt: fixedNow.Add(-time.Hour),
+		ExpiresAt: fixedNow.Add(time.Hour), DeliveryStatus: base.DeliveryPending,
+	}
+	got, err := NewUsecase(&fakeRepo{user: u, found: true, inv: inv, hasInv: true}, fixedClock).Execute(context.Background(), u.ID)
+	if err != nil || got.Invitation == nil || !got.Invitation.Pending || got.Invitation.Expired {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+	inv.ExpiresAt = fixedNow
+	got, _ = NewUsecase(&fakeRepo{user: u, found: true, inv: inv, hasInv: true}, fixedClock).Execute(context.Background(), u.ID)
+	if got.Invitation == nil || !got.Invitation.Expired {
+		t.Fatalf("got=%+v", got)
+	}
+}
+
+func TestUsecase_Execute_NoInvitationOrAccepted(t *testing.T) {
+	u := sampleUser()
+	got, err := NewUsecase(&fakeRepo{user: u, found: true}, fixedClock).Execute(context.Background(), u.ID)
+	if err != nil || got.Invitation != nil {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+	b, _ := json.Marshal(got)
+	if !strings.Contains(string(b), `"invitation":null`) {
+		t.Fatalf("json=%s", b)
+	}
+	acc := base.Invitation{UserID: u.ID, ExpiresAt: fixedNow.Add(time.Hour)}
+	acc.Accept(fixedNow)
+	got, _ = NewUsecase(&fakeRepo{user: u, found: true, inv: acc, hasInv: true}, fixedClock).Execute(context.Background(), u.ID)
+	if got.Invitation != nil {
+		t.Fatalf("got=%+v", got)
+	}
+}
+
+func TestUsecase_Execute_InvitationRepoErrorWrapped(t *testing.T) {
+	boom := errors.New("inv down")
+	u := sampleUser()
+	_, err := NewUsecase(&fakeRepo{user: u, found: true, invErr: boom}, fixedClock).Execute(context.Background(), u.ID)
+	if !errors.Is(err, boom) {
+		t.Fatalf("err=%v", err)
 	}
 }

@@ -3,20 +3,26 @@
   import Button from '../../../../../shared/components/Button.svelte';
   import EmptyState from '../../../../../shared/components/EmptyState.svelte';
   import Pagination from '../../../../../shared/components/Pagination.svelte';
+  import TemporaryCredentialsDialog from '../../../../../shared/components/TemporaryCredentialsDialog.svelte';
   import { t } from '../../../../../shared/stores/i18n';
   import { session } from '../../../../../shared/stores/session';
   import { toast } from '../../../../../shared/stores/toast';
+  import type { TemporaryCredentials } from '../../../../../shared/validation/credentials';
   import ConfirmStatusDialog from '../components/ConfirmStatusDialog.svelte';
   import CreateUserDialog from '../components/CreateUserDialog.svelte';
   import EditUserDialog from '../components/EditUserDialog.svelte';
+  import InviteDeveloperDialog from '../components/InviteDeveloperDialog.svelte';
+  import ResendInvitationDialog from '../components/ResendInvitationDialog.svelte';
   import ResetPasswordDialog from '../components/ResetPasswordDialog.svelte';
   import UsersFilterBar from '../components/UsersFilterBar.svelte';
   import UsersTable from '../components/UsersTable.svelte';
   import { fetchUser } from '../services/getuser.service';
-  import { createUser, listUsers, resetUserPassword, setUserStatus, updateUser } from '../services/users.service';
+  import { createUser, inviteUser, listUsers, resendUserInvitation, resetUserPassword, setUserStatus, updateUser } from '../services/users.service';
   import { hasFilters, usersList, usersListStore } from '../stores/usersList';
-  import { PAGE_SIZE, toUserFormError, type CreateUserInput, type Role, type User, type UserFormError } from '../types';
+  import { PAGE_SIZE, toUserFormError, type CreateUserInput, type InviteUserInput, type Role, type User, type UserFormError } from '../types';
   import { createUsersListController } from './usersList.controller';
+
+  let { emailEnabled = null }: { emailEnabled?: boolean | null } = $props();
 
   const controller = createUsersListController({ listUsers, store: usersListStore });
   const selfId = $derived($session.identity?.userId);
@@ -25,6 +31,77 @@
     void controller.load();
     return () => controller.dispose();
   });
+
+  // Kredensial sementara hanya hidup di state ini; ditutup -> dihapus.
+  let creds = $state<{ credentials: TemporaryCredentials; emailStatus: 'failed' | 'not_configured'; expiresAt: string } | null>(null);
+  function showCredentials(res: { credentials?: TemporaryCredentials; email_status: string; expires_at: string }): boolean {
+    if (!res.credentials) return false;
+    creds = { credentials: res.credentials, emailStatus: res.email_status === 'failed' ? 'failed' : 'not_configured', expiresAt: res.expires_at };
+    return true;
+  }
+
+  // Dialog undang developer
+  let inviteOpen = $state(false);
+  let inviteSubmitting = $state(false);
+  let inviteError = $state<UserFormError | null>(null);
+
+  function openInvite() {
+    inviteError = null;
+    inviteOpen = true;
+  }
+  async function doInvite(input: InviteUserInput) {
+    if (inviteSubmitting) return;
+    inviteSubmitting = true;
+    inviteError = null;
+    try {
+      const res = await inviteUser(input);
+      inviteOpen = false;
+      void controller.refresh({ silent: true });
+      if (res.email_sent) {
+        toast.push({ type: 'success', message: $t(res.created ? 'users.toast.invited' : 'users.toast.invitationResent', { email: res.user.email }) });
+      } else if (!showCredentials(res)) {
+        toast.push({ type: 'error', message: $t('users.toast.inviteDeliveryFailed') });
+      }
+    } catch (e) {
+      inviteError = toUserFormError(e);
+    } finally {
+      inviteSubmitting = false;
+    }
+  }
+  function showInList(email: string) {
+    inviteOpen = false;
+    controller.setFilters({ role: '', status: '', q: email });
+  }
+
+  // Dialog kirim ulang undangan
+  let resendOpen = $state(false);
+  let resendTarget = $state<User | null>(null);
+  let resendSubmitting = $state(false);
+  let resendError = $state<UserFormError | null>(null);
+
+  function openResend(u: User) {
+    resendTarget = u;
+    resendError = null;
+    resendOpen = true;
+  }
+  async function doResend() {
+    if (!resendTarget || resendSubmitting) return;
+    const target = resendTarget;
+    resendSubmitting = true;
+    resendError = null;
+    try {
+      const res = await resendUserInvitation(target.id);
+      resendOpen = false;
+      void controller.refresh({ silent: true });
+      if (res.email_sent) toast.push({ type: 'success', message: $t('users.toast.invitationResent', { email: target.email }) });
+      else showCredentials(res);
+    } catch (e) {
+      resendError = toUserFormError(e);
+      if (resendError.kind === 'notFound') void controller.refresh({ silent: true });
+    } finally {
+      resendSubmitting = false;
+    }
+  }
 
   // Dialog buat
   let createOpen = $state(false);
@@ -187,7 +264,8 @@
     <h1 class="text-[22px] leading-8 font-semibold">{$t('users.title')}</h1>
     <div class="flex items-center gap-3">
       {#if $usersList.refreshing}<span class="text-sm text-muted" role="status">{$t('common.loading')}</span>{/if}
-      <Button onclick={() => (createOpen = true)}>{$t('users.create')}</Button>
+      <Button variant="secondary" onclick={() => (createOpen = true)}>{$t('users.create')}</Button>
+      <Button onclick={openInvite}>{$t('users.invite.open')}</Button>
     </div>
   </header>
 
@@ -202,7 +280,8 @@
     <EmptyState title={$hasFilters ? $t('users.emptyFiltered') : $t('users.empty')}>
       {#snippet action()}
         {#if !$hasFilters}
-          <Button onclick={() => (createOpen = true)}>{$t('users.create')}</Button>
+          <Button onclick={openInvite}>{$t('users.invite.open')}</Button>
+          <Button variant="secondary" onclick={() => (createOpen = true)}>{$t('users.create')}</Button>
         {:else}
           <Button variant="secondary" onclick={() => controller.setFilters({ role: '', status: '', q: '' })}>{$t('users.filter.reset')}</Button>
         {/if}
@@ -218,6 +297,7 @@
       onedit={openEdit}
       onstatus={openStatus}
       onreset={openReset}
+      onresend={openResend}
     />
   {/if}
 
@@ -255,4 +335,32 @@
   temporaryPassword={resetSecret}
   onsubmit={doReset}
   onclose={closeReset}
+/>
+{#if inviteOpen}
+<InviteDeveloperDialog
+  bind:open={inviteOpen}
+  submitting={inviteSubmitting}
+  error={inviteError}
+  {emailEnabled}
+  onsubmit={doInvite}
+  onshowinlist={showInList}
+  onclose={() => (inviteError = null)}
+/>
+{/if}
+{#if resendOpen}
+<ResendInvitationDialog
+  bind:open={resendOpen}
+  user={resendTarget}
+  submitting={resendSubmitting}
+  error={resendError}
+  onconfirm={doResend}
+  onclose={() => (resendError = null)}
+/>
+{/if}
+<TemporaryCredentialsDialog
+  open={creds !== null}
+  credentials={creds?.credentials ?? null}
+  emailStatus={creds?.emailStatus ?? 'not_configured'}
+  expiresAt={creds?.expiresAt ?? ''}
+  onclose={() => (creds = null)}
 />

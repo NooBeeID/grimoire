@@ -104,3 +104,7 @@ Event audit: `project.created`, `project.updated`, `project.deleted` (nama, juml
 ## Pertanyaan terbuka
 
 Tidak ada. Catatan: "project boleh punya banyak owner" dan "project tanpa owner diperbolehkan" adalah keputusan saya.
+
+## Catatan revisi (T12)
+
+Non-goal "undangan lewat email" di atas digantikan T12 (`/api/projects/{projectID}/invitations`). `addmember` untuk developer yang sudah punya akun tidak berubah. Respons anggota dan kandidat mendapat field aditif `invitation_pending`/`invitation_expires_at`. Isi tiket ini tidak ditulis ulang.

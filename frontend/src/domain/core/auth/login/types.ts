@@ -10,7 +10,7 @@ export interface LoginInput {
   password: string;
 }
 
-export const LoginResponseSchema = z.object({ user: MeSchema });
+export const LoginResponseSchema = z.object({ user: MeSchema.omit({ email_enabled: true }) });
 
 export const AuthErrorCode = { INVALID_CREDENTIALS: 'INVALID_CREDENTIALS', ACCOUNT_LOCKED: 'ACCOUNT_LOCKED' } as const;
 

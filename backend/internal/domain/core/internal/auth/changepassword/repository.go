@@ -39,13 +39,19 @@ func (r *Repo) FindUserByID(ctx context.Context, id string) (base.User, bool, er
 	return r.store.FindUserByID(ctx, id)
 }
 
+// FindInvitation membungkus store.FindInvitation.
+func (r *Repo) FindInvitation(ctx context.Context, userID string) (base.Invitation, bool, error) {
+	return r.store.FindInvitation(ctx, userID)
+}
+
 const updatePasswordSQL = `UPDATE users SET password_hash = $2, must_change_password = false, updated_at = $4
 	WHERE id = $1::uuid AND password_hash = $3 AND is_active`
 
-// Change mengganti hash dan mencabut sesi lain dalam satu transaksi.
-// Mengembalikan jumlah sesi yang dicabut.
-func (r *Repo) Change(ctx context.Context, in ChangeInput) (int64, error) {
+// Change mengganti hash, mencabut sesi lain, dan menandai undangan diterima dalam satu transaksi.
+// revoked: jumlah sesi dicabut. accepted: true bila undangan berubah dari menunggu menjadi diterima.
+func (r *Repo) Change(ctx context.Context, in ChangeInput) (int64, bool, error) {
 	var revoked int64
+	var accepted bool
 	err := r.db.BeginTx(ctx, func(tx *sqlx.Tx) error {
 		res, err := tx.ExecContext(ctx, updatePasswordSQL, in.UserID, in.NewHash, in.OldHash, in.Now)
 		if err != nil {
@@ -62,14 +68,22 @@ func (r *Repo) Change(ctx context.Context, in ChangeInput) (int64, error) {
 		if keep == nil {
 			keep = []byte{}
 		}
-		revoked, err = r.store.WithTx(tx).DeleteSessionsByUser(ctx, in.UserID, keep)
-		return err
+		txs := r.store.WithTx(tx)
+		revoked, err = txs.DeleteSessionsByUser(ctx, in.UserID, keep)
+		if err != nil {
+			return err
+		}
+		accepted, err = txs.AcceptInvitation(ctx, in.UserID, in.Now)
+		if err != nil {
+			return fmt.Errorf("terima undangan: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		if errors.Is(err, ErrStale) {
-			return 0, ErrStale
+			return 0, false, ErrStale
 		}
-		return 0, fmt.Errorf("change password tx: %w", err)
+		return 0, false, fmt.Errorf("change password tx: %w", err)
 	}
-	return revoked, nil
+	return revoked, accepted, nil
 }

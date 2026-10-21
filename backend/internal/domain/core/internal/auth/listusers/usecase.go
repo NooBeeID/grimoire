@@ -19,10 +19,18 @@ type Output struct {
 }
 
 // Usecase mengorkestrasi pembacaan daftar user.
-type Usecase struct{ repo Repository }
+type Usecase struct {
+	repo  Repository
+	clock base.Clock
+}
 
 // NewUsecase membuat Usecase.
-func NewUsecase(repo Repository) *Usecase { return &Usecase{repo: repo} }
+func NewUsecase(repo Repository, clock base.Clock) *Usecase {
+	if clock == nil {
+		clock = base.SystemClock
+	}
+	return &Usecase{repo: repo, clock: clock}
+}
 
 // Execute memvalidasi filter (400 bila gagal), mengambil satu halaman, dan memetakan ke DTO.
 func (u *Usecase) Execute(ctx context.Context, in Input) (Output, error) {
@@ -37,9 +45,10 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (Output, error) {
 	if err != nil {
 		return Output{}, fmt.Errorf("listusers: list: %w", err)
 	}
+	now := u.clock()
 	items := make([]base.UserDTO, len(users))
 	for i := range users {
-		items[i] = users[i].ToResponse()
+		items[i] = users[i].User.ToResponseWithInvitation(users[i].Invitation, now)
 	}
 	return Output{Items: items, Total: total, Limit: f.Limit, Offset: f.Offset}, nil
 }

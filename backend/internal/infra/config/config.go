@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/mail"
 	"net/url"
 	"os"
 	"strconv"
@@ -60,6 +61,20 @@ type Config struct {
 	MCPMaxRequestBytes   int64         `env:"MCP_MAX_REQUEST_BYTES"`
 	MCPToolTimeout       time.Duration `env:"MCP_TOOL_TIMEOUT"`
 	MCPAllowedOrigins    []string      `env:"MCP_ALLOWED_ORIGINS"`
+
+	// Mailer dan undangan email (T12).
+	MailDriver                 string        `env:"MAIL_DRIVER"`
+	SMTPHost                   string        `env:"SMTP_HOST"`
+	SMTPPort                   int           `env:"SMTP_PORT"`
+	SMTPUsername               string        `env:"SMTP_USERNAME"`
+	SMTPPassword               string        `env:"SMTP_PASSWORD"`
+	SMTPTLS                    string        `env:"SMTP_TLS"`
+	MailFrom                   string        `env:"MAIL_FROM"`
+	MailTimeout                time.Duration `env:"MAIL_TIMEOUT"`
+	InvitationTTL              time.Duration `env:"INVITATION_TTL"`
+	InvitationMaxPerHour       int           `env:"INVITATION_MAX_PER_HOUR"`
+	InvitationResendMaxPerHour int           `env:"INVITATION_RESEND_MAX_PER_HOUR"`
+	InvitationPurgeAfter       time.Duration `env:"INVITATION_PURGE_AFTER"`
 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
@@ -307,6 +322,50 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	// Mailer dan undangan (T12). SMTP_PASSWORD tidak pernah disebut di pesan error.
+	c.MailDriver, _ = l.enum("MAIL_DRIVER", "", "", "smtp", "log")
+	c.SMTPHost = l.str("SMTP_HOST", "")
+	c.SMTPPort, _ = l.intr("SMTP_PORT", 587, 1, 65535)
+	c.SMTPUsername = l.str("SMTP_USERNAME", "")
+	c.SMTPPassword = l.str("SMTP_PASSWORD", "")
+	c.SMTPTLS, _ = l.enum("SMTP_TLS", "starttls", "starttls", "tls", "none")
+	c.MailFrom = l.str("MAIL_FROM", "")
+	if c.MailFrom != "" {
+		if _, err := mail.ParseAddress(c.MailFrom); err != nil {
+			l.fail("MAIL_FROM", "bukan alamat email valid (contoh: Nama <a@b.id>)")
+		}
+	}
+	c.MailTimeout = l.dur("MAIL_TIMEOUT", 10*time.Second)
+	if c.MailTimeout > 60*time.Second {
+		l.fail("MAIL_TIMEOUT", "maksimal 60s (sekarang %s)", c.MailTimeout)
+	}
+	c.InvitationTTL = l.dur("INVITATION_TTL", 168*time.Hour)
+	if c.InvitationTTL < time.Hour || c.InvitationTTL > 720*time.Hour {
+		l.fail("INVITATION_TTL", "harus antara 1h dan 720h (sekarang %s)", c.InvitationTTL)
+	}
+	c.InvitationMaxPerHour, _ = l.intr("INVITATION_MAX_PER_HOUR", 20, 1, 1000)
+	c.InvitationResendMaxPerHour, _ = l.intr("INVITATION_RESEND_MAX_PER_HOUR", 3, 1, 100)
+	c.InvitationPurgeAfter = l.dur("INVITATION_PURGE_AFTER", 720*time.Hour)
+	if c.InvitationPurgeAfter < 24*time.Hour || c.InvitationPurgeAfter > 8760*time.Hour {
+		l.fail("INVITATION_PURGE_AFTER", "harus antara 24h dan 8760h (sekarang %s)", c.InvitationPurgeAfter)
+	}
+	switch c.MailDriver {
+	case "log":
+		if appEnv == "production" {
+			l.fail("MAIL_DRIVER", "driver log tidak boleh dipakai saat APP_ENV=production")
+		}
+	case "smtp":
+		if c.SMTPHost == "" {
+			l.fail("SMTP_HOST", "wajib diisi bila MAIL_DRIVER=smtp")
+		}
+		if c.MailFrom == "" {
+			l.fail("MAIL_FROM", "wajib diisi bila MAIL_DRIVER=smtp")
+		}
+		if c.PublicURL == "" {
+			l.fail("PUBLIC_URL", "wajib diisi bila MAIL_DRIVER=smtp (dipakai membentuk URL login di email)")
+		}
+	}
+
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
 		u, err := url.Parse(v)
@@ -348,6 +407,9 @@ func (c Config) masked() Config {
 	}
 	if c.SessionSecret != "" {
 		c.SessionSecret = "***"
+	}
+	if c.SMTPPassword != "" {
+		c.SMTPPassword = "***"
 	}
 	return c
 }
@@ -406,5 +468,17 @@ func (c Config) LogValue() slog.Value {
 		slog.Int64("mcp_max_request_bytes", m.MCPMaxRequestBytes),
 		slog.Duration("mcp_tool_timeout", m.MCPToolTimeout),
 		slog.Any("mcp_allowed_origins", m.MCPAllowedOrigins),
+		slog.String("mail_driver", m.MailDriver),
+		slog.String("smtp_host", m.SMTPHost),
+		slog.Int("smtp_port", m.SMTPPort),
+		slog.String("smtp_username", m.SMTPUsername),
+		slog.String("smtp_password", m.SMTPPassword),
+		slog.String("smtp_tls", m.SMTPTLS),
+		slog.String("mail_from", m.MailFrom),
+		slog.Duration("mail_timeout", m.MailTimeout),
+		slog.Duration("invitation_ttl", m.InvitationTTL),
+		slog.Int("invitation_max_per_hour", m.InvitationMaxPerHour),
+		slog.Int("invitation_resend_max_per_hour", m.InvitationResendMaxPerHour),
+		slog.Duration("invitation_purge_after", m.InvitationPurgeAfter),
 	)
 }

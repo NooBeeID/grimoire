@@ -16,6 +16,8 @@ import (
 	"grimoire/internal/infra/bus"
 	"grimoire/internal/infra/config"
 	httpx "grimoire/internal/infra/http"
+	"grimoire/internal/infra/mailer"
+	"grimoire/internal/infra/mailer/mailertest"
 	"grimoire/lib/constants"
 	"grimoire/lib/contracts/core/auth/resolvesession"
 )
@@ -27,6 +29,11 @@ type env struct {
 
 // newEnv merakit router T00 lengkap + getme.Init + resolve-session palsu (tanpa DB).
 func newEnv(t *testing.T, resolve func(call int, token string) (resolvesession.Response, error)) env {
+	t.Helper()
+	return newEnvMail(t, &mailertest.Fake{}, resolve)
+}
+
+func newEnvMail(t *testing.T, m mailer.Mailer, resolve func(call int, token string) (resolvesession.Response, error)) env {
 	t.Helper()
 	vars := map[string]string{
 		"DATABASE_URL":   "postgres://u:p@localhost:5432/db",
@@ -53,7 +60,7 @@ func newEnv(t *testing.T, resolve func(call int, token string) (resolvesession.R
 		return resolve(c, r.Token)
 	})
 	root, api, mcp := httpx.NewRouter(cfg, log, reg, nil)
-	Init(app.Deps{Config: cfg, Log: log, Bus: reg, API: api, MCP: mcp}, base.Shared{})
+	Init(app.Deps{Config: cfg, Log: log, Bus: reg, API: api, MCP: mcp, Mailer: m}, base.Shared{})
 	api.Get("/_probe", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) })
 	return env{root: root, calls: n}
 }
@@ -168,5 +175,32 @@ func TestGetMe_ReflectsRoleChangeNextRequest(t *testing.T) {
 	}
 	if roles[0] != "developer" || roles[1] != "super_admin" {
 		t.Fatalf("%v", roles)
+	}
+}
+
+func TestGetMe_EmailEnabledFollowsDeps(t *testing.T) {
+	for name, tc := range map[string]struct {
+		m    mailer.Mailer
+		want bool
+	}{
+		"terkonfigurasi": {&mailertest.Fake{}, true},
+		"noop":           {&mailertest.Fake{NotConfigured: true}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnvMail(t, tc.m, okSession("developer", false))
+			w := e.do(http.MethodGet, "/api/auth/me", true)
+			var got map[string]any
+			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if w.Code != 200 || got["email_enabled"] != tc.want {
+				t.Fatalf("code=%d got=%v", w.Code, got)
+			}
+			for _, k := range []string{"id", "email", "name", "role", "must_change_password"} {
+				if _, ok := got[k]; !ok {
+					t.Fatalf("kunci %s hilang", k)
+				}
+			}
+		})
 	}
 }

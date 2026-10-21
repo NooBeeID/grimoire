@@ -52,7 +52,7 @@ func TestHandler_OK(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil || len(m.Items) != 2 {
 		t.Fatalf("%v %s", err, w.Body)
 	}
-	for _, k := range []string{"user_id", "name", "email", "is_active", "found", "role", "added_at", "added_by", "added_by_label"} {
+	for _, k := range []string{"user_id", "name", "email", "is_active", "found", "role", "added_at", "added_by", "added_by_label", "invitation_pending", "invitation_expires_at"} {
 		if _, ok := m.Items[0][k]; !ok {
 			t.Fatalf("missing %s", k)
 		}

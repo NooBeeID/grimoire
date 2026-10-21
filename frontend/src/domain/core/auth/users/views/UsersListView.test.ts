@@ -9,7 +9,7 @@ import UsersListView from './UsersListView.svelte';
 const ME = '0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d';
 const mk = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
   id, email: `${name.toLowerCase()}@tim.id`, name, role: 'developer', is_active: true, must_change_password: false,
-  created_at: '2026-10-21T09:00:00Z', created_by: null, created_by_label: null, updated_at: '2026-10-21T09:00:00Z', last_login_at: null, ...extra,
+  created_at: '2026-10-21T09:00:00Z', created_by: null, created_by_label: null, updated_at: '2026-10-21T09:00:00Z', last_login_at: null, invitation: null, ...extra,
 });
 const ADMIN = mk(ME, 'Admin', { role: 'super_admin' });
 const SARI = mk('7d1e0a52-3c4b-4f6a-8b9c-1d2e3f4a5b6c', 'Sari');
@@ -123,5 +123,86 @@ describe('UsersListView', () => {
       const patch = fetchMock.mock.calls.find(([, i]) => i?.method === 'PATCH')!;
       expect(JSON.parse(patch[1].body)).toEqual({ name: 'Sari W.' });
     });
+  });
+});
+
+describe('UsersListView: undangan', () => {
+  const RANI = mk('e8b2c6a1-4d3f-4a9e-8b1c-7d6e5f4a3b21', 'rani', {
+    must_change_password: true,
+    invitation: { pending: true, invited_at: '2026-10-21T10:05:00Z', sent_at: null, expires_at: '2026-10-28T10:05:00Z', expired: false, delivery_status: 'not_configured', resend_count: 0 },
+  });
+  const invited = (over: Record<string, unknown> = {}) => ({
+    user: RANI, created: true, email_sent: true, email_status: 'sent', expires_at: '2026-10-28T10:05:00Z', ...over,
+  });
+  const creds = { email: 'rani@tim.id', temporary_password: 'Hm8tYq3RkW9vNcPz', login_url: 'https://grimoire.tim.id/login' };
+  const posts = () => fetchMock.mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === 'POST');
+
+  async function openInvite() {
+    render(UsersListView, { emailEnabled: false });
+    await screen.findByText('Admin');
+    await userEvent.click(screen.getByRole('button', { name: 'Undang developer' }));
+    const dlg = screen.getByRole('dialog');
+    await userEvent.type(within(dlg).getByLabelText(/^Email/), 'rani@tim.id');
+    return dlg;
+  }
+
+  it('Undang developer adalah satu-satunya tombol primary di title row; Buat user sekunder', async () => {
+    routes = () => list([ADMIN]);
+    render(UsersListView, { emailEnabled: false });
+    await screen.findByText('Admin');
+    expect(screen.getByRole('button', { name: 'Undang developer' })).toHaveClass('bg-primary');
+    expect(screen.getByRole('button', { name: 'Buat user' })).not.toHaveClass('bg-primary');
+  });
+  it('terkirim: toast, dialog tertutup, daftar di-refresh, tanpa dialog kredensial', async () => {
+    routes = (_u, init) => (init.method === 'POST' ? json(invited(), 201) : list([ADMIN]));
+    const dlg = await openInvite();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Kirim undangan' }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByTestId('temporary-password')).toBeNull();
+    expect(posts()).toHaveLength(1);
+  });
+  it('fallback: dialog kredensial berisi password; tutup menghapusnya dari DOM', async () => {
+    routes = (_u, init) =>
+      init.method === 'POST' ? json(invited({ email_sent: false, email_status: 'not_configured', credentials: creds }), 201) : list([ADMIN]);
+    const dlg = await openInvite();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Kirim undangan' }));
+    expect(await screen.findByTestId('temporary-password')).toHaveValue('Hm8tYq3RkW9vNcPz');
+    await userEvent.click(screen.getByRole('button', { name: 'Saya sudah menyalin' }));
+    await vi.waitFor(() => expect(document.body.innerHTML).not.toContain('Hm8tYq3RkW9vNcPz'));
+  });
+  it('409 registered: pesan di field email dan Tampilkan di daftar mengisi filter', async () => {
+    routes = (_u, init) =>
+      init.method === 'POST' ? json({ error: { code: 'ALREADY_REGISTERED', message: 'x', details: { reason: 'registered' } } }, 409) : list([ADMIN]);
+    const dlg = await openInvite();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Kirim undangan' }));
+    expect(await within(dlg).findByText(/sudah punya akun/)).toBeInTheDocument();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Tampilkan di daftar' }));
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('q=rani%40tim.id'))).toBe(true));
+  });
+  it('429: pesan menit, dialog tetap terbuka', async () => {
+    routes = (_u, init) =>
+      init.method === 'POST' ? json({ error: { code: 'RATE_LIMITED', message: 'x', details: { retry_after_seconds: 1840, scope: 'invite' } } }, 429) : list([ADMIN]);
+    const dlg = await openInvite();
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Kirim undangan' }));
+    expect(await within(dlg).findByText(/31 menit/)).toBeInTheDocument();
+  });
+  it('kirim ulang dari baris: konfirmasi, fallback membuka dialog kredensial', async () => {
+    routes = (url, init) =>
+      init.method === 'POST' && url.includes('/resend-invitation')
+        ? json({ email_sent: false, email_status: 'failed', expires_at: '2026-10-28T10:30:00Z', credentials: { ...creds, temporary_password: 'Zp4wNe8TqYv3KdRh' } })
+        : list([ADMIN, RANI]);
+    render(UsersListView, { emailEnabled: false });
+    const row = (await screen.findByText('rani')).closest('tr')!;
+    await userEvent.click(within(row).getByRole('button', { name: 'Kirim ulang undangan' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Kirim ulang' }));
+    expect(await screen.findByTestId('temporary-password')).toHaveValue('Zp4wNe8TqYv3KdRh');
+  });
+  it('klik ganda Kirim undangan hanya satu POST', async () => {
+    routes = (_u, init) => (init.method === 'POST' ? json(invited(), 201) : list([ADMIN]));
+    const dlg = await openInvite();
+    const btn = within(dlg).getByRole('button', { name: 'Kirim undangan' });
+    await userEvent.dblClick(btn);
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(posts()).toHaveLength(1);
   });
 });

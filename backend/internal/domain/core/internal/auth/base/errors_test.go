@@ -67,3 +67,21 @@ func TestSentinels(t *testing.T) {
 		t.Fatal("conflict")
 	}
 }
+
+func TestInvitationErrors(t *testing.T) {
+	e := ErrAlreadyRegistered(AlreadyRegisteredRegistered)
+	if e.Code != errs.CodeAlreadyRegistered || e.Details.(map[string]any)["reason"] != "registered" {
+		t.Fatalf("%+v", e)
+	}
+	if ErrInvitationNotPending.Code != errs.CodeConflict || ErrInvitationNotPending.Details.(map[string]any)["reason"] != ReasonInvitationNotPending {
+		t.Fatalf("%+v", ErrInvitationNotPending)
+	}
+	r := ErrInviteRateLimited(1500*time.Millisecond, ScopeResend)
+	d := r.Details.(map[string]any)
+	if r.Code != errs.CodeRateLimited || d["retry_after_seconds"] != 2 || d["scope"] != "resend" {
+		t.Fatalf("%+v", r)
+	}
+	if ErrInviteRateLimited(0, ScopeInvite).Details.(map[string]any)["retry_after_seconds"] != 1 {
+		t.Fatal("minimal 1")
+	}
+}

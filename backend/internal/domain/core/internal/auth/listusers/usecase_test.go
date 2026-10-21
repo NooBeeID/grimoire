@@ -15,15 +15,19 @@ import (
 	"grimoire/lib/common/errs"
 )
 
+var fixedNow = time.Date(2026, 10, 21, 9, 0, 0, 0, time.UTC)
+
+func fixedClock() time.Time { return fixedNow }
+
 type fakeRepo struct {
-	users []base.User
+	users []base.UserWithInvitation
 	total int
 	err   error
 	calls int
 	got   base.UserFilter
 }
 
-func (f *fakeRepo) List(_ context.Context, flt base.UserFilter) ([]base.User, int, error) {
+func (f *fakeRepo) List(_ context.Context, flt base.UserFilter) ([]base.UserWithInvitation, int, error) {
 	f.calls++
 	f.got = flt
 	return f.users, f.total, f.err
@@ -46,7 +50,7 @@ func TestParseQuery_Shape(t *testing.T) {
 
 func TestUsecase_InvalidFilterIs400NoRepoCall(t *testing.T) {
 	r := &fakeRepo{}
-	_, err := NewUsecase(r).Execute(context.Background(), Input{Status: "gone"})
+	_, err := NewUsecase(r, fixedClock).Execute(context.Background(), Input{Status: "gone"})
 	var e *errs.Error
 	if !errors.As(err, &e) || e.Code != errs.CodeInvalid || r.calls != 0 {
 		t.Fatalf("err=%v calls=%d", err, r.calls)
@@ -60,9 +64,9 @@ func TestUsecase_InvalidFilterIs400NoRepoCall(t *testing.T) {
 
 func TestUsecase_MapsToDTOWithoutHash(t *testing.T) {
 	l := time.Date(2026, 10, 21, 9, 10, 0, 0, time.UTC)
-	r := &fakeRepo{users: []base.User{{ID: "1", Email: "a@x.id", Name: "A", PasswordHash: "$argon2id$secret",
-		Role: base.RoleDeveloper, LastLoginAt: &l}}, total: 1}
-	out, err := NewUsecase(r).Execute(context.Background(), Input{})
+	r := &fakeRepo{users: []base.UserWithInvitation{{User: base.User{ID: "1", Email: "a@x.id", Name: "A", PasswordHash: "$argon2id$secret",
+		Role: base.RoleDeveloper, LastLoginAt: &l}}}, total: 1}
+	out, err := NewUsecase(r, fixedClock).Execute(context.Background(), Input{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +78,7 @@ func TestUsecase_MapsToDTOWithoutHash(t *testing.T) {
 }
 
 func TestUsecase_EmptyItemsIsNotNil(t *testing.T) {
-	out, err := NewUsecase(&fakeRepo{}).Execute(context.Background(), Input{})
+	out, err := NewUsecase(&fakeRepo{}, fixedClock).Execute(context.Background(), Input{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,19 +89,19 @@ func TestUsecase_EmptyItemsIsNotNil(t *testing.T) {
 }
 
 func TestUsecase_EffectiveLimitOffsetEchoed(t *testing.T) {
-	out, err := NewUsecase(&fakeRepo{}).Execute(context.Background(), Input{})
+	out, err := NewUsecase(&fakeRepo{}, fixedClock).Execute(context.Background(), Input{})
 	if err != nil || out.Limit != 20 || out.Offset != 0 {
 		t.Fatalf("out=%+v err=%v", out, err)
 	}
 }
 
 func TestUsecase_RepoErrorWrapped500(t *testing.T) {
-	_, err := NewUsecase(&fakeRepo{err: errors.New("pq: syntax error SELECT")}).Execute(context.Background(), Input{})
+	_, err := NewUsecase(&fakeRepo{err: errors.New("pq: syntax error SELECT")}, fixedClock).Execute(context.Background(), Input{})
 	var e *errs.Error
 	if err == nil || errors.As(err, &e) || !strings.HasPrefix(err.Error(), "listusers:") {
 		t.Fatalf("err=%v", err)
 	}
-	h := NewHandler(NewUsecase(&fakeRepo{err: errors.New("pq: syntax error SELECT")}))
+	h := NewHandler(NewUsecase(&fakeRepo{err: errors.New("pq: syntax error SELECT")}, fixedClock))
 	w := httptest.NewRecorder()
 	h.List(w, httptest.NewRequest(http.MethodGet, "/api/users", nil))
 	if w.Code != 500 || strings.Contains(w.Body.String(), "SELECT") || !strings.Contains(w.Body.String(), "INTERNAL") {
@@ -106,7 +110,7 @@ func TestUsecase_RepoErrorWrapped500(t *testing.T) {
 }
 
 func TestHandler_Headers(t *testing.T) {
-	h := NewHandler(NewUsecase(&fakeRepo{}))
+	h := NewHandler(NewUsecase(&fakeRepo{}, fixedClock))
 	w := httptest.NewRecorder()
 	h.List(w, httptest.NewRequest(http.MethodGet, "/api/users", nil))
 	if w.Code != 200 || w.Header().Get("Cache-Control") != "no-store" ||
@@ -117,7 +121,7 @@ func TestHandler_Headers(t *testing.T) {
 
 func TestHandler_ShapeError400(t *testing.T) {
 	r := &fakeRepo{}
-	h := NewHandler(NewUsecase(r))
+	h := NewHandler(NewUsecase(r, fixedClock))
 	w := httptest.NewRecorder()
 	h.List(w, httptest.NewRequest(http.MethodGet, "/api/users?limit=abc", nil))
 	if w.Code != 400 || !strings.Contains(w.Body.String(), "harus berupa angka bulat") || r.calls != 0 {
@@ -128,7 +132,43 @@ func TestHandler_ShapeError400(t *testing.T) {
 func TestWhere_Parameterized(t *testing.T) {
 	act := true
 	clause, args := where(base.UserFilter{Role: "developer", IsActive: &act, Query: "x'; DROP"})
-	if strings.Contains(clause, "DROP") || len(args) != 3 || !strings.Contains(clause, "$3 ESCAPE '\\' OR name ILIKE $3") {
+	if strings.Contains(clause, "DROP") || len(args) != 3 || !strings.Contains(clause, "$3 ESCAPE '\\' OR u.name ILIKE $3") {
 		t.Fatalf("clause=%s args=%v", clause, args)
+	}
+}
+
+func TestUsecase_MapsInvitationAndReadsClockOnce(t *testing.T) {
+	sent := fixedNow.Add(-time.Hour)
+	pending := &base.Invitation{
+		CreatedAt: fixedNow.Add(-2 * time.Hour), IssuedAt: fixedNow.Add(-2 * time.Hour),
+		ExpiresAt: fixedNow.Add(time.Hour), SentAt: &sent, DeliveryStatus: base.DeliverySent, ResendCount: 1,
+	}
+	expired := &base.Invitation{
+		CreatedAt: fixedNow.Add(-48 * time.Hour), ExpiresAt: fixedNow.Add(-time.Hour),
+		DeliveryStatus: base.DeliveryFailed,
+	}
+	r := &fakeRepo{users: []base.UserWithInvitation{
+		{User: base.User{ID: "1"}, Invitation: pending},
+		{User: base.User{ID: "2"}},
+		{User: base.User{ID: "3"}, Invitation: expired},
+	}, total: 3}
+	calls := 0
+	out, err := NewUsecase(r, func() time.Time { calls++; return fixedNow }).Execute(context.Background(), Input{})
+	if err != nil || calls != 1 {
+		t.Fatalf("err=%v calls=%d", err, calls)
+	}
+	a, b, c := out.Items[0].Invitation, out.Items[1].Invitation, out.Items[2].Invitation
+	if a == nil || !a.Pending || a.Expired || a.DeliveryStatus != "sent" || a.ResendCount != 1 || a.SentAt == nil {
+		t.Fatalf("a=%+v", a)
+	}
+	if b != nil {
+		t.Fatalf("b=%+v", b)
+	}
+	if c == nil || !c.Expired || c.DeliveryStatus != "failed" {
+		t.Fatalf("c=%+v", c)
+	}
+	js, _ := json.Marshal(out)
+	if !strings.Contains(string(js), `"invitation":null`) || strings.Contains(string(js), "issued_at") {
+		t.Fatalf("json=%s", js)
 	}
 }

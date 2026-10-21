@@ -32,6 +32,7 @@ const (
 	CodeInternal         Code = "INTERNAL"           // 500
 
 	CodePasswordChangeRequired Code = "PASSWORD_CHANGE_REQUIRED" // 403
+	CodeAlreadyRegistered      Code = "ALREADY_REGISTERED"       // 409
 )
 
 // Error adalah error terstruktur. Err tidak pernah dikirim ke klien.

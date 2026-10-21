@@ -7,7 +7,7 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const ID = '7d1e0a52-3c4b-4f6a-8b9c-1d2e3f4a5b6c';
 const USER = {
   id: ID, email: 'sari@tim.id', name: 'Sari', role: 'developer', is_active: true, must_change_password: true,
-  created_at: '2026-10-21T09:00:00Z', created_by: null, created_by_label: null, updated_at: '2026-10-21T09:00:00Z', last_login_at: null,
+  created_at: '2026-10-21T09:00:00Z', created_by: null, created_by_label: null, updated_at: '2026-10-21T09:00:00Z', last_login_at: null, invitation: null,
 };
 const call = () => fetchMock.mock.calls.at(-1)! as [string, RequestInit & { headers: Record<string, string> }];
 

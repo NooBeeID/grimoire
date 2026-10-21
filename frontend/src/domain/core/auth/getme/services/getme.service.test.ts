@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isApiError } from '../../../../../shared/services/http';
-import { fetchMe } from './getme.service';
+import { fetchMe, getMe } from './getme.service';
 
 const fetchMock = vi.fn();
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s });
-const ME = { id: '0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d', email: 'budi@tim.id', name: 'Budi', role: 'developer', must_change_password: false };
+const ME = { id: '0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d', email: 'budi@tim.id', name: 'Budi', role: 'developer', must_change_password: false, email_enabled: false };
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
@@ -28,6 +28,19 @@ describe('fetchMe', () => {
   it('rejects malformed body with INVALID_RESPONSE', async () => {
     fetchMock.mockResolvedValue(json({ ...ME, role: 'root' }));
     const e = await fetchMe().catch((x) => x);
+    expect(isApiError(e) && e.code).toBe('INVALID_RESPONSE');
+  });
+});
+
+describe('getMe', () => {
+  it('memvalidasi email_enabled', async () => {
+    fetchMock.mockResolvedValue(json({ ...ME, email_enabled: true }));
+    expect((await getMe()).email_enabled).toBe(true);
+  });
+  it('tanpa email_enabled -> INVALID_RESPONSE', async () => {
+    const { email_enabled: _omit, ...rest } = ME;
+    fetchMock.mockResolvedValue(json(rest));
+    const e = await getMe().catch((x) => x);
     expect(isApiError(e) && e.code).toBe('INVALID_RESPONSE');
   });
 });

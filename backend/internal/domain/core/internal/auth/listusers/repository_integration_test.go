@@ -61,10 +61,10 @@ func filter(t *testing.T, in base.UserFilterInput) base.UserFilter {
 	return f
 }
 
-func names(us []base.User) string {
+func names(us []base.UserWithInvitation) string {
 	var s []string
 	for _, u := range us {
-		s = append(s, u.Name)
+		s = append(s, u.User.Name)
 	}
 	return strings.Join(s, ",")
 }
@@ -82,13 +82,13 @@ func TestListUsers_OrderNameThenID(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range us {
-		if us[i].ID != ids[i] {
+		if us[i].User.ID != ids[i] {
 			t.Fatalf("urutan salah: %s", names(us))
 		}
 	}
 	// dua "Sari" bersebelahan dan terurut oleh id.
 	for i := 1; i < len(us); i++ {
-		if us[i-1].Name == us[i].Name && us[i-1].ID >= us[i].ID {
+		if us[i-1].User.Name == us[i].User.Name && us[i-1].User.ID >= us[i].User.ID {
 			t.Fatalf("tie-break id salah: %s", names(us))
 		}
 	}
@@ -98,7 +98,7 @@ func TestListUsers_Filters(t *testing.T) {
 	r, d := newRepo(t)
 	std(t, d)
 	ctx := context.Background()
-	f := func(in base.UserFilterInput) ([]base.User, int) {
+	f := func(in base.UserFilterInput) ([]base.UserWithInvitation, int) {
 		us, n, err := r.List(ctx, filter(t, in))
 		if err != nil {
 			t.Fatal(err)
@@ -112,7 +112,7 @@ func TestListUsers_Filters(t *testing.T) {
 		t.Fatalf("status n=%d", n)
 	}
 	us, n := f(base.UserFilterInput{Role: "super_admin", Status: "active"})
-	if n != 1 || us[0].Email != "admin@tim.id" {
+	if n != 1 || us[0].User.Email != "admin@tim.id" {
 		t.Fatalf("and n=%d %v", n, names(us))
 	}
 	// q cocok nama atau email, tanpa memandang huruf besar kecil.
@@ -127,7 +127,7 @@ func TestListUsers_SearchEscapesWildcards(t *testing.T) {
 	std(t, d)
 	for q, want := range map[string]string{"%": "50%_off", "_": "50%_off", `\`: `back\slash`} {
 		us, n, err := r.List(context.Background(), filter(t, base.UserFilterInput{Query: q}))
-		if err != nil || n != 1 || us[0].Name != want {
+		if err != nil || n != 1 || us[0].User.Name != want {
 			t.Fatalf("q=%q n=%d %s err=%v", q, n, names(us), err)
 		}
 	}
@@ -159,14 +159,14 @@ func TestListUsers_Pagination(t *testing.T) {
 			t.Fatalf("off=%d total=%d err=%v", off, total, err)
 		}
 		for _, u := range us {
-			got = append(got, u.ID)
+			got = append(got, u.User.ID)
 		}
 	}
 	if len(got) != len(all) {
 		t.Fatalf("got %d want %d", len(got), len(all))
 	}
 	for i := range all {
-		if got[i] != all[i].ID {
+		if got[i] != all[i].User.ID {
 			t.Fatalf("beda di %d", i)
 		}
 	}
@@ -203,13 +203,13 @@ func TestListUsers_NeverSelectsPasswordHash_LastLogin(t *testing.T) {
 	}
 	var withLogin, without int
 	for _, u := range us {
-		if u.PasswordHash != "" {
+		if u.User.PasswordHash != "" {
 			t.Fatal("password_hash terbaca")
 		}
-		if u.LastLoginAt != nil {
+		if u.User.LastLoginAt != nil {
 			withLogin++
-			if u.LastLoginAt.Location() != time.UTC && u.LastLoginAt.UTC().Format(time.RFC3339) != "2026-10-21T09:10:00Z" {
-				t.Fatalf("login=%v", u.LastLoginAt)
+			if u.User.LastLoginAt.Location() != time.UTC && u.User.LastLoginAt.UTC().Format(time.RFC3339) != "2026-10-21T09:10:00Z" {
+				t.Fatalf("login=%v", u.User.LastLoginAt)
 			}
 		} else {
 			without++
@@ -217,5 +217,93 @@ func TestListUsers_NeverSelectsPasswordHash_LastLogin(t *testing.T) {
 	}
 	if withLogin != 1 || without != 6 {
 		t.Fatal(fmt.Sprint(withLogin, without))
+	}
+}
+
+// countingQ membungkus Querier dan menghitung SelectContext (tanpa N+1).
+type countingQ struct {
+	db.Querier
+	selects, gets int
+}
+
+func (c *countingQ) SelectContext(ctx context.Context, dest any, q string, args ...any) error {
+	c.selects++
+	return c.Querier.SelectContext(ctx, dest, q, args...)
+}
+
+func (c *countingQ) GetContext(ctx context.Context, dest any, q string, args ...any) error {
+	c.gets++
+	return c.Querier.GetContext(ctx, dest, q, args...)
+}
+
+func seedInv(t *testing.T, d *db.DB, email, expires string, accepted bool) {
+	t.Helper()
+	acc := "NULL"
+	if accepted {
+		acc = "now()"
+	}
+	if _, err := d.ExecContext(context.Background(), `INSERT INTO user_invitations
+		(user_id, invited_by, issued_at, expires_at, accepted_at, delivery_status, resend_count)
+		SELECT id, id, now(), `+expires+`, `+acc+`, 'sent', 2 FROM users WHERE email = $1`, email); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListUsers_InvitationMarkers(t *testing.T) {
+	r, d := newRepo(t)
+	std(t, d)
+	seedInv(t, d, "sari1@tim.id", "now() + interval '1 day'", false) // A menunggu
+	seedInv(t, d, "x@sari.id", "now() + interval '1 day'", true)     // B diterima
+	seedInv(t, d, "off@tim.id", "now() - interval '1 hour'", false)  // D kedaluwarsa
+	cq := &countingQ{Querier: d}
+	r = NewRepo(cq)
+
+	us, total, err := r.List(context.Background(), filter(t, base.UserFilterInput{}))
+	if err != nil || total != 7 || len(us) != 7 {
+		t.Fatalf("total=%d len=%d err=%v", total, len(us), err)
+	}
+	if cq.selects != 1 || cq.gets != 0 {
+		t.Fatalf("selects=%d gets=%d (N+1?)", cq.selects, cq.gets)
+	}
+	byEmail := map[string]base.UserWithInvitation{}
+	for _, u := range us {
+		byEmail[u.User.Email] = u
+	}
+	a := byEmail["sari1@tim.id"].Invitation
+	if a == nil || a.IsExpired(time.Now()) || a.DeliveryStatus != "sent" || a.ResendCount != 2 ||
+		a.AcceptedAt != nil || a.UserID != byEmail["sari1@tim.id"].User.ID || a.IssuedAt.IsZero() {
+		t.Fatalf("A=%+v", a)
+	}
+	if byEmail["x@sari.id"].Invitation != nil || byEmail["admin@tim.id"].Invitation != nil {
+		t.Fatal("diterima/tanpa undangan harus nil")
+	}
+	d1 := byEmail["off@tim.id"].Invitation
+	if d1 == nil || !d1.IsExpired(time.Now()) {
+		t.Fatalf("D=%+v", d1)
+	}
+}
+
+func TestListUsers_AliasRegression(t *testing.T) {
+	r, d := newRepo(t)
+	std(t, d)
+	seedInv(t, d, "sari1@tim.id", "now() + interval '1 day'", false)
+	ctx := context.Background()
+	for _, in := range []base.UserFilterInput{
+		{Role: "developer"}, {Query: "sari"}, {Query: "created_at"},
+	} {
+		if _, _, err := r.List(ctx, filter(t, in)); err != nil {
+			t.Fatalf("%+v: %v", in, err)
+		}
+	}
+	// jalur count cadangan: offset melewati data dengan filter role
+	o := 100
+	us, total, err := r.List(ctx, filter(t, base.UserFilterInput{Offset: &o, Role: "developer"}))
+	if err != nil || len(us) != 0 || total != 5 {
+		t.Fatalf("us=%d total=%d err=%v", len(us), total, err)
+	}
+	// total benar dengan filter q: dua "Sari" + x@sari.id
+	_, n, err := r.List(ctx, filter(t, base.UserFilterInput{Query: "sari"}))
+	if err != nil || n != 3 {
+		t.Fatalf("n=%d err=%v", n, err)
 	}
 }

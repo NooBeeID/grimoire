@@ -14,6 +14,15 @@ Hanya `DATABASE_URL` dan `SESSION_SECRET` yang wajib untuk `serve` dan `migrate 
 
 `make dev` menjalankan Postgres (docker compose, menunggu sehat), backend di `:8080` dengan migrasi otomatis, dan Vite di `:5173`. Ctrl-C menghentikan keduanya.
 
+## Email undangan (Mailpit)
+
+Undangan anggota dikirim lewat SMTP. Untuk dev lokal, `docker-compose.dev.yml` dan `docker-compose.yml` menjalankan Mailpit:
+
+- SMTP di `localhost:1025`, UI web di `http://localhost:8025` (semua email yang dikirim aplikasi tampil di sana).
+- `.env.example` sudah mengarah ke Mailpit (`MAIL_DRIVER=smtp`, `SMTP_HOST=localhost`, `SMTP_PORT=1025`, `SMTP_TLS=none`).
+- Tanpa SMTP: kosongkan `MAIL_DRIVER`. Aplikasi tetap jalan; undangan membuat akun dan mengembalikan kredensial sementara satu kali di respons (`Cache-Control: no-store`), lalu pengundang menyampaikannya sendiri.
+- `MAIL_DRIVER=log` mencetak email (termasuk password sementara) ke log; hanya untuk development dan ditolak saat `APP_ENV=production`.
+
 ## Build
 
 `make build` membangun frontend, menyalinnya ke `backend/internal/infra/static/dist`, lalu mengompilasi `bin/grimoire` dengan versi, commit, dan tanggal build lewat ldflags. Placeholder `dist/index.html` dipulihkan setelahnya.

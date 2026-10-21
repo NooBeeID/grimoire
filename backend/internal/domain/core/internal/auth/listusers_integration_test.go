@@ -214,3 +214,42 @@ func TestT01_ListUsers_NoAuditEntry(t *testing.T) {
 		t.Fatal("GET /api/users tidak boleh menghasilkan audit")
 	}
 }
+
+func TestT12_ListUsers_InvitationMarkers(t *testing.T) {
+	e := setupUsers(t)
+	e.seedRole("admin@tim.id", "super_admin", true, false)
+	pending := e.seedRole("baru@tim.id", "developer", true, true)
+	e.seedRole("biasa@tim.id", "developer", true, false)
+	if _, err := e.d.ExecContext(context.Background(), `INSERT INTO user_invitations (user_id, invited_by, issued_at, expires_at, delivery_status)
+		VALUES ($1::uuid, $1::uuid, now(), now() + interval '1 day', 'sent')`, pending); err != nil {
+		t.Fatal(err)
+	}
+	c := e.loginCookie("admin@tim.id", loginPW)
+
+	w := e.do(c, "GET", "/api/users")
+	var b struct {
+		Items []map[string]any `json:"items"`
+	}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &b) != nil {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	for _, it := range b.Items {
+		inv, ok := it["invitation"]
+		if !ok {
+			t.Fatalf("kunci invitation hilang: %v", it)
+		}
+		if it["email"] == "baru@tim.id" {
+			m, _ := inv.(map[string]any)
+			if m == nil || m["pending"] != true || m["expired"] != false || m["delivery_status"] != "sent" {
+				t.Fatalf("invitation=%v", inv)
+			}
+		} else if inv != nil {
+			t.Fatalf("%v harus null", it["email"])
+		}
+	}
+
+	d := e.do(c, "GET", "/api/users/"+pending)
+	if d.Code != 200 || !strings.Contains(d.Body.String(), `"pending":true`) {
+		t.Fatalf("%d %s", d.Code, d.Body)
+	}
+}

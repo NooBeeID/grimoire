@@ -3,6 +3,7 @@ import { loadSession } from '../domain/core/auth/getme';
 import { performLogout } from '../domain/core/auth/logout';
 import { resetUsersState } from '../domain/core/auth/users';
 import { setUnauthorizedHandler } from '../shared/services/http';
+import { resetMailStatus } from '../shared/stores/mailStatus';
 import { setIdentity } from '../shared/stores/session';
 import { toast } from '../shared/stores/toast';
 import { navigate } from './routes/router';
@@ -25,6 +26,7 @@ export async function boot(deps: { loadSession: () => Promise<void> } = { loadSe
 export function installAuthHandlers(): void {
   setUnauthorizedHandler((next) => {
     resetUsersState();
+    resetMailStatus();
     setIdentity(null);
     navigate('/login?next=' + encodeURIComponent(next), { replace: true });
   });
@@ -37,6 +39,7 @@ export async function logoutAndLeave(deps: { performLogout: typeof performLogout
     return;
   }
   resetUsersState();
+  resetMailStatus();
   navigate('/login', { replace: true });
   setIdentity(null);
 }

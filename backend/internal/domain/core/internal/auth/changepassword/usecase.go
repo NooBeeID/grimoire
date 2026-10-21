@@ -9,12 +9,16 @@ import (
 	"grimoire/internal/domain/core/internal/auth/base/audit"
 	"grimoire/lib/common/errs"
 	"grimoire/lib/common/reqctx"
+	"grimoire/lib/contracts/core/audit/record"
 )
+
+const msgInvitationExpired = "password sementara sudah kedaluwarsa, minta pengundang mengirim ulang undangan"
 
 // Repository adalah akses data yang dibutuhkan usecase.
 type Repository interface {
 	FindUserByID(ctx context.Context, id string) (base.User, bool, error)
-	Change(ctx context.Context, in ChangeInput) (int64, error)
+	FindInvitation(ctx context.Context, userID string) (base.Invitation, bool, error)
+	Change(ctx context.Context, in ChangeInput) (revoked int64, accepted bool, err error)
 }
 
 // Input adalah masukan Execute.
@@ -54,6 +58,15 @@ func (u *Usecase) Execute(ctx context.Context, in Input) error {
 		return unauthorized()
 	}
 
+	now := u.clock()
+	inv, hasInv, err := u.repo.FindInvitation(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("changepassword: cari undangan: %w", err)
+	}
+	if hasInv && inv.IsExpired(now) {
+		return base.InvalidFields(base.FieldErrors{"current_password": msgInvitationExpired})
+	}
+
 	fe := u.policy.ValidateChange(in.CurrentPassword, in.NewPassword, user.Email)
 	if _, bad := fe["current_password"]; !bad {
 		okOld, err := u.hasher.Verify(user.PasswordHash, in.CurrentPassword.Reveal())
@@ -74,9 +87,9 @@ func (u *Usecase) Execute(ctx context.Context, in Input) error {
 	if err != nil {
 		return fmt.Errorf("changepassword: hash: %w", err)
 	}
-	revoked, err := u.repo.Change(ctx, ChangeInput{
+	revoked, accepted, err := u.repo.Change(ctx, ChangeInput{
 		UserID: user.ID, OldHash: user.PasswordHash, NewHash: newHash,
-		KeepTokenHash: in.CurrentTokenHash, Now: u.clock(),
+		KeepTokenHash: in.CurrentTokenHash, Now: now,
 	})
 	if err != nil {
 		if errors.Is(err, ErrStale) {
@@ -90,5 +103,12 @@ func (u *Usecase) Execute(ctx context.Context, in Input) error {
 		Args:   map[string]any{"revoked_sessions": revoked},
 		Status: "ok", Meta: in.Meta,
 	})
+	if accepted {
+		u.audit.Record(ctx, audit.Event{
+			Action: record.ActionUserInvitationAccepted, TargetType: "user", Target: user.ID,
+			Args:   map[string]any{"email": user.Email},
+			Status: record.StatusOK, Meta: in.Meta,
+		})
+	}
 	return nil
 }

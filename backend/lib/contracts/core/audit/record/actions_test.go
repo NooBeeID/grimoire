@@ -15,8 +15,10 @@ var catalog = []string{
 	"mcp.initialize", "mcp.tools_list", "mcp.unknown_tool",
 	"auth.login.success", "auth.login.failed", "auth.logout", "auth.password.changed",
 	"auth.password.reset", "user.created", "user.updated", "user.deactivated", "user.activated",
+	"user.invited", "user.invitation.resent", "user.invitation.accepted", "user.invitation.email_failed",
 	"project.created", "project.updated", "project.deleted", "project.member.added",
 	"project.member.removed", "project.member.role_changed",
+	"project.member.invited", "project.invitation.revoked",
 	"apikey.created", "apikey.revoked",
 	"knowledge.file.created", "knowledge.file.updated", "knowledge.file.deleted", "knowledge.file.moved",
 	"knowledge.folder.deleted", "knowledge.upload.completed",
@@ -25,8 +27,8 @@ var catalog = []string{
 
 func TestActions_UniqueAndWellFormed(t *testing.T) {
 	got := Actions()
-	if len(got) != 37 {
-		t.Fatalf("want 37 actions, got %d", len(got))
+	if len(got) != 43 {
+		t.Fatalf("want 43 actions, got %d", len(got))
 	}
 	seen := map[string]bool{}
 	for _, a := range got {

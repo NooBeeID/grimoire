@@ -47,6 +47,10 @@ type fakeRepo struct {
 	errFind   error
 	errUpdate error
 	errDone   error
+	inv       base.Invitation
+	hasInv    bool
+	errInv    error
+	invFinds  int
 
 	finds, updates int
 	completed      []base.Session
@@ -58,6 +62,10 @@ func (f *fakeRepo) FindUserByEmail(_ context.Context, email string) (base.User, 
 	f.finds++
 	f.foundEmails = append(f.foundEmails, email)
 	return f.user, f.found, f.errFind
+}
+func (f *fakeRepo) FindInvitation(_ context.Context, _ string) (base.Invitation, bool, error) {
+	f.invFinds++
+	return f.inv, f.hasInv, f.errInv
 }
 func (f *fakeRepo) GetThrottle(_ context.Context, email string) (base.LoginThrottle, error) {
 	t := f.throttle

@@ -14,6 +14,7 @@ const (
 	ReasonUserNotDeveloper     = "USER_NOT_DEVELOPER"
 	ReasonUserInactive         = "USER_INACTIVE"
 	ReasonLastOwner            = "LAST_OWNER"
+	ReasonInvitationNotPending = "INVITATION_NOT_PENDING"
 )
 
 var (
@@ -25,6 +26,8 @@ var (
 		map[string]any{"reason": ReasonLastOwner})
 	ErrAlreadyMember = errs.WithDetails(errs.CodeConflict, "user sudah menjadi anggota",
 		map[string]any{"reason": ReasonAlreadyMember})
+	ErrInvitationNotPending = errs.WithDetails(errs.CodeConflict, "undangan sudah diterima atau tidak ada",
+		map[string]any{"reason": ReasonInvitationNotPending})
 	ErrConfirmationMismatch = errs.WithDetails(errs.CodeInvalid, "nama konfirmasi tidak cocok",
 		map[string]any{"reason": ReasonConfirmationMismatch})
 )

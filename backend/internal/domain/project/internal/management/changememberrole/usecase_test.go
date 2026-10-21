@@ -18,6 +18,8 @@ import (
 	"grimoire/lib/contracts/core/audit/record"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 )
 
 var t0 = time.Date(2026, 10, 22, 9, 0, 0, 0, time.UTC)
@@ -417,4 +419,17 @@ func TestChangeRole_NoIdentity(t *testing.T) {
 func detailsOf(e *errs.Error) map[string]any {
 	m, _ := e.Details.(map[string]any)
 	return m
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (u *fakeUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (u *fakeUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (u *fakeUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
 }

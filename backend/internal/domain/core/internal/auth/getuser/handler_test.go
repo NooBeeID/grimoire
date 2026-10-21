@@ -15,7 +15,7 @@ import (
 
 func serve(repo *fakeRepo, target string) *httptest.ResponseRecorder {
 	r := chi.NewRouter()
-	r.Get("/api/users/{id}", NewHandler(NewUsecase(repo)).Get)
+	r.Get("/api/users/{id}", NewHandler(NewUsecase(repo, fixedClock)).Get)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, target, nil))
 	return w

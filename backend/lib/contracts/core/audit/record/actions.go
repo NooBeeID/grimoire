@@ -25,12 +25,19 @@ const (
 	ActionUserDeactivated     = "user.deactivated"
 	ActionUserActivated       = "user.activated"
 
+	ActionUserInvited               = "user.invited"
+	ActionUserInvitationResent      = "user.invitation.resent"
+	ActionUserInvitationAccepted    = "user.invitation.accepted"
+	ActionUserInvitationEmailFailed = "user.invitation.email_failed"
+
 	ActionProjectCreated           = "project.created"
 	ActionProjectUpdated           = "project.updated"
 	ActionProjectDeleted           = "project.deleted"
 	ActionProjectMemberAdded       = "project.member.added"
 	ActionProjectMemberRemoved     = "project.member.removed"
 	ActionProjectMemberRoleChanged = "project.member.role_changed"
+	ActionProjectMemberInvited     = "project.member.invited"
+	ActionProjectInvitationRevoked = "project.invitation.revoked"
 
 	ActionAPIKeyCreated = "apikey.created"
 	ActionAPIKeyRevoked = "apikey.revoked"
@@ -56,8 +63,10 @@ func Actions() []string {
 		ActionAuthLoginSuccess, ActionAuthLoginFailed, ActionAuthLogout,
 		ActionAuthPasswordChanged, ActionAuthPasswordReset,
 		ActionUserCreated, ActionUserUpdated, ActionUserDeactivated, ActionUserActivated,
+		ActionUserInvited, ActionUserInvitationResent, ActionUserInvitationAccepted, ActionUserInvitationEmailFailed,
 		ActionProjectCreated, ActionProjectUpdated, ActionProjectDeleted,
 		ActionProjectMemberAdded, ActionProjectMemberRemoved, ActionProjectMemberRoleChanged,
+		ActionProjectMemberInvited, ActionProjectInvitationRevoked,
 		ActionAPIKeyCreated, ActionAPIKeyRevoked,
 		ActionKnowledgeFileCreated, ActionKnowledgeFileUpdated, ActionKnowledgeFileDeleted,
 		ActionKnowledgeFileMoved, ActionKnowledgeFolderDeleted, ActionKnowledgeUploadCompleted,

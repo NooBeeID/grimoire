@@ -58,3 +58,15 @@ const BUS_CORE_AUDIT_SCAN_ENTRIES = "core.audit.scan-entries"
 // Provider: T11 discovery/knowledgetools (searchquality). Consumer: cmd/cli.
 // Kontrak: lib/contracts/discovery/knowledgetools/searchquality. Baca-saja.
 const BUS_DISCOVERY_KNOWLEDGETOOLS_SEARCH_QUALITY_REPORT = "discovery.knowledgetools.search-quality-report"
+
+// Provider: T12 core/auth (feature inviteuser). Consumer: project/management inviteuser.
+// Kontrak: lib/contracts/core/auth/inviteuser. Deliver=false: hanya siapkan akun + undangan.
+const BUS_CORE_AUTH_INVITE_USER = "core.auth.invite-user"
+
+// Provider: T12 core/auth (feature resendinvitation). Consumer: project/management inviteuser, resendinvitation.
+// Kontrak: lib/contracts/core/auth/resendinvitation. Menerbitkan password sementara baru dan mengirim email.
+const BUS_CORE_AUTH_RESEND_INVITATION = "core.auth.resend-invitation"
+
+// Provider: T12 project/management (feature countmemberships). Consumer: core/auth purgeinvitations.
+// Kontrak: lib/contracts/project/management/countmemberships. Baca-saja.
+const BUS_PROJECT_MANAGEMENT_COUNT_MEMBERSHIPS = "project.management.count-memberships"

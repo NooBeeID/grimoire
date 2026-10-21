@@ -8,10 +8,18 @@ import (
 )
 
 // Usecase mengorkestrasi pembacaan detail user.
-type Usecase struct{ repo userFinder }
+type Usecase struct {
+	repo  userFinder
+	clock base.Clock
+}
 
 // NewUsecase membuat Usecase.
-func NewUsecase(repo userFinder) *Usecase { return &Usecase{repo: repo} }
+func NewUsecase(repo userFinder, clock base.Clock) *Usecase {
+	if clock == nil {
+		clock = base.SystemClock
+	}
+	return &Usecase{repo: repo, clock: clock}
+}
 
 // Execute: id tidak ada / bukan uuid -> base.ErrUserNotFound (404).
 func (u *Usecase) Execute(ctx context.Context, id string) (base.UserDTO, error) {
@@ -22,5 +30,13 @@ func (u *Usecase) Execute(ctx context.Context, id string) (base.UserDTO, error) 
 	if !found {
 		return base.UserDTO{}, base.ErrUserNotFound
 	}
-	return user.ToResponse(), nil
+	inv, hasInv, err := u.repo.FindInvitation(ctx, user.ID)
+	if err != nil {
+		return base.UserDTO{}, fmt.Errorf("getuser: find invitation: %w", err)
+	}
+	var invPtr *base.Invitation
+	if hasInv {
+		invPtr = &inv
+	}
+	return user.ToResponseWithInvitation(invPtr, u.clock()), nil
 }

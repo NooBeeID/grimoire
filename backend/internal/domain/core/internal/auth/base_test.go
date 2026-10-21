@@ -48,3 +48,31 @@ func TestRegister_CodesRegisteredOnceAndIdempotent(t *testing.T) {
 		t.Fatal("PASSWORD_CHANGE_REQUIRED harus 403 bawaan")
 	}
 }
+
+func TestBuildShared_InvitationPolicyAndLoginURL(t *testing.T) {
+	cfg := testConfig()
+	cfg.InvitationTTL, cfg.InvitationMaxPerHour = 48*time.Hour, 7
+	cfg.InvitationResendMaxPerHour, cfg.InvitationPurgeAfter = 2, 100*time.Hour
+	s, err := buildShared(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := base.InvitationPolicy{TTL: 48 * time.Hour, MaxPerInviterPerHour: 7, ResendMaxPerHour: 2, PurgeAfter: 100 * time.Hour}
+	if s.Invitation != want {
+		t.Fatalf("%+v", s.Invitation)
+	}
+	if s.LoginURL != "/login" {
+		t.Fatalf("kosong -> /login, got %q", s.LoginURL)
+	}
+	cfg.PublicURL = "https://g.x"
+	s, _ = buildShared(cfg)
+	if s.LoginURL != "https://g.x/login" {
+		t.Fatalf("got %q", s.LoginURL)
+	}
+}
+
+func TestRegister_AlreadyRegisteredIs409(t *testing.T) {
+	if httpx.StatusFor(errs.CodeAlreadyRegistered) != http.StatusConflict {
+		t.Fatal("ALREADY_REGISTERED harus 409 bawaan")
+	}
+}

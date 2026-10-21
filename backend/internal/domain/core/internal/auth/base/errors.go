@@ -26,6 +26,37 @@ var (
 	ErrLastSuperAdmin = errs.WithDetails(errs.CodeConflict, "minimal harus ada satu super admin aktif", map[string]any{"reason": ReasonLastSuperAdmin})
 )
 
+// Alasan dan scope error undangan (details.reason / details.scope).
+const (
+	ReasonInvitationNotPending    = "INVITATION_NOT_PENDING"
+	AlreadyRegisteredRegistered   = "registered"
+	AlreadyRegisteredInactive     = "inactive"
+	AlreadyRegisteredNotDeveloper = "not_developer"
+
+	ScopeInvite = "invite"
+	ScopeResend = "resend"
+)
+
+// ErrInvitationNotPending: undangan sudah diterima atau tidak ada (409 CONFLICT).
+var ErrInvitationNotPending = errs.WithDetails(errs.CodeConflict, "undangan sudah diterima atau tidak ada",
+	map[string]any{"reason": ReasonInvitationNotPending})
+
+// ErrAlreadyRegistered adalah 409 ALREADY_REGISTERED dengan details.reason.
+func ErrAlreadyRegistered(reason string) *errs.Error {
+	return errs.WithDetails(errs.CodeAlreadyRegistered, "email sudah terdaftar", map[string]any{"reason": reason})
+}
+
+// ErrInviteRateLimited adalah 429 dengan details.retry_after_seconds (dibulatkan ke atas,
+// minimal 1) dan details.scope ("invite" atau "resend").
+func ErrInviteRateLimited(retry time.Duration, scope string) *errs.Error {
+	secs := int((retry + time.Second - 1) / time.Second)
+	if secs < 1 {
+		secs = 1
+	}
+	return errs.WithDetails(errs.CodeRateLimited, "terlalu banyak permintaan undangan",
+		map[string]any{"retry_after_seconds": secs, "scope": scope})
+}
+
 // FieldErrors memetakan nama field ke pesan kesalahan. Nilai nil/kosong berarti lolos.
 // Mengimplementasikan error; hanya dikembalikan sebagai error bila len > 0.
 type FieldErrors map[string]string

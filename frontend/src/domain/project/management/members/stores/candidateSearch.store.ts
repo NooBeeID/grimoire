@@ -8,9 +8,10 @@ export interface CandidateState {
   items: Candidate[];
   error: ApiError | null;
   activeIndex: number; // -1 = tidak ada
+  inviteOption: 'invite' | 'member' | null;
 }
 
-const initial = (): CandidateState => ({ q: '', status: 'idle', items: [], error: null, activeIndex: -1 });
+const initial = (): CandidateState => ({ q: '', status: 'idle', items: [], error: null, activeIndex: -1, inviteOption: null });
 
 export function createCandidateSearchStore() {
   const state = writable<CandidateState>(initial());
@@ -24,7 +25,7 @@ export function createCandidateSearchStore() {
     subscribe: state.subscribe,
     // Query diubah: q kosong -> idle; selain itu loading sampai hasil terakhir tiba.
     setQuery(q: string) {
-      set({ q, status: q.trim() === '' ? 'idle' : 'loading', items: [], error: null, activeIndex: -1 });
+      set({ q, status: q.trim() === '' ? 'idle' : 'loading', items: [], error: null, activeIndex: -1, inviteOption: null });
     },
     begin(n: number) {
       seq = n;
@@ -38,8 +39,12 @@ export function createCandidateSearchStore() {
       if (n !== seq) return;
       set({ ...current, status: 'error', items: [], error, activeIndex: -1 });
     },
+    setInviteOption(v: 'invite' | 'member' | null) {
+      set({ ...current, inviteOption: v });
+    },
+    // Opsi undang (bila ada) adalah entri terakhir dalam siklus.
     move(delta: number) {
-      const n = current.items.length;
+      const n = current.items.length + (current.inviteOption === 'invite' ? 1 : 0);
       if (n === 0) return;
       let i = current.activeIndex;
       if (i < 0) i = delta > 0 ? 0 : n - 1;

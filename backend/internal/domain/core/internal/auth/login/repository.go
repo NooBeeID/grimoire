@@ -31,6 +31,11 @@ func (r *Repo) FindUserByEmail(ctx context.Context, email string) (base.User, bo
 	return r.store.FindUserByEmail(ctx, email)
 }
 
+// FindInvitation mendelegasikan ke store bersama. found=false bila akun tidak punya baris undangan.
+func (r *Repo) FindInvitation(ctx context.Context, userID string) (base.Invitation, bool, error) {
+	return r.store.FindInvitation(ctx, userID)
+}
+
 type throttleRow struct {
 	Email           string       `db:"email"`
 	FailedCount     int          `db:"failed_count"`

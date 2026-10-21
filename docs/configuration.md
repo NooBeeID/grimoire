@@ -38,7 +38,19 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `LOGIN_LOCK_DURATION` | duration | `15m` | tidak | durasi > 0 | Lama penundaan login setelah batas gagal. |
 | `LOGIN_RATE_PER_MINUTE` | int | `20` | tidak | 1..1000 | Batas login per menit per IP. |
 | `API_KEY_MAX_ACTIVE_PER_PROJECT` | int | `20` | tidak | >= 1 | Batas API key aktif per project. |
-| `PUBLIC_URL` | string | - | tidak | URL absolut http(s) dengan host, tanpa query/fragment/userinfo; trailing slash dibuang | URL publik server; dipakai membentuk `mcp_url` (`<PUBLIC_URL>/mcp`) di respons buat key. |
+| `PUBLIC_URL` | string | - | tidak (wajib bila `MAIL_DRIVER=smtp`) | URL absolut http(s) dengan host, tanpa query/fragment/userinfo; trailing slash dibuang | URL publik server; dipakai membentuk `mcp_url` (`<PUBLIC_URL>/mcp`) di respons buat key. |
+| `MAIL_DRIVER` | enum | - | tidak | kosong, smtp, log; `log` ditolak saat `APP_ENV=production` | Driver email. Kosong = tanpa email (undangan mengembalikan kredensial di respons). `log` mencetak email ke log (hanya dev). |
+| `SMTP_HOST` | string | - | bila `smtp` | tidak kosong bila `MAIL_DRIVER=smtp` | Host server SMTP. |
+| `SMTP_PORT` | int | `587` | tidak | 1..65535 | Port SMTP (587 untuk STARTTLS, 465 untuk TLS implisit). |
+| `SMTP_USERNAME` | string | - | tidak | - | Username AUTH PLAIN; kosong = tanpa autentikasi. |
+| `SMTP_PASSWORD` | string | - | tidak | - | Password SMTP. Selalu disamarkan. |
+| `SMTP_TLS` | enum | `starttls` | tidak | starttls, tls, none | Mode TLS. `none` hanya untuk dev (Mailpit); di produksi dicatat sebagai peringatan. |
+| `MAIL_FROM` | string | - | bila `smtp` | alamat email valid; boleh `Nama <a@b.id>` | Pengirim email. |
+| `MAIL_TIMEOUT` | duration | `10s` | tidak | durasi > 0 dan <= 60s | Batas waktu satu pengiriman email. |
+| `INVITATION_TTL` | duration | `168h` | tidak | 1h..720h | Masa berlaku password sementara undangan. |
+| `INVITATION_MAX_PER_HOUR` | int | `20` | tidak | 1..1000 | Batas undangan baru per pengundang per jam. |
+| `INVITATION_RESEND_MAX_PER_HOUR` | int | `3` | tidak | 1..100 | Batas kirim ulang undangan per akun per jam. |
+| `INVITATION_PURGE_AFTER` | duration | `720h` | tidak | 24h..8760h | Akun undangan kedaluwarsa tanpa keanggotaan dihapus setelah selisih ini. |
 | `APISPEC_MAX_FILE_BYTES` | int64 | `5242880` | tidak | 1..MAX_UPLOAD_BYTES | Ukuran maksimum satu file API spec (OpenAPI). |
 | `APISPEC_MAX_SPECS` | int | `100` | tidak | >= 1 | Jumlah API spec maksimum per project. |
 | `MCP_RATE_PER_MINUTE` | int | `120` | tidak | 1..10000 | Batas panggilan MCP per menit per API key. |
@@ -46,6 +58,13 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `MCP_MAX_REQUEST_BYTES` | int | `65536` | tidak | >= 1024 | Batas ukuran body request `POST /mcp` (byte). |
 | `MCP_TOOL_TIMEOUT` | duration | `10s` | tidak | durasi > 0 dan <= 60s | Batas waktu eksekusi satu tool MCP. |
 | `MCP_ALLOWED_ORIGINS` | list | - | tidak | dipisah koma; tiap entri `scheme://host[:port]` (http/https) | Origin browser yang diizinkan memanggil `/mcp`; klien tanpa header Origin selalu lolos. |
+
+## Email undangan (T12)
+
+- Email hanya dipakai untuk undangan. Tanpa `MAIL_DRIVER` aplikasi tetap jalan; undangan membuat akun dan mengembalikan kredensial satu kali di respons (`Cache-Control: no-store`).
+- Contoh penyedia umum: STARTTLS `SMTP_PORT=587 SMTP_TLS=starttls`; TLS implisit `SMTP_PORT=465 SMTP_TLS=tls`.
+- `PUBLIC_URL` wajib bila `MAIL_DRIVER=smtp`; URL login di email = `<PUBLIC_URL>/login`.
+- `MAIL_DRIVER=log` ditolak di produksi karena mencetak password sementara ke log.
 
 ## Env di luar Config
 

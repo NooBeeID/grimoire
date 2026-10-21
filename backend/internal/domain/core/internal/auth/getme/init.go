@@ -8,6 +8,6 @@ import (
 
 // Init mendaftarkan GET /auth/me (di bawah /api).
 func Init(d app.Deps, _ base.Shared) {
-	h := NewHandler(NewUsecase())
+	h := NewHandler(NewUsecase(d.Mailer))
 	d.API.With(middleware.RequireAuth()).Get("/auth/me", h.Get)
 }

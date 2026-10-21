@@ -9,19 +9,30 @@ package management
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"grimoire/internal/domain/project/internal/management/base"
+	"grimoire/internal/domain/project/internal/management/inviteuser"
+	"grimoire/internal/infra/app"
+	"grimoire/lib/common/errs"
 	"grimoire/lib/constants"
 	"grimoire/lib/contracts/core/audit/record"
+	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/invitation"
+	authinvite "grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 	"grimoire/lib/contracts/project/management/contentcount"
 )
 
@@ -846,5 +857,493 @@ func TestT03_ListProjects_NoAuditEntry(t *testing.T) {
 	mustCode(t, e.do(e.A, http.MethodGet, "/projects?limit=500", nil), 400)
 	if len(e.auditList()) != n {
 		t.Fatal("GET /projects tidak boleh mengaudit")
+	}
+}
+
+// ---- inviteuser (T12) ----
+
+const inviteFakePassword = "PW-SEMENTARA-RAHASIA-42"
+
+// inviteFake menggantikan provider auth (get-user by email/id, invite-user, resend-invitation).
+// Ia juga memeriksa bahwa tidak ada panggilan bus yang datang saat tx management menahan
+// kunci baris project (SELECT ... FOR UPDATE NOWAIT).
+type inviteFake struct {
+	e         *env
+	checkLock bool
+
+	mu                sync.Mutex
+	emailLookups      int
+	invites           []authinvite.Request
+	resends           []resendinvitation.Request
+	pending           map[string]string // email -> user id (akun menunggu)
+	violations        []string
+	memberRowAtResend []bool
+
+	inviteErr  error
+	resendErr  error
+	resendResp *resendinvitation.Response
+	forceNew   bool
+}
+
+func (f *inviteFake) assertNoLock(ctx context.Context, who string) {
+	if !f.checkLock {
+		return
+	}
+	var pid string
+	if err := f.e.d.GetContext(ctx, &pid, `SELECT id FROM projects LIMIT 1`); err != nil {
+		return // belum ada project
+	}
+	tx, err := f.e.d.BeginTxx(ctx, nil)
+	if err != nil {
+		f.violate(who + ": begin: " + err.Error())
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryxContext(ctx, `SELECT id FROM projects FOR UPDATE NOWAIT`)
+	if err != nil {
+		f.violate(who + ": " + err.Error())
+		return
+	}
+	_ = rows.Close()
+}
+
+func (f *inviteFake) violate(s string) {
+	f.mu.Lock()
+	f.violations = append(f.violations, s)
+	f.mu.Unlock()
+}
+
+func (f *inviteFake) lookupLocked(r getuser.Request) getuser.Response {
+	f.e.mu.Lock()
+	defer f.e.mu.Unlock()
+	if r.UserID != "" {
+		if u, ok := f.e.users[r.UserID]; ok {
+			return u.Response
+		}
+		return getuser.Response{}
+	}
+	for _, u := range f.e.users {
+		if u.Email == r.Email {
+			return u.Response
+		}
+	}
+	return getuser.Response{}
+}
+
+func newInviteFake(e *env) *inviteFake {
+	f := &inviteFake{e: e, checkLock: true, pending: map[string]string{}}
+	e.b.Register(constants.BUS_CORE_AUTH_GET_USER, func(ctx context.Context, req any) (any, error) {
+		r := req.(getuser.Request)
+		f.assertNoLock(ctx, "get-user")
+		if r.UserID == "" {
+			f.mu.Lock()
+			f.emailLookups++
+			f.mu.Unlock()
+		}
+		return f.lookupLocked(r), nil
+	})
+	e.b.Register(constants.BUS_CORE_AUTH_INVITE_USER, func(ctx context.Context, req any) (any, error) {
+		r := req.(authinvite.Request)
+		f.assertNoLock(ctx, "invite-user")
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.invites = append(f.invites, r)
+		if f.inviteErr != nil {
+			return nil, f.inviteErr
+		}
+		exp := time.Now().Add(7 * 24 * time.Hour).UTC()
+		if id, ok := f.pending[r.Email]; ok && !f.forceNew {
+			return authinvite.Response{UserID: id, Created: false, ExpiresAt: exp, EmailStatus: invitation.EmailStatusPending}, nil
+		}
+		f.e.mu.Lock()
+		for _, u := range f.e.users {
+			if u.Email == r.Email && u.Invitation == nil {
+				f.e.mu.Unlock()
+				return nil, errs.WithDetails(errs.CodeAlreadyRegistered, "email sudah terdaftar", map[string]any{"reason": "registered"})
+			}
+		}
+		id := uuid.NewString()
+		name := r.Name
+		if name == "" {
+			name = strings.SplitN(r.Email, "@", 2)[0]
+		}
+		f.e.users[id] = &fakeUser{getuser.Response{Found: true, ID: id, Name: name, Email: r.Email, Role: roleDev, IsActive: true,
+			Invitation: &getuser.Invitation{ExpiresAt: exp}}}
+		f.e.mu.Unlock()
+		f.pending[r.Email] = id
+		return authinvite.Response{UserID: id, Created: true, ExpiresAt: exp, EmailStatus: invitation.EmailStatusPending}, nil
+	})
+	e.b.Register(constants.BUS_CORE_AUTH_RESEND_INVITATION, func(ctx context.Context, req any) (any, error) {
+		r := req.(resendinvitation.Request)
+		f.assertNoLock(ctx, "resend-invitation")
+		var n int
+		_ = f.e.d.GetContext(ctx, &n, `SELECT count(*) FROM project_members WHERE user_id = $1`, r.UserID)
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.resends = append(f.resends, r)
+		f.memberRowAtResend = append(f.memberRowAtResend, n > 0)
+		if f.resendErr != nil {
+			return nil, f.resendErr
+		}
+		if f.resendResp != nil {
+			return *f.resendResp, nil
+		}
+		return resendinvitation.Response{EmailSent: true, EmailStatus: invitation.EmailStatusSent, ExpiresAt: time.Now().Add(7 * 24 * time.Hour).UTC()}, nil
+	})
+	return f
+}
+
+func invitationRoutePresent(e *env) bool {
+	found := false
+	_ = chi.Walk(e.api, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		if method == http.MethodPost && strings.TrimSuffix(route, "/") == "/projects/{projectID}/invitations" {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+// inviteSetup menyiapkan env dengan fake auth. Route dipasang di sini bila Register belum memasangnya
+// (wiring base.go dikerjakan terpisah).
+func inviteSetup(t *testing.T) (*env, *inviteFake) {
+	t.Helper()
+	e := setupWith(t, setupOpts{noGetUser: true})
+	f := newInviteFake(e)
+	if !invitationRoutePresent(e) {
+		inviteuser.Init(app.Deps{Ctx: context.Background(), DB: e.d, Bus: e.b, API: e.api, Log: slog.Default()})
+	}
+	return e, f
+}
+
+func (e *env) invite(actor, pid string, body any) *httptest.ResponseRecorder {
+	return e.do(actor, http.MethodPost, "/projects/"+pid+"/invitations", body)
+}
+
+func (e *env) memberCount(pid string) int {
+	e.t.Helper()
+	var n int
+	if err := e.d.GetContext(context.Background(), &n, `SELECT count(*) FROM project_members WHERE project_id = $1`, pid); err != nil {
+		e.t.Fatal(err)
+	}
+	return n
+}
+
+func (f *inviteFake) counts() (lookups, invites, resends int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.emailLookups, len(f.invites), len(f.resends)
+}
+
+func (f *inviteFake) noViolations(t *testing.T) {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.violations) != 0 {
+		t.Fatalf("panggilan bus saat tx management terbuka: %v", f.violations)
+	}
+}
+
+func TestT12_RouteRegistered(t *testing.T) {
+	e, _ := inviteSetup(t)
+	routePresent(t, e, "POST /api/projects/{projectID}/invitations")
+}
+
+func TestT12_AC1_OwnerInvitesNewEmail(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	w := e.invite(e.A, p.ID, map[string]string{"email": " Baru@Contoh.ID ", "role": "member", "name": "Budi"})
+	mustCode(t, w, 201)
+	if strings.Contains(w.Body.String(), inviteFakePassword) || w.Header().Get("Cache-Control") == "no-store" {
+		t.Fatalf("%s", w.Body.String())
+	}
+	var res inviteuser.InviteResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.Created || !res.EmailSent || res.EmailStatus != "sent" || !res.Member.InvitationPending || res.Member.Role != "member" ||
+		res.Member.Email == nil || *res.Member.Email != "baru@contoh.id" {
+		t.Fatalf("%+v", res)
+	}
+	if e.roleInDB(p.ID, res.Member.UserID) != "member" {
+		t.Fatal("anggota tidak tersimpan")
+	}
+	var by, label string
+	if err := e.d.GetContext(context.Background(), &by, `SELECT added_by::text FROM project_members WHERE project_id=$1 AND user_id=$2`, p.ID, res.Member.UserID); err != nil || by != e.A {
+		t.Fatalf("%v %s", err, by)
+	}
+	if err := e.d.GetContext(context.Background(), &label, `SELECT added_by_label FROM project_members WHERE project_id=$1 AND user_id=$2`, p.ID, res.Member.UserID); err != nil || label != e.A+"@x.id" {
+		t.Fatalf("%v %s", err, label)
+	}
+	_, invites, resends := f.counts()
+	if invites != 1 || resends != 1 || f.invites[0].Deliver || !f.resends[0].Initial || !f.memberRowAtResend[0] {
+		t.Fatalf("invites=%d resends=%d %+v %+v %v", invites, resends, f.invites, f.resends, f.memberRowAtResend)
+	}
+	au := e.auditActions(record.ActionProjectMemberInvited)
+	if len(au) != 1 {
+		t.Fatalf("audit %d", len(au))
+	}
+	if au[0].ActorLabel != e.A+"@x.id" || len(au[0].Args) != 4 || au[0].Args["created"] != true || au[0].Args["user_label"] != "baru@contoh.id" ||
+		au[0].Target != res.Member.UserID || strings.Contains(fmt.Sprint(au[0].Args), "pass") {
+		t.Fatalf("%+v", au[0])
+	}
+	f.noViolations(t)
+}
+
+func TestT12_AC4_AlreadyMemberRejected(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	mustCode(t, e.addMember(e.A, p.ID, e.B, "member"), 201)
+	before := e.memberCount(p.ID)
+	w := e.invite(e.A, p.ID, map[string]string{"email": "bob@x.id"})
+	mustReason(t, w, 409, "ALREADY_MEMBER")
+	if _, invites, resends := f.counts(); invites != 0 || resends != 0 {
+		t.Fatalf("invites=%d resends=%d", invites, resends)
+	}
+	if e.memberCount(p.ID) != before || len(e.auditActions(record.ActionProjectMemberInvited)) != 0 {
+		t.Fatal("state berubah")
+	}
+}
+
+func TestT12_AC4_AlreadyRegistered(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	f.inviteErr = errs.WithDetails(errs.CodeAlreadyRegistered, "email sudah terdaftar", map[string]any{"reason": "registered"})
+	before := e.memberCount(p.ID)
+	w := e.invite(e.A, p.ID, map[string]string{"email": "orang@lain.id"})
+	mustCode(t, w, 409)
+	if b := parseErr(w); b.Error.Code != "ALREADY_REGISTERED" || b.Error.Details["reason"] != "registered" {
+		t.Fatalf("%s", w.Body.String())
+	}
+	if e.memberCount(p.ID) != before || len(e.auditActions(record.ActionProjectMemberInvited)) != 0 {
+		t.Fatal("state berubah")
+	}
+	if _, _, resends := f.counts(); resends != 0 {
+		t.Fatal("resend dipanggil")
+	}
+}
+
+func TestT12_AC4_PendingAccount(t *testing.T) {
+	e, f := inviteSetup(t)
+	p1, p2 := e.create(e.A, "P1"), e.create(e.A, "P2")
+	mustCode(t, e.invite(e.A, p1.ID, map[string]string{"email": "tunggu@x.id"}), 201)
+	w := e.invite(e.A, p2.ID, map[string]string{"email": "tunggu@x.id"})
+	mustCode(t, w, 201)
+	var res inviteuser.InviteResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if res.Created {
+		t.Fatal("created harus false")
+	}
+	if len(f.resends) != 2 || f.resends[1].Initial || e.memberCount(p2.ID) != 2 {
+		t.Fatalf("%+v members=%d", f.resends, e.memberCount(p2.ID))
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.pending) != 1 {
+		t.Fatalf("akun ganda: %v", f.pending)
+	}
+}
+
+func TestT12_AC5_MemberForbidden_NonMember404(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	mustCode(t, e.addMember(e.A, p.ID, e.B, "member"), 201)
+	before := e.memberCount(p.ID)
+
+	mustCode(t, e.invite(e.B, p.ID, map[string]string{"email": "baru@x.id"}), 403)
+	w := e.invite(e.C, p.ID, map[string]string{"email": "baru@x.id"})
+	mustCode(t, w, 404)
+	missing := e.invite(e.C, uuid.NewString(), map[string]string{"email": "baru@x.id"})
+	mustCode(t, missing, 404)
+	if normBody(w) != normBody(missing) {
+		t.Fatalf("404 tidak seragam: %s vs %s", w.Body.String(), missing.Body.String())
+	}
+	if lookups, invites, resends := f.counts(); lookups != 0 || invites != 0 || resends != 0 {
+		t.Fatalf("oracle: %d %d %d", lookups, invites, resends)
+	}
+	if e.memberCount(p.ID) != before || len(e.auditActions(record.ActionProjectMemberInvited)) != 0 {
+		t.Fatal("state berubah")
+	}
+	// super_admin non-anggota boleh, dengan role owner
+	w = e.invite(e.S, p.ID, map[string]string{"email": "owner-baru@x.id", "role": "owner"})
+	mustCode(t, w, 201)
+	var res inviteuser.InviteResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if e.roleInDB(p.ID, res.Member.UserID) != "owner" {
+		t.Fatal("role owner tidak tersimpan")
+	}
+}
+
+func TestT12_InvalidRoleAndBody(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	w := e.invite(e.A, p.ID, map[string]string{"email": "baru@x.id", "role": "admin"})
+	mustCode(t, w, 400)
+	if !strings.Contains(w.Body.String(), `"role"`) {
+		t.Fatal(w.Body.String())
+	}
+	mustCode(t, e.invite(e.A, p.ID, `{"email":"x@x.id","unknown":1}`), 400)
+	mustCode(t, e.invite(e.A, p.ID, map[string]string{"email": ""}), 400)
+	if lookups, _, _ := f.counts(); lookups != 0 {
+		t.Fatal("bus dipanggil untuk request cacat")
+	}
+}
+
+func TestT12_AC9_ResendFailsStillMember(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	f.resendErr = errors.New("auth mati")
+	w := e.invite(e.A, p.ID, map[string]string{"email": "baru@x.id"})
+	mustCode(t, w, 201)
+	var res inviteuser.InviteResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if res.EmailSent || res.EmailStatus != "failed" || res.Credentials != nil || strings.Contains(w.Body.String(), "credentials") ||
+		w.Header().Get("Cache-Control") == "no-store" {
+		t.Fatalf("%s", w.Body.String())
+	}
+	if e.roleInDB(p.ID, res.Member.UserID) != "member" || len(e.auditActions(record.ActionProjectMemberInvited)) != 1 {
+		t.Fatal("anggota/audit")
+	}
+}
+
+func TestT12_AC9_FallbackCredentials(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	f.resendResp = &resendinvitation.Response{EmailSent: false, EmailStatus: invitation.EmailStatusNotConfigured,
+		ExpiresAt:   time.Now().Add(time.Hour).UTC(),
+		Credentials: &invitation.Credentials{Email: "baru@x.id", TemporaryPassword: inviteFakePassword, LoginURL: "https://g/login"}}
+	w := e.invite(e.A, p.ID, map[string]string{"email": "baru@x.id"})
+	mustCode(t, w, 201)
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("%v", w.Header())
+	}
+	var res inviteuser.InviteResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if res.EmailSent || res.EmailStatus != "not_configured" || res.Credentials == nil ||
+		res.Credentials.TemporaryPassword != inviteFakePassword || res.Credentials.LoginURL != "https://g/login" {
+		t.Fatalf("%s", w.Body.String())
+	}
+	for _, a := range e.auditList() {
+		if strings.Contains(fmt.Sprint(a.Args), inviteFakePassword) {
+			t.Fatal("audit memuat password")
+		}
+	}
+	list := e.do(e.A, http.MethodGet, "/projects/"+p.ID+"/members", nil)
+	mustCode(t, list, 200)
+	if strings.Contains(list.Body.String(), inviteFakePassword) || strings.Contains(list.Body.String(), "temporary_password") {
+		t.Fatal("daftar anggota memuat kredensial")
+	}
+}
+
+func TestT12_AC10_SuccessHasNoCredentialsKey(t *testing.T) {
+	e, _ := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	w := e.invite(e.A, p.ID, map[string]string{"email": "baru@x.id"})
+	mustCode(t, w, 201)
+	if strings.Contains(w.Body.String(), "credentials") || strings.Contains(w.Body.String(), "temporary_password") {
+		t.Fatal(w.Body.String())
+	}
+}
+
+func TestT12_Invite_NoBusCallWhileTxOpen(t *testing.T) {
+	e, f := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	mustCode(t, e.invite(e.A, p.ID, map[string]string{"email": "satu@x.id"}), 201)
+	mustCode(t, e.invite(e.A, p.ID, map[string]string{"email": "bob@x.id"}), 409)
+	f.noViolations(t)
+	if !f.checkLock {
+		t.Fatal("pemeriksaan kunci harus aktif")
+	}
+}
+
+func TestT12_Invite_ConcurrentSameEmail(t *testing.T) {
+	e, f := inviteSetup(t)
+	f.checkLock = false
+	for i := 0; i < 20; i++ {
+		p := e.create(e.A, "Race")
+		mustCode(t, e.addMember(e.A, p.ID, e.C, "owner"), 201)
+		email := fmt.Sprintf("race%d@x.id", i)
+		before := len(e.auditActions(record.ActionProjectMemberInvited))
+		var w1, w2 *httptest.ResponseRecorder
+		both(
+			func() { w1 = e.invite(e.A, p.ID, map[string]string{"email": email}) },
+			func() { w2 = e.invite(e.C, p.ID, map[string]string{"email": email}) },
+		)
+		created, conflict := 0, 0
+		for _, w := range []*httptest.ResponseRecorder{w1, w2} {
+			switch w.Code {
+			case 201:
+				created++
+			case 409:
+				conflict++
+				if parseErr(w).Error.Details["reason"] != "ALREADY_MEMBER" {
+					t.Fatalf("%s", w.Body.String())
+				}
+			default:
+				t.Fatalf("putaran %d: %d %s", i, w.Code, w.Body.String())
+			}
+		}
+		if created != 1 || conflict != 1 {
+			t.Fatalf("putaran %d: 201=%d 409=%d", i, created, conflict)
+		}
+		if got := e.memberCount(p.ID); got != 3 {
+			t.Fatalf("putaran %d: anggota %d", i, got)
+		}
+		if got := len(e.auditActions(record.ActionProjectMemberInvited)) - before; got != 1 {
+			t.Fatalf("putaran %d: audit %d", i, got)
+		}
+	}
+}
+
+func TestT12_Invite_ActorDemotedRace(t *testing.T) {
+	e, f := inviteSetup(t)
+	f.checkLock = false
+	for i := 0; i < 20; i++ {
+		p := e.create(e.A, "Race")
+		mustCode(t, e.addMember(e.A, p.ID, e.C, "owner"), 201)
+		var demote, inv *httptest.ResponseRecorder
+		both(
+			func() {
+				demote = e.do(e.A, http.MethodPatch, "/projects/"+p.ID+"/members/"+e.C, map[string]string{"role": "member"})
+			},
+			func() { inv = e.invite(e.C, p.ID, map[string]string{"email": fmt.Sprintf("dem%d@x.id", i)}) },
+		)
+		mustCode(t, demote, 200)
+		switch inv.Code {
+		case 201:
+			if e.memberCount(p.ID) != 3 {
+				t.Fatalf("putaran %d: anggota %d", i, e.memberCount(p.ID))
+			}
+		case 403:
+			if e.memberCount(p.ID) != 2 {
+				t.Fatalf("putaran %d: anggota bertambah padahal 403", i)
+			}
+		default:
+			t.Fatalf("putaran %d: %d %s", i, inv.Code, inv.Body.String())
+		}
+	}
+}
+
+func TestT12_Invite_CSRFAndAuth(t *testing.T) {
+	e, _ := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	w := e.rawDo(e.A, http.MethodPost, "/projects/"+p.ID+"/invitations", `{"email":"baru@x.id"}`, false)
+	mustCode(t, w, 403)
+	if parseErr(w).Error.Code != "CSRF_REQUIRED" {
+		t.Fatalf("%s", w.Body.String())
+	}
+	mustCode(t, e.invite("", p.ID, map[string]string{"email": "baru@x.id"}), 401)
+	if e.memberCount(p.ID) != 1 {
+		t.Fatal("anggota bertambah")
+	}
+}
+
+func TestT12_Invite_AuditFailOpen(t *testing.T) {
+	e, _ := inviteSetup(t)
+	p := e.create(e.A, "Payments")
+	e.auditFail.Store(true)
+	mustCode(t, e.invite(e.A, p.ID, map[string]string{"email": "baru@x.id"}), 201)
+	if e.memberCount(p.ID) != 2 {
+		t.Fatal("anggota tidak tersimpan")
 	}
 }

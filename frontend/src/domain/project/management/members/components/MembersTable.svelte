@@ -14,6 +14,7 @@
     onrequestrole,
     onrequestremove,
     onrequestleave,
+    now = new Date(),
   }: {
     items: Member[];
     currentUserId: string;
@@ -22,11 +23,12 @@
     onrequestrole: (m: Member, role: MemberRole) => void;
     onrequestremove: (m: Member) => void;
     onrequestleave: (m: Member) => void;
+    now?: Date;
   } = $props();
 
   const canManage = $derived(accessLevel === 'owner' || accessLevel === 'admin');
-  // Kolom status hanya tampil bila ada anggota yang tidak ditemukan/nonaktif; selain itu kosong di semua baris.
-  const hasStatus = $derived(items.some((m) => !m.found || !m.is_active));
+  // Kolom status hanya tampil bila ada anggota yang tidak ditemukan/nonaktif/undangan menunggu; selain itu kosong di semua baris.
+  const hasStatus = $derived(items.some((m) => !m.found || !m.is_active || m.invitation_pending));
   const columns = $derived([
     { key: 'name', header: $t('project.members.col.name') },
     { key: 'email', header: $t('project.members.col.email') },
@@ -47,7 +49,11 @@
     <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {m.role === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted'}">{m.role === 'owner' ? $t('project.role.owner') : $t('project.role.member')}</span>
   {:else if col.key === 'status'}
     {#if !m.found}<span class="text-danger">{$t('project.members.status.notFound')}</span>
-    {:else if !m.is_active}<span class="text-muted">{$t('project.members.status.inactive')}</span>{/if}
+    {:else if !m.is_active}<span class="text-muted">{$t('project.members.status.inactive')}</span>
+    {:else if m.invitation_pending}
+      {@const expired = m.invitation_expires_at !== null && new Date(m.invitation_expires_at) <= now}
+      <span class="inline-flex h-5 flex-none items-center rounded-full px-2 text-xs font-medium whitespace-nowrap {expired ? 'bg-pill-warning-bg text-pill-warning-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{expired ? $t('project.members.status.invitedExpired') : $t('project.members.status.invited')}</span>
+    {/if}
   {:else if col.key === 'added'}
     <time datetime={m.added_at}>{formatDateTime(m.added_at, $locale)}</time>
     {#if m.added_by_label}<span class="block text-xs text-muted">{m.added_by_label}</span>{/if}

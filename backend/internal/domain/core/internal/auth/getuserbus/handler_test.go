@@ -16,7 +16,7 @@ import (
 
 func newBus(repo userFinder) *bus.Registry {
 	r := bus.NewRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	r.Register(constants.BUS_CORE_AUTH_GET_USER, NewHandler(NewUsecase(repo)).Handle)
+	r.Register(constants.BUS_CORE_AUTH_GET_USER, NewHandler(NewUsecase(repo, fixedClock)).Handle)
 	return r
 }
 
@@ -35,6 +35,15 @@ func TestHandler_Handle_BadRequestType(t *testing.T) {
 		if !errors.Is(err, bus.ErrBadRequestType) {
 			t.Fatalf("%T: %v", req, err)
 		}
+	}
+}
+
+func TestHandler_Handle_ForwardsEmail(t *testing.T) {
+	repo := &fakeRepo{user: base.User{ID: uid, Email: "baru@contoh.id"}, found: true}
+	r := newBus(repo)
+	res, err := bus.CallTyped[getuser.Response](context.Background(), r, constants.BUS_CORE_AUTH_GET_USER, getuser.Request{Email: "Baru@Contoh.id"})
+	if err != nil || !res.Found || repo.gotEmail != "baru@contoh.id" {
+		t.Fatalf("%+v %v", res, err)
 	}
 }
 

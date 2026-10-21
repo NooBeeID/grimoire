@@ -685,6 +685,10 @@ func TestRoutesRegistered(t *testing.T) {
 		"POST /api/projects/{projectID}/members",
 		"DELETE /api/projects/{projectID}/members/{userID}",
 		"PATCH /api/projects/{projectID}/members/{userID}",
+		"GET /api/projects/{projectID}/invitations",
+		"POST /api/projects/{projectID}/invitations",
+		"POST /api/projects/{projectID}/invitations/{userID}/resend",
+		"DELETE /api/projects/{projectID}/invitations/{userID}",
 	}
 	var got []string
 	err := chi.Walk(e.top, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {

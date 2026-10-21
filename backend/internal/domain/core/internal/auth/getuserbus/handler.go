@@ -17,5 +17,5 @@ func (h *Handler) Handle(ctx context.Context, req any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return h.uc.Execute(ctx, in.UserID)
+	return h.uc.Execute(ctx, in)
 }

@@ -23,4 +23,8 @@ type Shared struct {
 	Password           PasswordPolicy
 	Throttle           ThrottlePolicy
 	LoginRatePerMinute int
+	// Invitation adalah kebijakan undangan email (T12).
+	Invitation InvitationPolicy
+	// LoginURL adalah URL halaman login untuk email undangan: PUBLIC_URL + "/login", atau "/login" bila kosong.
+	LoginURL string
 }

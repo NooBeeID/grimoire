@@ -18,3 +18,5 @@ export { default as CopyField } from './CopyField.svelte';
 export { default as MarkdownView } from './MarkdownView.svelte';
 export { default as MarkdownEditor } from './MarkdownEditor.svelte';
 export { default as OpenApiBadge } from './OpenApiBadge.svelte';
+export { default as TemporaryCredentialsDialog } from './TemporaryCredentialsDialog.svelte';
+export { default as EmailDeliveryNote } from './EmailDeliveryNote.svelte';

@@ -116,9 +116,20 @@ func TestUsecase_Execute_RepoError(t *testing.T) {
 }
 
 func TestDeveloperFields(t *testing.T) {
-	if n := reflectNumField(contract.Developer{}); n != 3 {
+	if n := reflectNumField(contract.Developer{}); n != 4 { // id, name, email, invitation_pending (T12)
 		t.Fatalf("fields=%d", n)
 	}
 }
 
 func reflectNumField(v any) int { return reflect.TypeOf(v).NumField() }
+
+func TestUsecase_Execute_ForwardsInvitationPending(t *testing.T) {
+	items := []contract.Developer{
+		{ID: "1", Name: "A", Email: "a@x", InvitationPending: true},
+		{ID: "2", Name: "B", Email: "b@x"},
+	}
+	res, err := NewUsecase(&fakeRepo{items: items}).Execute(context.Background(), contract.Request{Query: "x"})
+	if err != nil || !res.Items[0].InvitationPending || res.Items[1].InvitationPending {
+		t.Fatalf("%+v %v", res, err)
+	}
+}

@@ -14,21 +14,24 @@ func NewRepository(q db.Querier) *Repository { return &Repository{q: q} }
 
 // developerRow adalah row privat ber-tag db.
 type developerRow struct {
-	ID    string `db:"id"`
-	Name  string `db:"name"`
-	Email string `db:"email"`
+	ID                string `db:"id"`
+	Name              string `db:"name"`
+	Email             string `db:"email"`
+	InvitationPending bool   `db:"invitation_pending"`
 }
 
 // FindActiveDevelopers mengembalikan developer aktif yang email/namanya cocok dengan pattern.
 // pattern WAJIB hasil base.LikePattern. Selalu slice non-nil.
 func (r *Repository) FindActiveDevelopers(ctx context.Context, pattern string, limit int) ([]contract.Developer, error) {
 	const q = `
-SELECT id::text AS id, name, email::text AS email
-FROM users
-WHERE role = 'developer'
-  AND is_active
-  AND (email ILIKE $1 ESCAPE '\' OR name ILIKE $1 ESCAPE '\')
-ORDER BY name ASC, id ASC
+SELECT u.id::text AS id, u.name, u.email::text AS email,
+       (i.user_id IS NOT NULL) AS invitation_pending
+FROM users u
+LEFT JOIN user_invitations i ON i.user_id = u.id AND i.accepted_at IS NULL
+WHERE u.role = 'developer'
+  AND u.is_active
+  AND (u.email ILIKE $1 ESCAPE '\' OR u.name ILIKE $1 ESCAPE '\')
+ORDER BY u.name ASC, u.id ASC
 LIMIT $2`
 	var rows []developerRow
 	if err := r.q.SelectContext(ctx, &rows, q, pattern, limit); err != nil {
@@ -36,7 +39,7 @@ LIMIT $2`
 	}
 	out := make([]contract.Developer, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, contract.Developer{ID: row.ID, Name: row.Name, Email: row.Email})
+		out = append(out, contract.Developer{ID: row.ID, Name: row.Name, Email: row.Email, InvitationPending: row.InvitationPending})
 	}
 	return out, nil
 }

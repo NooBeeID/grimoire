@@ -13,6 +13,8 @@ import (
 	"grimoire/lib/common/reqctx"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 )
 
 type fakeRepo struct {
@@ -186,8 +188,8 @@ func TestUsecase_Execute_AllMembersReturnsEmpty(t *testing.T) {
 	}
 }
 
-func TestUsecase_Execute_MapsOnlyThreeFields(t *testing.T) {
-	if n := reflect.TypeOf(base.CandidateDTO{}).NumField(); n != 3 {
+func TestUsecase_Execute_MapsOnlyKnownFields(t *testing.T) {
+	if n := reflect.TypeOf(base.CandidateDTO{}).NumField(); n != 4 { // id, name, email, invitation_pending (T12)
 		t.Fatalf("fields %d", n)
 	}
 }
@@ -235,5 +237,30 @@ func TestUsecase_Execute_NoGetUser(t *testing.T) {
 	u := &fakeUsers{devs: devs(2)}
 	if _, err := exec(ctxFor("developer"), repoFound("owner"), u, "d", ""); err != nil || u.getCalls != 0 {
 		t.Fatalf("%v %d", err, u.getCalls)
+	}
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (f *fakeUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (f *fakeUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (f *fakeUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
+}
+
+func TestUsecase_Execute_MapsInvitationPending(t *testing.T) {
+	ds := devs(2)
+	ds[1].InvitationPending = true
+	out, err := exec(ctxFor("developer"), repoFound("owner"), &fakeUsers{devs: ds}, "d", "")
+	if err != nil || len(out) != 2 {
+		t.Fatalf("%#v %v", out, err)
+	}
+	if out[0].InvitationPending || !out[1].InvitationPending {
+		t.Fatalf("%#v", out)
 	}
 }

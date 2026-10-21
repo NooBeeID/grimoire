@@ -194,3 +194,46 @@ func TestFindDevelopers_Integration_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func seedInvitation(t *testing.T, d *db.DB, email string, expires string, accepted bool) {
+	t.Helper()
+	acc := "NULL"
+	if accepted {
+		acc = "now()"
+	}
+	_, err := d.Exec(`INSERT INTO user_invitations (user_id, invited_by, issued_at, expires_at, accepted_at)
+SELECT id, id, now(), `+expires+`, `+acc+` FROM users WHERE email = $1`, email)
+	if err != nil {
+		t.Fatalf("seed invitation %s: %v", email, err)
+	}
+}
+
+func TestFindDevelopers_Integration_InvitationPending(t *testing.T) {
+	d, reg := setupInt(t)
+	seed(t, d, "Inv Menunggu", "inv-a@tim.id", "developer", true)
+	seed(t, d, "Inv Diterima", "inv-b@tim.id", "developer", true)
+	seed(t, d, "Inv Biasa", "inv-c@tim.id", "developer", true)
+	seed(t, d, "Inv Kedaluwarsa", "inv-d@tim.id", "developer", true)
+	seed(t, d, "Inv Nonaktif", "inv-e@tim.id", "developer", false)
+	seedInvitation(t, d, "inv-a@tim.id", "now() + interval '1 day'", false)
+	seedInvitation(t, d, "inv-b@tim.id", "now() + interval '1 day'", true)
+	seedInvitation(t, d, "inv-d@tim.id", "now() - interval '1 day'", false)
+	seedInvitation(t, d, "inv-e@tim.id", "now() + interval '1 day'", false)
+
+	res := find(t, reg, "inv-", 0)
+	got := map[string]bool{}
+	for _, it := range res.Items {
+		got[it.Email] = it.InvitationPending
+	}
+	want := map[string]bool{"inv-a@tim.id": true, "inv-b@tim.id": false, "inv-c@tim.id": false, "inv-d@tim.id": true}
+	if len(res.Items) != 4 || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("got %v items=%d", got, len(res.Items))
+	}
+	// urutan nama ASC tanpa baris ganda
+	if n := names(res); fmt.Sprint(n) != "[Inv Biasa Inv Diterima Inv Kedaluwarsa Inv Menunggu]" {
+		t.Fatalf("%v", n)
+	}
+	if lim := find(t, reg, "inv-", 2); len(lim.Items) != 2 {
+		t.Fatalf("limit: %d", len(lim.Items))
+	}
+}

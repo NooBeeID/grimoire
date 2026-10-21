@@ -11,6 +11,7 @@ import (
 	"grimoire/internal/infra/config"
 	"grimoire/internal/infra/db"
 	"grimoire/internal/infra/jobs"
+	"grimoire/internal/infra/mailer"
 )
 
 // Deps adalah dependensi bersama untuk wiring domain. Dirakit oleh
@@ -23,6 +24,8 @@ type Deps struct {
 	DB     *db.DB
 	Bus    *bus.Registry
 	Jobs   *jobs.Scheduler
+	// Mailer generik; nil tidak pernah terjadi (driver noop bila tidak dikonfigurasi).
+	Mailer mailer.Mailer
 	// API adalah sub-router /api; MCP adalah sub-router /mcp.
 	API chi.Router
 	MCP chi.Router

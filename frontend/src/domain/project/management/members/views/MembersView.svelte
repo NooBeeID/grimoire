@@ -2,15 +2,19 @@
   import { untrack } from 'svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Dialog from '../../../../../shared/components/Dialog.svelte';
+  import TemporaryCredentialsDialog from '../../../../../shared/components/TemporaryCredentialsDialog.svelte';
   import EmptyState from '../../../../../shared/components/EmptyState.svelte';
   import ErrorState from '../../../../../shared/components/ErrorState.svelte';
   import Spinner from '../../../../../shared/components/Spinner.svelte';
   import { ApiError, isApiError } from '../../../../../shared/services/http';
   import { t } from '../../../../../shared/stores/i18n';
   import { toast } from '../../../../../shared/stores/toast';
+  import type { TemporaryCredentials } from '../../../../../shared/validation/credentials';
   import { fieldErrorsOf } from '../../../../../shared/validation/error';
   import AddMemberForm from '../components/AddMemberForm.svelte';
   import ConfirmActionDialog from '../components/ConfirmActionDialog.svelte';
+  import InvitationsSection from '../components/InvitationsSection.svelte';
+  import InviteByEmailForm from '../components/InviteByEmailForm.svelte';
   import MembersTable from '../components/MembersTable.svelte';
   import {
     addMember,
@@ -20,14 +24,25 @@
     removeMember,
     searchCandidates,
   } from '../services/members.service';
+  import {
+    inviteToProject,
+    listInvitations,
+    resendProjectInvitation,
+    revokeInvitation,
+    toInviteError,
+    type InviteErrorView,
+  } from '../services/invitations.service';
+  import { inviteOptionFor } from '../model/invite';
+  import { createInvitationsListStore } from '../stores/invitationsList.store';
   import { createCandidateSearchStore } from '../stores/candidateSearch.store';
   import { createMembersListStore } from '../stores/membersList.store';
-  import { CANDIDATE_DEBOUNCE_MS, type AccessLevel, type Candidate, type Member, type MemberRole } from '../types';
+  import { CANDIDATE_DEBOUNCE_MS, type AccessLevel, type Candidate, type Invitation, type Member, type MemberRole } from '../types';
 
   let {
     projectId,
     accessLevel,
     currentUserId,
+    emailEnabled = null,
     onleft,
     onaccesschanged,
     onprojectgone,
@@ -35,6 +50,7 @@
     projectId: string;
     accessLevel: AccessLevel;
     currentUserId: string;
+    emailEnabled?: boolean | null;
     onleft: () => void;
     onaccesschanged: () => void;
     onprojectgone: () => void;
@@ -43,6 +59,7 @@
   const canManage = $derived(accessLevel === 'owner' || accessLevel === 'admin');
   const list = createMembersListStore();
   const search = createCandidateSearchStore();
+  const invitations = createInvitationsListStore();
 
   const toApi = (e: unknown) => (isApiError(e) ? e : new ApiError({ status: 0, code: 'INTERNAL', message: String(e) }));
   const isAbort = (e: unknown, c: AbortController) =>
@@ -76,6 +93,44 @@
     return () => listCtrl?.abort();
   });
 
+  // ---- muat undangan (hanya owner/super_admin) ----
+  let invCtrl: AbortController | null = null;
+  async function loadInvitations(id: string, silent = false) {
+    invCtrl?.abort();
+    const c = new AbortController();
+    invCtrl = c;
+    if (silent) invitations.refresh();
+    else invitations.begin();
+    try {
+      const items = await listInvitations(id, c.signal);
+      if (c.signal.aborted) return;
+      invitations.resolve(items);
+    } catch (e) {
+      if (isAbort(e, c)) return;
+      const err = toApi(e);
+      if (err.status === 404) {
+        onprojectgone();
+        return;
+      }
+      if (err.status === 403) {
+        invitations.clear();
+        onaccesschanged();
+        return;
+      }
+      invitations.fail(err);
+    }
+  }
+  const refreshInvitations = () => loadInvitations(projectId, true);
+  $effect(() => {
+    const id = projectId;
+    if (!canManage) {
+      untrack(() => invitations.clear());
+      return;
+    }
+    void untrack(() => loadInvitations(id));
+    return () => invCtrl?.abort();
+  });
+
   // ---- penanganan error mutasi ----
   let busyUserId = $state<string | null>(null);
   let addOpen = $state(false);
@@ -84,6 +139,7 @@
   function closeDialogs() {
     addOpen = false;
     confirm = null;
+    invConfirm = null;
   }
 
   // 404 bisa berarti project hilang atau anggota target hilang: cek ulang daftar.
@@ -128,6 +184,12 @@
   let selected = $state<Candidate | null>(null);
   let addRole = $state<MemberRole>('member');
   let adding = $state(false);
+  let addMode = $state<'search' | 'invite'>('search');
+  let inviteEmail = $state('');
+  let inviteName = $state('');
+  let inviteError = $state<InviteErrorView | null>(null);
+  let inviting = $state(false);
+  let creds = $state<{ credentials: TemporaryCredentials; emailStatus: 'failed' | 'not_configured'; expiresAt: string } | null>(null);
   let addError = $state<string | null>(null);
   let searchCtrl: AbortController | null = null;
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -140,6 +202,8 @@
     search.clear();
   }
   function openAdd() {
+    addMode = 'search';
+    inviteError = null;
     selected = null;
     addRole = 'member';
     addError = null;
@@ -181,6 +245,7 @@
       // Pertahanan ganda: saring yang sudah menjadi anggota.
       const have = new Set($list.items.map((m) => m.user_id));
       search.resolve(n, items.filter((x) => !have.has(x.id)));
+      search.setInviteOption(inviteOptionFor(q, $search, $list.items));
     } catch (e) {
       if (isAbort(e, c)) return;
       search.fail(n, toApi(e));
@@ -193,6 +258,68 @@
   function onclear() {
     selected = null;
     resetSearch();
+  }
+
+  function oninvite(email: string) {
+    inviteEmail = email;
+    inviteName = '';
+    inviteError = null;
+    addMode = 'invite';
+    resetSearch();
+  }
+  function onback() {
+    addMode = 'search';
+    inviteError = null;
+    resetSearch();
+  }
+  function onsearchinstead() {
+    const email = inviteEmail;
+    addMode = 'search';
+    inviteError = null;
+    oninput(email);
+  }
+
+  // Kredensial hanya hidup di state ini; tidak masuk store mana pun.
+  function showCredentials(res: { credentials?: TemporaryCredentials; email_status: string; expires_at: string }) {
+    if (!res.credentials) return false;
+    creds = {
+      credentials: res.credentials,
+      emailStatus: res.email_status === 'failed' ? 'failed' : 'not_configured',
+      expiresAt: res.expires_at,
+    };
+    return true;
+  }
+
+  async function submitInvite() {
+    if (inviting) return;
+    inviting = true;
+    inviteError = null;
+    const email = inviteEmail;
+    try {
+      const res = await inviteToProject(projectId, { email, role: addRole, name: inviteName });
+      list.upsert(res.member);
+      void refreshInvitations();
+      closeAdd();
+      if (res.email_sent) {
+        toast.push({ type: 'success', message: $t(res.created ? 'project.members.invite.success.sent' : 'project.members.invite.success.resent', { email: res.member.email ?? email }) });
+      } else if (!showCredentials(res)) {
+        toast.push({ type: 'error', message: $t('project.members.invite.deliveryFailed', { email: res.member.email ?? email }) });
+      }
+    } catch (e) {
+      const view = toInviteError(e, 'invite');
+      if (view.kind === 'forbidden') {
+        closeDialogs();
+        toast.push({ type: 'error', message: $t('error.forbidden') });
+        onaccesschanged();
+      } else if (view.kind === 'notFound') {
+        await recheckAfter404();
+      } else {
+        inviteError = view;
+        if (view.kind === 'alreadyMember') void load(projectId);
+      }
+    } finally {
+      inviting = false;
+    }
   }
 
   async function submitAdd() {
@@ -279,6 +406,92 @@
     }
   }
 
+  // ---- kirim ulang dan batalkan undangan ----
+  let invConfirm = $state<{ kind: 'resend' | 'revoke'; item: Invitation } | null>(null);
+  let invSubmitting = $state(false);
+  let invError = $state<string | null>(null);
+  let invBusyUserId = $state<string | null>(null);
+
+  function onrequestresend(item: Invitation) {
+    invError = null;
+    invConfirm = { kind: 'resend', item };
+  }
+  function onrequestrevoke(item: Invitation) {
+    invError = null;
+    invConfirm = { kind: 'revoke', item };
+  }
+  function invInline(view: InviteErrorView): string {
+    switch (view.kind) {
+      case 'rateLimited':
+        return $t(`invitation.error.rateLimited.${view.scope}`, { minutes: view.minutes });
+      case 'notPending':
+        return $t('invitation.error.notPending');
+      case 'alreadyRegistered':
+        return $t(`invitation.error.alreadyRegistered.${view.reason}`);
+      case 'lastOwner':
+        return $t('project.error.LAST_OWNER');
+      case 'generic':
+        return view.traceId ? `${view.message} (${$t('error.trace_id', { id: view.traceId })})` : view.message;
+      default:
+        return $t('error.internal');
+    }
+  }
+  async function runInvConfirm() {
+    const c = invConfirm;
+    if (!c || invSubmitting) return;
+    invSubmitting = true;
+    invError = null;
+    invBusyUserId = c.item.user_id;
+    const { item } = c;
+    try {
+      if (c.kind === 'resend') {
+        const res = await resendProjectInvitation(projectId, item.user_id);
+        invConfirm = null;
+        void refreshInvitations();
+        if (res.email_sent) toast.push({ type: 'success', message: $t('project.invitations.resend.success', { email: item.email }) });
+        else showCredentials(res);
+      } else {
+        await revokeInvitation(projectId, item.user_id);
+        invConfirm = null;
+        invitations.remove(item.user_id);
+        list.remove(item.user_id);
+        toast.push({ type: 'success', message: $t('project.invitations.revoke.success') });
+      }
+    } catch (e) {
+      const view = toInviteError(e, 'resend');
+      if (view.kind === 'forbidden') {
+        invConfirm = null;
+        toast.push({ type: 'error', message: $t('error.forbidden') });
+        onaccesschanged();
+      } else if (view.kind === 'notFound') {
+        invConfirm = null;
+        await recheckAfter404();
+        void refreshInvitations();
+      } else if (view.kind === 'notPending') {
+        if (c.kind === 'revoke') {
+          invError = $t('project.invitations.revoke.notPending');
+        } else {
+          invConfirm = null;
+          toast.push({ type: 'error', message: $t('invitation.error.notPending') });
+        }
+        void refreshInvitations();
+        void load(projectId);
+      } else {
+        invError = invInline(view);
+      }
+    } finally {
+      invSubmitting = false;
+      invBusyUserId = null;
+    }
+  }
+  const invConfirmView = $derived.by(() => {
+    if (!invConfirm) return null;
+    const email = invConfirm.item.email;
+    return invConfirm.kind === 'resend'
+      ? { title: $t('project.invitations.resend.title'), message: $t('project.invitations.resend.message', { email }), label: $t('project.invitations.resend') }
+      : { title: $t('project.invitations.revoke.title'), message: $t('project.invitations.revoke.message', { email }), label: $t('project.invitations.revoke') };
+  });
+
   const nameOf = (m: Member) => m.name ?? m.email ?? $t('project.members.unknownUser');
   const confirmView = $derived.by(() => {
     if (!confirm) return null;
@@ -314,6 +527,16 @@
     {#if canManage}<Button onclick={openAdd}>{$t('project.members.add.open')}</Button>{/if}
   </header>
 
+  {#if canManage}
+    <InvitationsSection
+      state={$invitations}
+      busyUserId={invBusyUserId}
+      onretry={() => loadInvitations(projectId)}
+      {onrequestresend}
+      {onrequestrevoke}
+    />
+  {/if}
+
   {#if $list.status === 'idle' || $list.status === 'loading'}
     <div class="p-8 text-center" aria-busy="true"><Spinner /></div>
   {:else if $list.status === 'error'}
@@ -327,20 +550,36 @@
   {/if}
 </section>
 
-<Dialog open={addOpen} title={$t('project.members.add.title')} onclose={closeAdd}>
-  <AddMemberForm
-    search={$search}
-    {selected}
-    bind:role={addRole}
-    submitting={adding}
-    error={addError}
-    {oninput}
-    onmove={(d) => search.move(d)}
-    {onselect}
-    {onclear}
-    onsubmit={submitAdd}
-    oncancel={closeAdd}
-  />
+<Dialog open={addOpen} title={addMode === 'invite' ? $t('project.members.invite.title') : $t('project.members.add.title')} onclose={closeAdd}>
+  {#if addMode === 'invite'}
+    <InviteByEmailForm
+      email={inviteEmail}
+      bind:role={addRole}
+      bind:name={inviteName}
+      {emailEnabled}
+      submitting={inviting}
+      error={inviteError}
+      onsubmit={submitInvite}
+      {onback}
+      oncancel={closeAdd}
+      {onsearchinstead}
+    />
+  {:else}
+    <AddMemberForm
+      search={$search}
+      {selected}
+      bind:role={addRole}
+      submitting={adding}
+      error={addError}
+      {oninput}
+      onmove={(d) => search.move(d)}
+      {onselect}
+      {onclear}
+      {oninvite}
+      onsubmit={submitAdd}
+      oncancel={closeAdd}
+    />
+  {/if}
 </Dialog>
 
 {#if confirmView}
@@ -356,3 +595,25 @@
     oncancel={() => (confirm = null)}
   />
 {/if}
+
+{#if invConfirmView}
+  <ConfirmActionDialog
+    open={invConfirm !== null}
+    title={invConfirmView.title}
+    message={invConfirmView.message}
+    confirmLabel={invConfirmView.label}
+    variant={invConfirm?.kind === 'resend' ? 'primary' : 'danger'}
+    submitting={invSubmitting}
+    error={invError}
+    onconfirm={runInvConfirm}
+    oncancel={() => (invConfirm = null)}
+  />
+{/if}
+
+<TemporaryCredentialsDialog
+  open={creds !== null}
+  credentials={creds?.credentials ?? null}
+  emailStatus={creds?.emailStatus ?? 'not_configured'}
+  expiresAt={creds?.expiresAt ?? ''}
+  onclose={() => (creds = null)}
+/>

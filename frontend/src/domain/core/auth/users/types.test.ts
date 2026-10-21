@@ -5,7 +5,7 @@ import { toUserFormError, UserListSchema, UserSchema, UserWithTempPasswordSchema
 const USER = {
   id: '7d1e0a52-3c4b-4f6a-8b9c-1d2e3f4a5b6c', email: 'sari@tim.id', name: 'Sari', role: 'developer', is_active: true,
   must_change_password: true, created_at: '2026-10-21T09:00:00Z', created_by: '0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d',
-  created_by_label: 'admin@tim.id', updated_at: '2026-10-21T09:00:00Z', last_login_at: null,
+  created_by_label: 'admin@tim.id', updated_at: '2026-10-21T09:00:00Z', last_login_at: null, invitation: null,
 };
 const err = (status: number, code: string, details?: unknown) => new ApiError({ status, code, message: 'm', details });
 

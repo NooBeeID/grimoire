@@ -12,6 +12,8 @@ import (
 	"grimoire/lib/common/errs"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 	"grimoire/lib/contracts/project/management/checkaccess"
 )
 
@@ -151,4 +153,17 @@ func TestExecute_RoleFromMembershipUnknownIsNone(t *testing.T) {
 	if err != nil || res.Level != checkaccess.LevelNone {
 		t.Fatalf("%+v %v", res, err)
 	}
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (f *fakeUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (f *fakeUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (f *fakeUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
 }

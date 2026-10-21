@@ -56,6 +56,7 @@
   {#if mode === 'forced'}
     <h1 class="text-[22px] leading-8 font-semibold">{$t('auth.changePassword.forcedTitle')}</h1>
     <p class="text-muted">{$t('auth.changePassword.forcedDescription')}</p>
+    <p class="text-[13px] text-muted">{$t('auth.changePassword.invitationHint')}</p>
   {:else}
     <h2 class="text-base font-semibold">{$t('auth.changePassword.forcedTitle')}</h2>
   {/if}

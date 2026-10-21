@@ -63,3 +63,21 @@ describe('ChangePasswordView', () => {
     expect(await screen.findByRole('button', { name: /Tunggu 30 dtk/ })).toBeDisabled();
   });
 });
+
+describe('ChangePasswordView: teks bantu undangan', () => {
+  it('forced menampilkan hint, profile tidak', () => {
+    const { unmount } = render(ChangePasswordView, { mode: 'forced' });
+    expect(screen.getByText(/password sementara dari email undangan/)).toBeInTheDocument();
+    unmount();
+    render(ChangePasswordView, { mode: 'profile' });
+    expect(screen.queryByText(/password sementara dari email undangan/)).toBeNull();
+  });
+  it('400 fields.current_password dari server (kedaluwarsa) tampil di bawah field', async () => {
+    fetchMock.mockResolvedValue(
+      json({ error: { code: 'INVALID_ARGUMENT', message: 'x', details: { fields: { current_password: 'password sementara sudah kedaluwarsa, minta pengundang mengirim ulang undangan' } } } }, 400),
+    );
+    render(ChangePasswordView, { mode: 'forced' });
+    await fill();
+    expect(await screen.findByText(/sudah kedaluwarsa, minta pengundang/)).toBeInTheDocument();
+  });
+});

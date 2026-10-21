@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"grimoire/internal/domain/core/internal/auth/base"
 	"grimoire/internal/domain/core/internal/auth/base/store"
@@ -30,9 +31,11 @@ func setupInt(t *testing.T) (*bus.Registry, *store.Store) {
 		t.Fatalf("migrate: %v", err)
 	}
 	r := bus.NewRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	Init(app.Deps{DB: d, Bus: r}, base.Shared{})
+	Init(app.Deps{DB: d, Bus: r}, base.Shared{Clock: func() time.Time { return intNow }})
 	return r, store.New(d)
 }
+
+var intNow = time.Now().UTC()
 
 func call(r *bus.Registry, id string) (getuser.Response, error) {
 	return bus.CallTyped[getuser.Response](context.Background(), r, constants.BUS_CORE_AUTH_GET_USER, getuser.Request{UserID: id})
@@ -92,7 +95,7 @@ func TestGetUserBus_Integration_NoSensitiveFields(t *testing.T) {
 	r, s := setupInt(t)
 	u := insert(t, s, "d@x.id", true)
 	res, _ := call(r, u.ID)
-	if n := reflect.TypeOf(res).NumField(); n != 6 {
+	if n := reflect.TypeOf(res).NumField(); n != 7 { // + Invitation (T12)
 		t.Fatalf("fields = %d", n)
 	}
 	if strings.Contains(fmt.Sprintf("%+v", res), "$argon2id$") {
@@ -130,5 +133,69 @@ func TestGetUserBus_Integration_NoAudit(t *testing.T) {
 	_, _ = call(r, "bukan-uuid")
 	if n.Load() != 0 {
 		t.Fatalf("audit calls = %d", n.Load())
+	}
+}
+
+func callReq(r *bus.Registry, req getuser.Request) (getuser.Response, error) {
+	return bus.CallTyped[getuser.Response](context.Background(), r, constants.BUS_CORE_AUTH_GET_USER, req)
+}
+
+func addInv(t *testing.T, s *store.Store, userID string, expires time.Time, accepted bool) {
+	t.Helper()
+	inv := base.Invitation{
+		UserID: userID, InvitedBy: userID, IssuedAt: intNow.Add(-time.Hour), ExpiresAt: expires,
+		CreatedAt: intNow.Add(-time.Hour), DeliveryStatus: base.DeliverySent,
+	}
+	if err := s.InsertInvitation(context.Background(), inv); err != nil {
+		t.Fatal(err)
+	}
+	if accepted {
+		if _, err := s.AcceptInvitation(context.Background(), userID, intNow); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestGetUserBus_Integration_InvitationMarkers(t *testing.T) {
+	r, s := setupInt(t)
+	a := insert(t, s, "a-inv@x.id", true)
+	b := insert(t, s, "b-acc@x.id", true)
+	c := insert(t, s, "c-plain@x.id", true)
+	d := insert(t, s, "d-exp@x.id", true)
+	addInv(t, s, a.ID, intNow.Add(24*time.Hour), false)
+	addInv(t, s, b.ID, intNow.Add(24*time.Hour), true)
+	addInv(t, s, d.ID, intNow.Add(-time.Hour), false)
+
+	resA, err := callReq(r, getuser.Request{Email: a.Email})
+	if err != nil || !resA.Found || resA.Invitation == nil || resA.Invitation.Expired ||
+		resA.Invitation.DeliveryStatus != base.DeliverySent {
+		t.Fatalf("A: %+v %v", resA, err)
+	}
+	for _, u := range []base.User{b, c} {
+		res, err := callReq(r, getuser.Request{Email: u.Email})
+		if err != nil || !res.Found || res.Invitation != nil {
+			t.Fatalf("%s: %+v %v", u.Email, res, err)
+		}
+	}
+	resD, err := callReq(r, getuser.Request{Email: d.Email})
+	if err != nil || resD.Invitation == nil || !resD.Invitation.Expired {
+		t.Fatalf("D: %+v %v", resD, err)
+	}
+
+	// Kontrak: UserID dan Email menghasilkan Response identik.
+	byID, _ := callReq(r, getuser.Request{UserID: a.ID})
+	byEmail, _ := callReq(r, getuser.Request{Email: a.Email})
+	if !reflect.DeepEqual(byID, byEmail) {
+		t.Fatalf("beda: %+v vs %+v", byID, byEmail)
+	}
+	upper, _ := callReq(r, getuser.Request{Email: " " + strings.ToUpper(a.Email) + " "})
+	if !reflect.DeepEqual(byID, upper) {
+		t.Fatalf("huruf besar beda: %+v vs %+v", byID, upper)
+	}
+	if res, err := callReq(r, getuser.Request{UserID: "bukan-uuid"}); err != nil || res.Found {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if res, err := callReq(r, getuser.Request{Email: "tidak@ada.id"}); err != nil || res.Found {
+		t.Fatalf("%+v %v", res, err)
 	}
 }

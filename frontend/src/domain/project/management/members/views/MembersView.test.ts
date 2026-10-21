@@ -15,6 +15,10 @@ vi.mock('../services/members.service', async (orig) => ({
   removeMember: vi.fn(),
   changeMemberRole: vi.fn(),
 }));
+vi.mock('../services/invitations.service', async (orig) => ({
+  ...(await orig<typeof import('../services/invitations.service')>()),
+  listInvitations: vi.fn(async () => []),
+}));
 import { addMember, changeMemberRole, listMembers, removeMember, searchCandidates } from '../services/members.service';
 import View from './MembersView.svelte';
 

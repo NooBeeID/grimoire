@@ -15,6 +15,7 @@
     onmove,
     onselect,
     onclear,
+    oninvite,
     onsubmit,
     oncancel,
   }: {
@@ -27,6 +28,7 @@
     onmove: (delta: number) => void;
     onselect: (c: Candidate) => void;
     onclear: () => void;
+    oninvite?: (email: string) => void;
     onsubmit: () => void;
     oncancel: () => void;
   } = $props();
@@ -38,7 +40,7 @@
 </script>
 
 <form onsubmit={submit} class="flex flex-col gap-4">
-  <CandidateCombobox {search} {selected} {oninput} {onmove} {onselect} {onclear} />
+  <CandidateCombobox {search} {selected} {oninput} {onmove} {onselect} {onclear} {oninvite} />
   <fieldset class="flex flex-col gap-1" disabled={submitting}>
     <legend class="text-sm font-medium">{$t('project.members.add.role')}</legend>
     <label class="flex items-center gap-2 text-sm">

@@ -19,6 +19,8 @@ import (
 	"grimoire/lib/common/reqctx"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 )
 
 func migratedDB(t *testing.T) *db.DB {
@@ -269,4 +271,17 @@ func TestT03_AC3_ConcurrentSelfDemotion(t *testing.T) {
 			t.Fatalf("round %d: ok=%d last=%d owners=%d audit=%d", i, ok, last, countOwners(t, d, pid), au.n)
 		}
 	}
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (itUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (itUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (itUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
 }

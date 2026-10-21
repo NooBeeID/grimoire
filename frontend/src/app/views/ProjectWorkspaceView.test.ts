@@ -28,6 +28,8 @@ const members = {
       user_id: ME,
       name: 'Ana',
       email: 'a@tim.id',
+      invitation_pending: false,
+      invitation_expires_at: null,
       is_active: true,
       found: true,
       role: 'owner',
@@ -42,6 +44,8 @@ function stub(level: 'owner' | 'member' | 'admin') {
     'fetch',
     vi.fn(async (url: string) => {
       if (url.endsWith('/api-specs')) return new Response(JSON.stringify({ items: [], total: 0, limit: 100 }), { status: 200 });
+      if (url.endsWith('/invitations')) return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ id: ME, email: 'a@tim.id', name: 'Ana', role: 'developer', must_change_password: false, email_enabled: false }), { status: 200 });
       if (url.endsWith('/members')) return new Response(JSON.stringify(members), { status: 200 });
       return new Response(JSON.stringify(detail(level)), { status: 200 });
     }),

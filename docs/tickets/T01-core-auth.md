@@ -112,3 +112,7 @@ Event audit yang dikirim: `auth.login.success`, `auth.login.failed` (dengan emai
 ## Pertanyaan terbuka
 
 Tidak ada. Panjang minimal password dan durasi sesi adalah default saya; ubah di config bila perlu.
+
+## Catatan revisi (T12)
+
+Non-goal "email/SMTP" di atas tidak lagi berlaku untuk undangan (lihat T12): akun developer bisa dibuat lewat undangan email dengan password sementara. Reset password mandiri lewat email tetap non-goal. `login`, `changepassword`, `listusers`, `getuser`, `getme` dan handler bus `get-user`/`find-developers` mendapat perubahan aditif. Isi tiket ini tidak ditulis ulang.

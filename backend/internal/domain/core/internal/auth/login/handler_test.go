@@ -147,3 +147,28 @@ func TestRetryAfterSeconds(t *testing.T) {
 		}
 	}
 }
+
+func TestLoginHandler_ExpiredInvitation_IdenticalToWrongPassword(t *testing.T) {
+	f := newFixture(t)
+	f.repo.inv = base.Invitation{UserID: "u-1", ExpiresAt: testNow}
+	f.repo.hasInv = true
+	exp := doLogin(f, true, okBody, "")
+	g := newFixture(t)
+	wrong := doLogin(g, true, `{"email":"budi@tim.id","password":"salah-salah-1"}`, "")
+	strip := func(b string) string {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(b), &m); err != nil {
+			t.Fatal(err)
+		}
+		delete(m, "trace_id")
+		out, _ := json.Marshal(m)
+		return string(out)
+	}
+	if exp.Code != 401 || len(exp.Result().Cookies()) != 0 || exp.Header().Get("Retry-After") != "" {
+		t.Fatalf("%d %v", exp.Code, exp.Header())
+	}
+	if exp.Code != wrong.Code || strip(exp.Body.String()) != strip(wrong.Body.String()) ||
+		exp.Header().Get("Content-Type") != wrong.Header().Get("Content-Type") {
+		t.Fatalf("%s vs %s", exp.Body, wrong.Body)
+	}
+}

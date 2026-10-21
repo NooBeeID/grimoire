@@ -38,15 +38,25 @@ type fakeRepo struct {
 	err     error
 	calls   int
 	got     ChangeInput
+
+	inv      base.Invitation
+	hasInv   bool
+	errInv   error
+	accepted bool
+	invFinds int
 }
 
 func (f *fakeRepo) FindUserByID(context.Context, string) (base.User, bool, error) {
 	return f.user, f.found, f.findErr
 }
-func (f *fakeRepo) Change(_ context.Context, in ChangeInput) (int64, error) {
+func (f *fakeRepo) FindInvitation(context.Context, string) (base.Invitation, bool, error) {
+	f.invFinds++
+	return f.inv, f.hasInv, f.errInv
+}
+func (f *fakeRepo) Change(_ context.Context, in ChangeInput) (int64, bool, error) {
 	f.calls++
 	f.got = in
-	return f.revoked, f.err
+	return f.revoked, f.accepted, f.err
 }
 
 type fakeRec struct{ evs []audit.Event }

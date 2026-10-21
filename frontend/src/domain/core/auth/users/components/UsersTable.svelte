@@ -4,6 +4,7 @@
   import type { ApiError } from '../../../../../shared/services/http';
   import { locale, t } from '../../../../../shared/stores/i18n';
   import { formatDateTime } from '../../../../../shared/utils/datetime';
+  import { userInvitationBadge } from '../model/invitation';
   import type { User } from '../types';
   import UserRowActions from './UserRowActions.svelte';
 
@@ -17,6 +18,7 @@
     onedit,
     onstatus,
     onreset,
+    onresend,
   }: {
     users: User[];
     selfId?: string;
@@ -27,6 +29,7 @@
     onedit: (u: User) => void;
     onstatus: (u: User) => void;
     onreset: (u: User) => void;
+    onresend?: (u: User) => void;
   } = $props();
 
   const columns = $derived([
@@ -49,13 +52,17 @@
       {$t(`users.role.${u.role}`)}
     {:else if col.key === 'status'}
       <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {u.is_active ? 'bg-pill-positive-bg text-pill-positive-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{u.is_active ? $t('users.status.active') : $t('users.status.inactive')}</span>
-      {#if u.must_change_password}
+      {@const badge = userInvitationBadge(u)}
+      {#if badge}
+        <span class="ml-1 inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {badge === 'expired' ? 'bg-pill-warning-bg text-pill-warning-ink' : badge === 'failed' ? 'bg-pill-negative-bg text-pill-negative-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{$t(badge === 'expired' ? 'users.badge.invitedExpired' : badge === 'failed' ? 'users.badge.inviteFailed' : 'users.badge.invited')}</span>
+        {#if u.invitation}<span class="block text-xs text-muted">{$t('users.invitation.expires', { date: formatDateTime(u.invitation.expires_at, $locale) })}</span>{/if}
+      {:else if u.must_change_password}
         <span class="ml-1 inline-flex h-5 items-center rounded-full bg-pill-warning-bg px-2 text-xs font-medium text-pill-warning-ink">{$t('users.badge.mustChange')}</span>
       {/if}
     {:else if col.key === 'last_login_at'}
       {#if u.last_login_at}{formatDateTime(u.last_login_at, $locale)}{:else}<span class="text-muted">{$t('users.neverLoggedIn')}</span>{/if}
     {:else}
-      <UserRowActions user={u} isSelf={u.id === selfId} {onedit} {onstatus} {onreset} />
+      <UserRowActions user={u} isSelf={u.id === selfId} {onedit} {onstatus} {onreset} {onresend} />
     {/if}
   {/snippet}
 </Table>

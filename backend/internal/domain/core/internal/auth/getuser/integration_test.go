@@ -4,10 +4,12 @@ package getuser
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -35,7 +37,7 @@ func router(t *testing.T, role string) (http.Handler, *store.Store) {
 			})
 		})
 	}
-	Init(app.Deps{DB: d, API: api}, base.Shared{})
+	Init(app.Deps{DB: d, API: api}, base.Shared{Clock: func() time.Time { return time.Now().UTC() }})
 	root := chi.NewRouter()
 	root.Mount("/api", api)
 	return root, store.New(d)
@@ -101,5 +103,77 @@ func TestGetUser_Unauthenticated_401(t *testing.T) {
 	h, _ := router(t, "")
 	if w := get(h, "/api/users/x"); w.Code != 401 {
 		t.Fatalf("code=%d", w.Code)
+	}
+}
+
+func insertInv(t *testing.T, s *store.Store, userID string, expires time.Time, accepted bool) {
+	t.Helper()
+	now := time.Now().UTC()
+	err := s.InsertInvitation(context.Background(), base.Invitation{
+		UserID: userID, InvitedBy: userID, IssuedAt: now.Add(-time.Hour), CreatedAt: now.Add(-time.Hour),
+		ExpiresAt: expires, DeliveryStatus: base.DeliverySent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accepted {
+		if _, err := s.AcceptInvitation(context.Background(), userID, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func invOf(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+		t.Fatal(err)
+	}
+	v, ok := m["invitation"]
+	if !ok {
+		t.Fatalf("kunci invitation hilang: %s", w.Body)
+	}
+	if v == nil {
+		return nil
+	}
+	return v.(map[string]any)
+}
+
+func TestGetUser_Integration_InvitationMarker(t *testing.T) {
+	h, s := router(t, base.RoleSuperAdmin)
+	a := insertUser(t, s, true)
+	insertInv(t, s, a.ID, time.Now().Add(24*time.Hour), false)
+	w := get(h, "/api/users/"+a.ID)
+	inv := invOf(t, w)
+	if w.Code != 200 || inv == nil || inv["pending"] != true || inv["expired"] != false || inv["delivery_status"] != "sent" {
+		t.Fatalf("code=%d body=%s", w.Code, w.Body)
+	}
+	if _, bad := inv["issued_at"]; bad || strings.Contains(w.Body.String(), "argon2id") {
+		t.Fatalf("bocor: %s", w.Body)
+	}
+}
+
+func TestGetUser_Integration_InvitationExpired(t *testing.T) {
+	h, s := router(t, base.RoleSuperAdmin)
+	a := insertUser(t, s, true)
+	insertInv(t, s, a.ID, time.Now().Add(-time.Hour), false)
+	if inv := invOf(t, get(h, "/api/users/"+a.ID)); inv == nil || inv["expired"] != true {
+		t.Fatalf("inv=%v", inv)
+	}
+}
+
+func TestGetUser_Integration_InvitationNullWhenAcceptedOrAbsent(t *testing.T) {
+	h, s := router(t, base.RoleSuperAdmin)
+	b := insertUser(t, s, true)
+	insertInv(t, s, b.ID, time.Now().Add(24*time.Hour), true)
+	if inv := invOf(t, get(h, "/api/users/"+b.ID)); inv != nil {
+		t.Fatalf("diterima harus null: %v", inv)
+	}
+	c, err := s.InsertUser(context.Background(), base.User{Email: "c@x.id", Name: "C", PasswordHash: "h", Role: base.RoleDeveloper, IsActive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inv := invOf(t, get(h, "/api/users/"+c.ID)); inv != nil {
+		t.Fatalf("tanpa undangan harus null: %v", inv)
 	}
 }

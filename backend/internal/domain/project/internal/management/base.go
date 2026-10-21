@@ -5,13 +5,18 @@ import (
 	"grimoire/internal/domain/project/internal/management/addmember"
 	"grimoire/internal/domain/project/internal/management/changememberrole"
 	"grimoire/internal/domain/project/internal/management/checkaccess"
+	"grimoire/internal/domain/project/internal/management/countmemberships"
 	"grimoire/internal/domain/project/internal/management/createproject"
 	"grimoire/internal/domain/project/internal/management/deleteproject"
 	"grimoire/internal/domain/project/internal/management/getproject"
 	"grimoire/internal/domain/project/internal/management/getprojectbus"
+	"grimoire/internal/domain/project/internal/management/inviteuser"
+	"grimoire/internal/domain/project/internal/management/listinvitations"
 	"grimoire/internal/domain/project/internal/management/listmembers"
 	"grimoire/internal/domain/project/internal/management/listprojects"
 	"grimoire/internal/domain/project/internal/management/removemember"
+	"grimoire/internal/domain/project/internal/management/resendinvitation"
+	"grimoire/internal/domain/project/internal/management/revokeinvitation"
 	"grimoire/internal/domain/project/internal/management/searchmembercandidates"
 	"grimoire/internal/domain/project/internal/management/updateproject"
 	"grimoire/internal/infra/app"
@@ -22,6 +27,7 @@ func Register(d app.Deps) {
 	// Handler bus.
 	checkaccess.Init(d)
 	getprojectbus.Init(d)
+	countmemberships.Init(d)
 
 	// Route REST /api/projects...
 	listprojects.Init(d)
@@ -34,4 +40,8 @@ func Register(d app.Deps) {
 	addmember.Init(d)
 	removemember.Init(d)
 	changememberrole.Init(d)
+	inviteuser.Init(d)
+	listinvitations.Init(d)
+	resendinvitation.Init(d)
+	revokeinvitation.Init(d)
 }

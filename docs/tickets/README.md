@@ -19,7 +19,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Selesai (`741a85c`) |
 | [T10](T10-project-api-spec-swagger2.md) | project | api-spec (dukungan Swagger 2.0) | L | T06, T09 | Selesai (`f44ab86`) |
 | [T11](T11-discovery-search-quality.md) | discovery | knowledge-tools (pengukuran kualitas pencarian) | M | T02, T05, T08 | Selesai (`f266cf8`) |
-| [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Plan siap |
+| [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
@@ -89,7 +89,7 @@ backend/
 │   │   │   └── internal/{auth,auditlog}/
 │   │   ├── project/internal/{management,apikey,knowledge,apispec}/
 │   │   └── discovery/internal/{mcpgateway,knowledgetools,apispectools}/
-│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app}/  # app: hanya struct Deps
+│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app,mailer}/  # app: hanya struct Deps; mailer: pengirim email generik
 │   ├── archtest/                   # tes arsitektur (tanpa kode produksi)
 │   └── eventregistry/              # hanya bila ada event bernama
 ├── lib/{common,constants,contracts,util}/
@@ -167,6 +167,9 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07 | T08, T09 |
+| `core.auth.invite-user` | Call | T12 | T12 (management `inviteuser`) |
+| `core.auth.resend-invitation` | Call | T12 | T12 (management `inviteuser`, `resendinvitation`) |
+| `project.management.count-memberships` | Call (baca-saja) | T12 | T12 (auth `purgeinvitations`) |
 | `core.audit.scan-entries` | Call (baca-saja) | T02 (feature `scanentries`, ditambah T11) | T11 |
 | `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli` |
 
@@ -185,6 +188,8 @@ Catatan: konstanta dan kontrak `core.auth.resolve-session` didefinisikan T00 (`l
 TODO (ditambah T01): `core.auth.create-admin` (Call, provider T01, consumer `cmd/cli`). T01 menambah konstanta, kontrak, dan menyempurnakan baris katalog ini; sampai saat itu `create-admin` di CLI mencetak `create-admin belum tersedia (butuh T01)`.
 
 (`register-tool` bukan endpoint runtime; `toolkit.Result.Structured` (opsional, JSON object) diteruskan gateway sebagai `structuredContent`, dipakai T08; mekanisme pendaftaran tool dijelaskan di T07.)
+
+Kontrak T12: `lib/contracts/core/auth/{invitation,inviteuser,resendinvitation}` (konstanta `BUS_CORE_AUTH_INVITE_USER`, `BUS_CORE_AUTH_RESEND_INVITATION`) dan `lib/contracts/project/management/countmemberships` (`BUS_PROJECT_MANAGEMENT_COUNT_MEMBERSHIPS`). `Credentials` pada respons tidak boleh di-log, diaudit, atau di-Publish. Perubahan aditif: `core.auth.get-user` menerima `Request.Email` (dipakai bila `UserID` kosong) dan mengembalikan `Response.Invitation` (nil bila tidak ada undangan menunggu), konsumen bertambah management `inviteuser`/`listinvitations`; `core.auth.find-developers` mengembalikan `Developer.InvitationPending`. Kode error bersama baru `ALREADY_REGISTERED` (409) di `lib/common/errs`. Infra generik baru `infra/mailer` (`app.Deps.Mailer`; driver `smtp`, `log`, noop).
 
 ### Pola fail-open penulisan audit
 
@@ -209,8 +214,8 @@ Tambah konstanta di `backend/lib/contracts/core/audit/record/actions.go` (dan di
 Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 
 - Agent: `mcp.list_files`, `mcp.read_file`, `mcp.search_knowledge`, `mcp.list_api_specs`, `mcp.list_api_endpoints`, `mcp.get_api_endpoint`, `mcp.auth.rejected`, `mcp.rate_limited`, `mcp.initialize`, `mcp.tools_list`, `mcp.unknown_tool`.
-- Auth/user: `auth.login.success`, `auth.login.failed`, `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated`, `user.deactivated`, `user.activated`.
-- Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`.
+- Auth/user: `auth.login.success`, `auth.login.failed`, `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated`, `user.deactivated`, `user.activated`, `user.invited`, `user.invitation.resent`, `user.invitation.accepted`, `user.invitation.email_failed` (T12).
+- Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`, `project.member.invited`, `project.invitation.revoked` (T12).
 - Key: `apikey.created`, `apikey.revoked`.
 - Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
 

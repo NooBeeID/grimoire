@@ -15,10 +15,13 @@ import (
 	"grimoire/internal/domain/core/internal/auth/getme"
 	"grimoire/internal/domain/core/internal/auth/getuser"
 	"grimoire/internal/domain/core/internal/auth/getuserbus"
+	"grimoire/internal/domain/core/internal/auth/inviteuser"
 	"grimoire/internal/domain/core/internal/auth/listusers"
 	"grimoire/internal/domain/core/internal/auth/login"
 	"grimoire/internal/domain/core/internal/auth/logout"
+	"grimoire/internal/domain/core/internal/auth/purgeinvitations"
 	"grimoire/internal/domain/core/internal/auth/purgesessions"
+	"grimoire/internal/domain/core/internal/auth/resendinvitation"
 	"grimoire/internal/domain/core/internal/auth/resetpassword"
 	"grimoire/internal/domain/core/internal/auth/resolvesession"
 	"grimoire/internal/domain/core/internal/auth/setuserstatus"
@@ -73,7 +76,22 @@ func buildShared(cfg config.Config) (base.Shared, error) {
 			LockDuration: cfg.LoginLockDuration,
 		},
 		LoginRatePerMinute: cfg.LoginRatePerMinute,
+		Invitation: base.InvitationPolicy{
+			TTL:                  cfg.InvitationTTL,
+			MaxPerInviterPerHour: cfg.InvitationMaxPerHour,
+			ResendMaxPerHour:     cfg.InvitationResendMaxPerHour,
+			PurgeAfter:           cfg.InvitationPurgeAfter,
+		},
+		LoginURL: loginURL(cfg.PublicURL),
 	}, nil
+}
+
+// loginURL membentuk URL login untuk email: PUBLIC_URL + "/login", atau "/login" bila kosong.
+func loginURL(publicURL string) string {
+	if publicURL == "" {
+		return "/login"
+	}
+	return publicURL + "/login"
 }
 
 // Register merakit module auth. Panic bila wiring gagal (rule 5.9).
@@ -98,4 +116,7 @@ func Register(d app.Deps) {
 	updateuser.Init(d, shared)
 	setuserstatus.Init(d, shared)
 	resetpassword.Init(d, shared)
+	inviteuser.Init(d, shared)
+	resendinvitation.Init(d, shared)
+	purgeinvitations.Init(d, shared)
 }

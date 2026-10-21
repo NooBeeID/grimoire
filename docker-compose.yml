@@ -16,11 +16,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI web: http://localhost:8025
+    restart: unless-stopped
+
   grimoire:
     image: achimonchi/grimoire:${GRIMOIRE_TAG:-scratch}
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DATABASE_URL: postgres://grimoire:${POSTGRES_PASSWORD}@db:5432/grimoire?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:?isi SESSION_SECRET di .env (>= 32 byte)}
@@ -28,6 +37,12 @@ services:
       # false hanya untuk akses via http://localhost; set true bila di belakang HTTPS.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Email undangan lewat Mailpit (lihat docs/infra/running.md). Ganti dengan SMTP asli di produksi.
+      MAIL_DRIVER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_TLS: none
+      MAIL_FROM: "Grimoire <no-reply@grimoire.local>"
     ports:
       - "8080:8080"
     restart: unless-stopped

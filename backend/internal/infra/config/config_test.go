@@ -42,6 +42,9 @@ func TestLoad_Defaults(t *testing.T) {
 		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20, APIKeyMaxActivePerProject: 20,
 		APISpecMaxFileBytes: 5242880, APISpecMaxSpecs: 100,
 		MCPRatePerMinute: 120, MCPAuthFailPerMinute: 20, MCPMaxRequestBytes: 65536, MCPToolTimeout: 10 * time.Second,
+		SMTPPort: 587, SMTPTLS: "starttls", MailTimeout: 10 * time.Second,
+		InvitationTTL: 168 * time.Hour, InvitationMaxPerHour: 20, InvitationResendMaxPerHour: 3,
+		InvitationPurgeAfter: 720 * time.Hour,
 	}
 	if !reflect.DeepEqual(c, want) {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -323,5 +326,93 @@ func TestLoad_MCPAllowedOrigins(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "MCP_ALLOWED_ORIGINS") {
 			t.Errorf("%q harus ditolak, got %v", bad, err)
 		}
+	}
+}
+
+func TestLoad_MailInvalid(t *testing.T) {
+	smtp := map[string]string{"MAIL_DRIVER": "smtp", "SMTP_HOST": "h", "MAIL_FROM": "a@b.id", "PUBLIC_URL": "https://g.x"}
+	with := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for k, v := range smtp {
+			m[k] = v
+		}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
+	cases := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{"log di production", map[string]string{"MAIL_DRIVER": "log", "APP_ENV": "production"}, "MAIL_DRIVER"},
+		{"driver tak dikenal", map[string]string{"MAIL_DRIVER": "foo"}, "MAIL_DRIVER"},
+		{"smtp tanpa host", with("SMTP_HOST", ""), "SMTP_HOST"},
+		{"smtp tanpa from", with("MAIL_FROM", ""), "MAIL_FROM"},
+		{"smtp tanpa public url", with("PUBLIC_URL", ""), "PUBLIC_URL"},
+		{"from invalid", with("MAIL_FROM", "bukan-email"), "MAIL_FROM"},
+		{"port 0", with("SMTP_PORT", "0"), "SMTP_PORT"},
+		{"port 70000", with("SMTP_PORT", "70000"), "SMTP_PORT"},
+		{"tls tak dikenal", with("SMTP_TLS", "foo"), "SMTP_TLS"},
+		{"timeout 61s", with("MAIL_TIMEOUT", "61s"), "MAIL_TIMEOUT"},
+		{"ttl 30m", map[string]string{"INVITATION_TTL": "30m"}, "INVITATION_TTL"},
+		{"ttl 721h", map[string]string{"INVITATION_TTL": "721h"}, "INVITATION_TTL"},
+		{"max per hour 0", map[string]string{"INVITATION_MAX_PER_HOUR": "0"}, "INVITATION_MAX_PER_HOUR"},
+		{"max per hour 1001", map[string]string{"INVITATION_MAX_PER_HOUR": "1001"}, "INVITATION_MAX_PER_HOUR"},
+		{"resend 0", map[string]string{"INVITATION_RESEND_MAX_PER_HOUR": "0"}, "INVITATION_RESEND_MAX_PER_HOUR"},
+		{"resend 101", map[string]string{"INVITATION_RESEND_MAX_PER_HOUR": "101"}, "INVITATION_RESEND_MAX_PER_HOUR"},
+		{"purge 23h", map[string]string{"INVITATION_PURGE_AFTER": "23h"}, "INVITATION_PURGE_AFTER"},
+		{"purge 8761h", map[string]string{"INVITATION_PURGE_AFTER": "8761h"}, "INVITATION_PURGE_AFTER"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Load(env(base(tc.env)))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want error menyebut %s, got %v", tc.want, err)
+			}
+		})
+	}
+}
+
+func TestLoad_MailValid(t *testing.T) {
+	c, err := Load(env(base(map[string]string{
+		"MAIL_DRIVER": "smtp", "SMTP_HOST": "smtp.x", "SMTP_PORT": "465", "SMTP_TLS": "tls",
+		"MAIL_FROM": "Grimoire <no-reply@x.id>", "PUBLIC_URL": "https://g.x/",
+		"INVITATION_TTL": "1h", "INVITATION_PURGE_AFTER": "24h",
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MailDriver != "smtp" || c.SMTPPort != 465 || c.SMTPTLS != "tls" || c.InvitationTTL != time.Hour {
+		t.Fatalf("got %+v", c)
+	}
+	if _, err := Load(env(base(map[string]string{"MAIL_DRIVER": "log", "APP_ENV": "development"}))); err != nil {
+		t.Fatalf("log + development harus lolos: %v", err)
+	}
+}
+
+func TestConfig_SMTPPasswordMasked(t *testing.T) {
+	const pw = "rahasia-smtp-xyz"
+	c, err := Load(env(base(map[string]string{
+		"MAIL_DRIVER": "smtp", "SMTP_HOST": "h", "MAIL_FROM": "a@b.id", "PUBLIC_URL": "https://g.x",
+		"SMTP_USERNAME": "u", "SMTP_PASSWORD": pw,
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := fmt.Sprintf("%v %+v %#v %s", c, c, c, c)
+	var sb strings.Builder
+	slog.New(slog.NewJSONHandler(&sb, nil)).Info("cfg", "config", c)
+	out += sb.String()
+	if strings.Contains(out, pw) {
+		t.Fatalf("SMTP_PASSWORD bocor: %s", out)
+	}
+	if c.SMTPPassword != pw {
+		t.Fatal("nilai asli harus tetap di Config")
+	}
+	_, err = Load(env(base(map[string]string{"MAIL_DRIVER": "smtp", "SMTP_PASSWORD": pw, "SMTP_PORT": "0"})))
+	if err == nil || strings.Contains(err.Error(), pw) {
+		t.Fatalf("error bocor/ nil: %v", err)
 	}
 }

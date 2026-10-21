@@ -28,6 +28,7 @@ var (
 		errs.CodeInternal:         http.StatusInternalServerError,
 
 		errs.CodePasswordChangeRequired: http.StatusForbidden,
+		errs.CodeAlreadyRegistered:      http.StatusConflict,
 	}
 )
 

@@ -56,6 +56,8 @@ type UserDTO struct {
 	CreatedByLabel     *string    `json:"created_by_label"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	LastLoginAt        *time.Time `json:"last_login_at"`
+	// Invitation selalu hadir di JSON; null bila tidak ada undangan menunggu.
+	Invitation *InvitationDTO `json:"invitation"`
 }
 
 // MeDTO adalah profil ringkas user yang sedang login.
@@ -112,6 +114,21 @@ func (u User) ToResponse() UserDTO {
 		MustChangePassword: u.MustChangePassword, CreatedAt: u.CreatedAt, CreatedBy: u.CreatedBy,
 		CreatedByLabel: u.CreatedByLabel, UpdatedAt: u.UpdatedAt, LastLoginAt: u.LastLoginAt,
 	}
+}
+
+// UserWithInvitation menggandeng user dan undangan menunggu (nil bila tidak ada).
+type UserWithInvitation struct {
+	User       User
+	Invitation *Invitation
+}
+
+// ToResponseWithInvitation seperti ToResponse dengan penanda undangan (inv nil -> null).
+func (u User) ToResponseWithInvitation(inv *Invitation, now time.Time) UserDTO {
+	dto := u.ToResponse()
+	if inv != nil {
+		dto.Invitation = inv.ToResponse(now)
+	}
+	return dto
 }
 
 // ToMe membentuk profil ringkas.

@@ -12,6 +12,8 @@ import (
 	"grimoire/lib/common/reqctx"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 )
 
 type fakeRepo struct {
@@ -250,5 +252,43 @@ func TestExecute_ProjectIDNotUUIDPassedToStore(t *testing.T) {
 	_, err := NewUsecase(r, r, u).Execute(ctxFor("developer"), "bukan-uuid")
 	if !errors.Is(err, base.ErrProjectNotFound) || r.lastProjectID != "bukan-uuid" || r.lastUser != "actor" {
 		t.Fatalf("%v %q %q", err, r.lastProjectID, r.lastUser)
+	}
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (f *fakeUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (f *fakeUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (f *fakeUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
+}
+
+func TestExecute_InvitationPendingMarker(t *testing.T) {
+	r := found("owner")
+	r.members = []base.Member{mem("u1", "owner"), mem("u2", "member")}
+	exp := time.Date(2026, 10, 28, 8, 0, 0, 0, time.UTC)
+	pending := usr("u2", "budi", true)
+	pending.Invitation = &getuser.Invitation{ExpiresAt: exp, DeliveryStatus: "sent"}
+	u := &fakeUsers{data: map[string]getuser.Response{"u1": usr("u1", "ani", true), "u2": pending}}
+	res, err := NewUsecase(r, r, u).Execute(ctxFor("developer"), "p1")
+	if err != nil || len(res.Items) != 2 {
+		t.Fatalf("%v %v", res, err)
+	}
+	for _, it := range res.Items {
+		switch it.UserID {
+		case "u1":
+			if it.InvitationPending || it.InvitationExpiresAt != nil {
+				t.Fatalf("u1 %#v", it)
+			}
+		case "u2":
+			if !it.InvitationPending || it.InvitationExpiresAt == nil || !it.InvitationExpiresAt.Equal(exp) {
+				t.Fatalf("u2 %#v", it)
+			}
+		}
 	}
 }

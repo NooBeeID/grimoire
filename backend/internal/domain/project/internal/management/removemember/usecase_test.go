@@ -18,6 +18,8 @@ import (
 	"grimoire/lib/contracts/core/audit/record"
 	"grimoire/lib/contracts/core/auth/finddevelopers"
 	"grimoire/lib/contracts/core/auth/getuser"
+	"grimoire/lib/contracts/core/auth/inviteuser"
+	"grimoire/lib/contracts/core/auth/resendinvitation"
 )
 
 const pid = "p1"
@@ -443,4 +445,17 @@ func TestRemove_NoIdentity(t *testing.T) {
 	if !errors.As(err, &ee) || ee.Code != errs.CodeUnauthorized || len(e.calls()) != 0 {
 		t.Fatalf("%v %v", err, e.calls())
 	}
+}
+
+// Stub T12: tidak dipakai feature ini.
+func (u *fakeUsers) GetByEmail(context.Context, string) (getuser.Response, error) {
+	return getuser.Response{}, nil
+}
+
+func (u *fakeUsers) Invite(context.Context, inviteuser.Request) (inviteuser.Response, error) {
+	return inviteuser.Response{}, nil
+}
+
+func (u *fakeUsers) ResendInvitation(context.Context, resendinvitation.Request) (resendinvitation.Response, error) {
+	return resendinvitation.Response{}, nil
 }

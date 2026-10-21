@@ -19,6 +19,7 @@ type Repository interface {
 	GetThrottle(ctx context.Context, email string) (base.LoginThrottle, error)
 	UpdateThrottle(ctx context.Context, email string, now time.Time, mutate func(*base.LoginThrottle)) (base.LoginThrottle, error)
 	CompleteLogin(ctx context.Context, email, userID string, s base.Session, now time.Time) error
+	FindInvitation(ctx context.Context, userID string) (base.Invitation, bool, error)
 }
 
 // Input adalah masukan usecase.
@@ -104,11 +105,22 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (Result, error) {
 		ok = false
 	}
 
-	if !(found && ok && user.CanLogin()) {
-		reason := "invalid_credentials"
-		if found && ok && !user.CanLogin() {
-			reason = "inactive"
+	reason := "invalid_credentials"
+	allowed := found && ok && user.CanLogin()
+	if found && ok && !user.CanLogin() {
+		reason = "inactive"
+	}
+	if allowed {
+		inv, hasInv, err := u.repo.FindInvitation(ctx, user.ID)
+		if err != nil {
+			return Result{}, fmt.Errorf("login: cari undangan: %w", err)
 		}
+		if hasInv && inv.BlocksLogin(now) {
+			allowed = false
+			reason = "invitation_expired"
+		}
+	}
+	if !allowed {
 		if _, err := u.repo.UpdateThrottle(ctx, email, now, func(t *base.LoginThrottle) {
 			t.RegisterFailure(now, u.throttle)
 		}); err != nil {

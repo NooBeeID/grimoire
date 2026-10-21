@@ -41,3 +41,25 @@ describe('candidateSearch store', () => {
     expect(get(s).items).toEqual([]);
   });
 });
+
+describe('candidateSearch store: opsi undang', () => {
+  it('move memasukkan opsi undang sebagai indeks terakhir hanya bila inviteOption invite', () => {
+    const st = createCandidateSearchStore();
+    st.setQuery('baru@tim.id');
+    st.begin(1);
+    st.resolve(1, []);
+    st.move(1);
+    expect(get(st).activeIndex).toBe(-1);
+    st.setInviteOption('invite');
+    st.move(1);
+    expect(get(st).activeIndex).toBe(0);
+    st.move(1);
+    expect(get(st).activeIndex).toBe(0);
+  });
+  it('setQuery me-reset inviteOption', () => {
+    const st = createCandidateSearchStore();
+    st.setInviteOption('member');
+    st.setQuery('x');
+    expect(get(st).inviteOption).toBeNull();
+  });
+});

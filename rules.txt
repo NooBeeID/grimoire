@@ -44,7 +44,7 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
                base/                       (entity + rule bisnis)
                <feature>/                  (1 folder = 1 feature)
                  init.go  handler.go  params.go  usecase.go  repository.go  *_test.go
-           infra/{bus,db,http,middleware,config,static,logger,jobs,app}/
+           infra/{bus,db,http,middleware,config,static,logger,jobs,app,mailer}/
                                            (app: hanya struct Deps untuk wiring domain)
            archtest/                       (tes arsitektur; tanpa kode produksi)
            eventregistry/                  (hanya jika ada event bernama)
