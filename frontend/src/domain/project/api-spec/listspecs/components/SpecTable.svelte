@@ -4,7 +4,7 @@
   import { locale, t } from '../../../../../shared/stores/i18n';
   import { formatDateTime } from '../../../../../shared/utils/datetime';
   import type { ApiSpec } from '../types';
-  import OpenApiBadge from './OpenApiBadge.svelte';
+  import OpenApiBadge from '../../../../../shared/components/OpenApiBadge.svelte';
 
   let {
     items,

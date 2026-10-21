@@ -1,12 +1,12 @@
 <script lang="ts">
   import Button from '../../../../../shared/components/Button.svelte';
   import Dialog from '../../../../../shared/components/Dialog.svelte';
-  import Input from '../../../../../shared/components/Input.svelte';
   import { isApiError } from '../../../../../shared/services/http';
   import { t } from '../../../../../shared/stores/i18n';
   import { copyText } from '../../../../../shared/utils/clipboard';
   import { fieldErrorsOf, reasonOf } from '../../../../../shared/validation/error';
   import FilePicker from '../components/FilePicker.svelte';
+  import NameField from '../components/NameField.svelte';
   import ResultSummary from '../components/ResultSummary.svelte';
   import ResultTable from '../components/ResultTable.svelte';
   import { markOverwrite, rejectedText, validateNameInput } from '../model';
@@ -98,14 +98,7 @@
 <Dialog {open} title={$t('apispec.upload.title')} size="lg" dismissible={!busy} {onclose}>
   <div class="flex flex-col gap-4">
     <FilePicker specCount={$store.spec.length} skippedCount={$store.local.length} disabled={busy} onpick={(f) => store.pick(f)} />
-    <Input
-      bind:value={name}
-      label={$t('apispec.upload.name')}
-      hint={$store.spec.length > 1 ? $t('apispec.upload.nameOnlySingle') : $t('apispec.upload.nameHint')}
-      error={$store.nameError ?? undefined}
-      disabled={busy || $store.spec.length > 1}
-      autocomplete="off"
-    />
+    <NameField bind:value={name} specCount={$store.spec.length} error={$store.nameError ?? undefined} {busy} />
     {#if $store.formError}
       <p role="alert" class="text-sm text-danger">
         {$store.formError.key ? $t($store.formError.key) : ($store.formError.message ?? '')}

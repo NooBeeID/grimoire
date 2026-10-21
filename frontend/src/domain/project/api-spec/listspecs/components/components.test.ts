@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { mockAuthSpec, mockSpec } from '../mocks/specs';
-import OpenApiBadge from './OpenApiBadge.svelte';
+import OpenApiBadge from '../../../../../shared/components/OpenApiBadge.svelte';
 import SpecQuota from './SpecQuota.svelte';
 import SpecTable from './SpecTable.svelte';
 

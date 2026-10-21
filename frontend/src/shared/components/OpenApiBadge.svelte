@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { t } from '../../../../../shared/stores/i18n';
-  import { openapiMajorMinor } from '../types';
+  import { t } from '../stores/i18n';
 
   let { version }: { version: string } = $props();
-  const short = $derived(openapiMajorMinor(version));
+  const short = $derived(/^(\d+\.\d+)(\.|$)/.exec(version)?.[1] ?? version); // "3.1.0" -> "3.1"
 </script>
 
 <span

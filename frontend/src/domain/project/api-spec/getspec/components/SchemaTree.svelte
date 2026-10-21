@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MarkdownView from '../../../../../shared/components/MarkdownView.svelte';
   import { t } from '../../../../../shared/stores/i18n';
   import { asObj, asStr } from '../model/guards';
   import { deref, refName } from '../model/refs';
@@ -37,7 +38,7 @@
       {#if d.circular}<span class="text-xs text-muted">circular{d.ref ? ` · ${refName(d.ref)}` : ''}</span>{/if}
       {#if d.unresolved}<span class="text-xs text-danger">unresolved</span>{/if}
     </div>
-    {#if asStr(n.description)}<p class="text-xs text-muted">{asStr(n.description)}</p>{/if}
+    {#if asStr(n.description)}<div class="text-xs text-muted"><MarkdownView source={asStr(n.description)!} /></div>{/if}
     {#if isOpen}
       {#each kids as c (c.name)}
         {@render node(c.schema, next, depth + 1, key + '/' + c.name, c.name, c.required)}

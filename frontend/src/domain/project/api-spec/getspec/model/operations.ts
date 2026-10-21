@@ -65,11 +65,8 @@ export interface OperationInfo {
   security: unknown[] | null; // null = tidak didefinisikan (pakai root)
 }
 
-// Menggabungkan parameter level path dengan operasi (operasi menang untuk name+in yang sama).
-export function getOperation(doc: unknown, method: string, path: string): OperationInfo | null {
+function buildInfo(doc: unknown, item: Obj, method: string): OperationInfo | null {
   const root = asObj(doc);
-  const rawItem = asObj(asObj(root.paths)[path]);
-  const item = asObj(deref(doc, rawItem).node);
   const rawOp = item[method.toLowerCase()];
   if (!isObj(rawOp)) return null;
   const op = rawOp;
@@ -89,4 +86,29 @@ export function getOperation(doc: unknown, method: string, path: string): Operat
     servers: pick('servers'),
     security: Array.isArray(op.security) ? op.security : Array.isArray(root.security) ? root.security : null,
   };
+}
+
+// Menggabungkan parameter level path dengan operasi (operasi menang untuk name+in yang sama).
+export function getOperation(doc: unknown, method: string, path: string): OperationInfo | null {
+  const item = asObj(deref(doc, asObj(asObj(doc).paths)[path]).node);
+  return buildInfo(doc, item, method);
+}
+
+export interface WebhookOperation {
+  name: string;
+  method: string;
+  info: OperationInfo;
+}
+
+// Operasi dari `webhooks` (OpenAPI 3.1): satu entri per method per webhook.
+export function getWebhookOperations(doc: unknown): WebhookOperation[] {
+  const out: WebhookOperation[] = [];
+  for (const [name, raw] of Object.entries(asObj(asObj(doc).webhooks))) {
+    const item = asObj(deref(doc, raw).node);
+    for (const method of METHOD_ORDER) {
+      const info = buildInfo(doc, item, method);
+      if (info) out.push({ name, method, info });
+    }
+  }
+  return out;
 }

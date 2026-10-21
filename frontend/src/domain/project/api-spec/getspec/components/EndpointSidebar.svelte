@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MarkdownView from '../../../../../shared/components/MarkdownView.svelte';
   import { t } from '../../../../../shared/stores/i18n';
   import { endpointKey, UNTAGGED, type TagGroup } from '../model/operations';
   import type { ApiSpecEndpoint } from '../types';
@@ -69,6 +70,7 @@
             {g.name === UNTAGGED ? $t('apispec.detail.untagged') : g.name}
             <span class="font-normal text-muted tabular-nums">{g.endpoints.length}</span>
           </summary>
+          {#if g.description}<div class="px-2 text-xs text-muted"><MarkdownView source={g.description} /></div>{/if}
           <ul class="flex flex-col gap-0.5">{#each g.endpoints as ep (endpointKey(ep.method, ep.path))}{@render item(ep)}{/each}</ul>
         </details>
       {/each}

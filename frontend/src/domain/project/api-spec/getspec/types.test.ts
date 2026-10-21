@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mockDetail } from './mocks/detail';
+import { mockDetail } from './mocks/detail-3.0';
 import { ApiSpecDetailSchema } from './types';
 
 describe('ApiSpecDetailSchema', () => {

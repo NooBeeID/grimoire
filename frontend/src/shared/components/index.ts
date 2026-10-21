@@ -17,3 +17,4 @@ export { default as ThemeSwitch } from './ThemeSwitch.svelte';
 export { default as CopyField } from './CopyField.svelte';
 export { default as MarkdownView } from './MarkdownView.svelte';
 export { default as MarkdownEditor } from './MarkdownEditor.svelte';
+export { default as OpenApiBadge } from './OpenApiBadge.svelte';

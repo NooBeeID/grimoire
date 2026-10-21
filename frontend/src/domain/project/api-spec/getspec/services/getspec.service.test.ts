@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockDetail } from '../mocks/detail';
+import { mockDetail } from '../mocks/detail-3.0';
 import { getSpec } from './getspec.service';
 
 afterEach(() => vi.unstubAllGlobals());

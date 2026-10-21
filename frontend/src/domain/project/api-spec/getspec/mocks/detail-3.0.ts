@@ -25,7 +25,12 @@ export const mockDocument = {
         responses: {
           '200': {
             description: 'OK',
-            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Payment' } } } },
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Payment' } },
+                examples: { satu: { $ref: '#/components/examples/OnePayment' }, kosong: { summary: 'Tanpa data', value: [] } },
+              },
+            },
           },
           default: { description: 'Galat', content: { 'application/json': { schema: { $ref: '#/components/schemas/Problem' } } } },
         },
@@ -37,8 +42,15 @@ export const mockDocument = {
         security: [{ bearer: [] }],
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { $ref: '#/components/schemas/Payment' } } },
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Payment' },
+              example: { amount: 1500, note: null },
+            },
+            'application/xml': { schema: { $ref: '#/components/schemas/Payment' } },
+          },
         },
+        servers: [{ url: 'https://sandbox.noobee.id/payment' }],
         responses: { '201': { description: 'Dibuat' } },
       },
     },
@@ -57,7 +69,11 @@ export const mockDocument = {
       },
       Problem: { type: 'object', properties: { message: { type: 'string' } } },
     },
-    securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
+    examples: { OnePayment: { summary: 'Satu pembayaran', value: [{ id: '0b9a', amount: 1500 }] } },
+    securitySchemes: {
+      bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Token **bearer**' },
+      apiKey: { type: 'apiKey', in: 'header', name: 'X-Api-Key' },
+    },
   },
 };
 

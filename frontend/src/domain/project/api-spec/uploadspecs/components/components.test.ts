@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { mockFileResult, mockRejected } from '../mocks/results';
 import FilePicker from './FilePicker.svelte';
+import NameField from './NameField.svelte';
 import ResultSummary from './ResultSummary.svelte';
 import ResultTable from './ResultTable.svelte';
 
@@ -26,6 +27,29 @@ describe('FilePicker', () => {
     unmount();
     render(FilePicker, { specCount: 0, skippedCount: 1, onpick: vi.fn() });
     expect(screen.getByText('Tidak ada file .yaml, .yml, atau .json')).toBeInTheDocument();
+  });
+});
+describe('NameField', () => {
+  it('is enabled for exactly one spec file and shows the naming hint', async () => {
+    render(NameField, { specCount: 1 });
+    const input = screen.getByLabelText('Nama spec (opsional)');
+    expect(input).toBeEnabled();
+    expect(screen.getByText(/Kosongkan untuk memakai nama file/)).toBeInTheDocument();
+    await userEvent.type(input, 'payment-v2');
+    expect(input).toHaveValue('payment-v2');
+  });
+  it('is disabled for two files (and for none) with the single-file hint', () => {
+    const { unmount } = render(NameField, { specCount: 2 });
+    expect(screen.getByLabelText('Nama spec (opsional)')).toBeDisabled();
+    expect(screen.getByText('Nama hanya bisa diisi saat mengunggah tepat satu file')).toBeInTheDocument();
+    unmount();
+    render(NameField, { specCount: 0 });
+    expect(screen.getByLabelText('Nama spec (opsional)')).toBeDisabled();
+  });
+  it('is disabled while busy and shows the error', () => {
+    render(NameField, { specCount: 1, busy: true, error: 'Nama tidak valid' });
+    expect(screen.getByLabelText('Nama spec (opsional)')).toBeDisabled();
+    expect(screen.getByText('Nama tidak valid')).toBeInTheDocument();
   });
 });
 describe('ResultSummary', () => {

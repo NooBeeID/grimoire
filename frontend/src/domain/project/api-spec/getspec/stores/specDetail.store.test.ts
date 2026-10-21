@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
-import { mockDetail } from '../mocks/detail';
+import { mockDetail } from '../mocks/detail-3.0';
 import { createSpecDetailStore } from './specDetail.store';
 
 describe('specDetail store', () => {
