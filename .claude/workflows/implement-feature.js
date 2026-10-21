@@ -40,7 +40,10 @@ function isolationViolations({ porcelain = [], diff = [] }, ucs, root, scope) {
     if (path) changes.set(path, { isNew: isNew || !!changes.get(path)?.isNew })
   }
   for (const line of porcelain) {
-    const xy = line.slice(0, 2), rest = line.slice(3)
+    // Spasi awal kolom status bisa hilang saat agent menyalin baris (" M x" -> "M x"); jangan andalkan offset tetap.
+    const m = line.match(/^(\S{1,2})\s+(.*)$/)
+    if (!m) continue
+    const xy = m[1], rest = m[2]
     // rename "old -> new": hanya tujuan yang dinilai (merapikan hasil kerja sendiri sah bila tujuan sah)
     note(rest.includes(' -> ') ? rest.split(' -> ').pop() : rest, xy.includes('?') || xy.includes('A'))
   }
