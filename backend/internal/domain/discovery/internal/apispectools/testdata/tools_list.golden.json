@@ -1,0 +1,90 @@
+[
+  {
+    "name": "get_api_endpoint",
+    "title": "Detail endpoint API",
+    "description": "Detail satu operasi API (read-only) dalam JSON: parameter, request body, response, dengan skema $ref yang dibuka sampai schema_depth, servers, dan securitySchemes yang dipakai. Pilih operasi dengan method + path (path persis seperti di list_api_endpoints, termasuk {param}) ATAU operation_id. spec wajib bila project punya lebih dari satu spec. {\"$circular\": ref} = skema merujuk dirinya; {\"$ref\": ref} = tidak dibuka karena batas kedalaman. Bila endpoint tidak ketemu, gunakan saran Similar atau list_api_endpoints.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "description": "GET, PUT, POST, DELETE, OPTIONS, HEAD, PATCH, atau TRACE (huruf besar/kecil bebas); wajib bersama path",
+          "maxLength": 7,
+          "type": "string"
+        },
+        "operation_id": {
+          "description": "operationId; alternatif dari method + path",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "path": {
+          "description": "path persis seperti di spec, mis. /pets/{petId}; wajib bersama method",
+          "maxLength": 2048,
+          "type": "string"
+        },
+        "schema_depth": {
+          "default": 4,
+          "description": "kedalaman pembukaan $ref; turunkan bila hasil terpotong",
+          "maximum": 8,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "spec": {
+          "description": "nama spec dari list_api_specs; boleh kosong bila project hanya punya satu spec",
+          "maxLength": 80,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_api_endpoints",
+    "title": "Daftar endpoint API",
+    "description": "Daftar endpoint API (read-only), satu baris per operasi: METHOD /path — ringkasan [operationId] (tag). Tanpa spec = semua spec, dikelompokkan per spec. Saring dengan tag (persis) atau query (cocok sebagian pada path, ringkasan, operationId). Lanjutkan daftar terpotong dengan offset. Ambil detail dengan get_api_endpoint.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 100,
+          "description": "jumlah endpoint per halaman",
+          "maximum": 300,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "lewati sejumlah endpoint; pakai nilai dari penanda [ada N endpoint lagi ...]",
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "query": {
+          "description": "kata yang dicari pada path, ringkasan, atau operationId",
+          "maxLength": 200,
+          "type": "string"
+        },
+        "spec": {
+          "description": "nama spec dari list_api_specs; kosong = semua spec",
+          "maxLength": 80,
+          "type": "string"
+        },
+        "tag": {
+          "description": "tag persis (peka huruf besar/kecil)",
+          "maxLength": 200,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_api_specs",
+    "title": "Daftar API spec",
+    "description": "Titik awal menjelajah API project (read-only): daftar spec OpenAPI beserta judul, versi API, versi OpenAPI, jumlah endpoint, dan waktu diperbarui. Kolom name dipakai sebagai argumen spec pada list_api_endpoints dan get_api_endpoint.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    }
+  }
+]

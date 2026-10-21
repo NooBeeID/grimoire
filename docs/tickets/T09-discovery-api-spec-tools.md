@@ -72,6 +72,15 @@ Tidak ada.
 6. Argumen `project_id` tidak berpengaruh apa pun.
 7. Lolos tes arsitektur T00 dan tes kontrak `tools/list`.
 
+## Keputusan
+
+- K1. Folder `register` tidak dibuat sebagai feature; wiring ada di `apispectools/base.go` (`Register`) ditambah satu baris di `discovery/base.go`.
+- K2. Tidak memakai `structuredContent` dan tidak mengubah T07; hasil tool hanya teks plus metadata audit.
+- K4. Error Go dari bus dibungkus `fmt.Errorf("<tool>: %w", err)` (gateway memetakan ke `internal`/`timeout`). `lib/common/errs` tidak di-import, sehingga validasi argumen T09 adalah superset validasi provider T06.
+- K5. Argumen ketat (`additionalProperties: false`); `project_id`/`projectId`/`project` ditolak dengan pesan khusus dan bus tidak dipanggil (AC6).
+- K6. Nilai di luar rentang ditolak, tidak di-clamp: `limit` 1-300, `offset` 0-1000000, `schema_depth` 1-8.
+- K9. Anggaran byte: teks daftar `max-512`; `MaxBytes` provider `max - min(2048, max/4)`; dihitung sekali di `init.go` dari `MCP_MAX_RESPONSE_BYTES`, sehingga pemotongan generik gateway praktis tidak terjadi (AC5).
+
 ## Pertanyaan terbuka
 
 Tidak ada.

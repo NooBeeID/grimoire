@@ -29,7 +29,7 @@ func ToolCallAudit(p Principal, tool string, args map[string]any, o Outcome, dur
 	res["original_bytes"] = o.OriginalBytes
 	res["truncated"] = o.Truncated
 	res["duration_ms"] = ms(dur)
-	delete(res, "error_code")
+	// error_code dari tool dipertahankan; kode dari gateway menimpanya.
 	if o.ErrorCode != "" {
 		res["error_code"] = o.ErrorCode
 	}

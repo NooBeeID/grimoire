@@ -336,7 +336,7 @@ func TestT06_AC3_LargeJSONBaseline(t *testing.T) {
 	if len(is) != 0 || len(ExtractEndpoints(doc)) != n {
 		t.Fatalf("issues=%d", len(is))
 	}
-	if time.Since(start) > 2*time.Second {
+	if time.Since(start) > 2*time.Second*raceSlowdown {
 		t.Fatalf("lambat: %s", time.Since(start))
 	}
 }

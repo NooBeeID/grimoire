@@ -42,6 +42,17 @@ func TestToolCallAudit(t *testing.T) {
 	}
 }
 
+func TestToolCallAuditKeepsToolErrorCode(t *testing.T) {
+	o := Outcome{Result: toolkit.Result{IsError: true, Summary: map[string]any{"error_code": "endpoint_not_found"}}}
+	if r := ToolCallAudit(testP, "get_api_endpoint", nil, o, 0); r.Result["error_code"] != "endpoint_not_found" {
+		t.Fatalf("%v", r.Result)
+	}
+	o.ErrorCode = "timeout"
+	if r := ToolCallAudit(testP, "get_api_endpoint", nil, o, 0); r.Result["error_code"] != "timeout" {
+		t.Fatalf("kode gateway harus menimpa: %v", r.Result)
+	}
+}
+
 func TestUnknownToolAudit(t *testing.T) {
 	r := UnknownToolAudit(testP, strings.Repeat("x", 300), time.Second)
 	if r.Action != record.ActionMCPUnknownTool || r.Status != record.StatusError || len(r.Target) != 128 ||

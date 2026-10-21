@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"grimoire/internal/domain/discovery/internal/apispectools"
 	"grimoire/internal/domain/discovery/internal/knowledgetools"
 	"grimoire/internal/domain/discovery/internal/mcpgateway"
 	"grimoire/internal/infra/app"
@@ -12,6 +13,6 @@ import (
 func Register(d app.Deps) {
 	var tools []toolkit.Tool
 	tools = append(tools, knowledgetools.Register(d)...)
-	// T09: tools = append(tools, apispectools.Register(d)...)
+	tools = append(tools, apispectools.Register(d)...)
 	mcpgateway.Register(d, tools)
 }

@@ -70,6 +70,7 @@ type inliner struct {
 	root     *Map
 	maxDepth int
 	budget   int
+	cut      bool // true bila ada $ref yang tidak di-inline karena batas kedalaman
 }
 
 func hasString(ss []string, s string) bool {
@@ -96,6 +97,9 @@ func (in *inliner) inline(x any, level int, stack []string) any {
 					m := NewMap()
 					m.Set("$circular", ref)
 					return m
+				}
+				if level+1 > in.maxDepth {
+					in.cut = true
 				}
 				if level+1 > in.maxDepth || in.budget <= 0 {
 					m := NewMap()
@@ -242,15 +246,15 @@ func ResolveOperation(doc Document, method, path string, depth, maxBytes int) (R
 	if depth < 0 {
 		depth = 0
 	}
-	build := func(d int) (Resolved, error) {
+	build := func(d int) (Resolved, bool, error) {
 		in := &inliner{root: root, maxDepth: d, budget: maxInlineExpansions}
 		opJSON, err := json.Marshal(in.inline(merged, 0, nil))
 		if err != nil {
-			return Resolved{}, err
+			return Resolved{}, false, err
 		}
 		svJSON, err := json.Marshal(in.inline(servers, 0, nil))
 		if err != nil {
-			return Resolved{}, err
+			return Resolved{}, false, err
 		}
 		sm := NewMap()
 		for _, n := range names {
@@ -260,25 +264,41 @@ func ResolveOperation(doc Document, method, path string, depth, maxBytes int) (R
 		}
 		scJSON, err := json.Marshal(sm)
 		if err != nil {
-			return Resolved{}, err
+			return Resolved{}, false, err
 		}
-		return Resolved{Operation: opJSON, Servers: svJSON, SecuritySchemes: scJSON, EffectiveDepth: d}, nil
+		return Resolved{Operation: opJSON, Servers: svJSON, SecuritySchemes: scJSON, EffectiveDepth: d}, in.cut, nil
 	}
 
 	size := func(r Resolved) int { return len(r.Operation) + len(r.Servers) + len(r.SecuritySchemes) }
-	for d := depth; ; d-- {
-		r, err := build(d)
+	// Telusuri dari kedalaman terkecil naik: ukuran tumbuh monoton dan biaya build tumbuh
+	// eksponensial, jadi berhenti pada level pertama yang melebihi maxBytes menghindari
+	// membangun pohon terdalam yang pasti terlalu besar.
+	var best, first Resolved
+	haveBest := false
+	for d := 0; d <= depth; d++ {
+		r, cut, err := build(d)
 		if err != nil {
 			return Resolved{}, err
 		}
-		fits := maxBytes <= 0 || size(r) <= maxBytes
-		if fits {
-			r.Truncated = d < depth
-			return r, nil
+		if d == 0 {
+			first = r
 		}
-		if d > 0 {
-			continue
+		if maxBytes > 0 && size(r) > maxBytes {
+			break
 		}
+		best, haveBest = r, true
+		if !cut {
+			// Tidak ada $ref yang tertahan kedalaman: level lebih dalam menghasilkan hasil sama.
+			best.EffectiveDepth = depth
+			return best, nil
+		}
+	}
+	if haveBest {
+		best.Truncated = best.EffectiveDepth < depth
+		return best, nil
+	}
+	{
+		r := first
 		// depth 0 pun terlalu besar: ringkasan saja.
 		t := NewMap()
 		t.Set("$truncated", true)

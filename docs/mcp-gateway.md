@@ -115,6 +115,41 @@ Contoh `tools/call`:
 
 Kontrak `tools/list` dibekukan di `backend/internal/domain/discovery/internal/knowledgetools/testdata/tools_list.golden.json` (perbarui dengan `go test ./internal/domain/discovery/internal/knowledgetools/ -update` lalu periksa diff).
 
+## Tool API spec
+
+Module `discovery/api-spec-tools` (T09) mendaftarkan tiga tool read-only untuk menelusuri API spec project secara bertahap: `list_api_specs` lalu `list_api_endpoints` lalu `get_api_endpoint`. Aturan umum sama dengan tool knowledge: project dari API key (argumen `project_id` ditolak), argumen ketat, nilai di luar rentang ditolak. Hasil berupa teks (tanpa `structuredContent`) plus metadata audit; gateway menambah `bytes` ke audit.
+
+| Tool | Argumen | Keterangan |
+|---|---|---|
+| `list_api_specs` | tidak ada | Daftar spec: nama, judul, versi API, versi OpenAPI, jumlah endpoint, waktu diperbarui. Kolom nama dipakai sebagai argumen `spec`. |
+| `list_api_endpoints` | `spec` (maks 80), `tag` (maks 200, persis), `query` (maks 200, cocok sebagian), `limit` (1-300, default 100), `offset` (0-1000000, default 0) | Satu baris per operasi, dikelompokkan per spec (`== nama ==`). Terpotong: `[ada N endpoint lagi, panggil list_api_endpoints dengan offset=...]`. Spec tak dikenal: `isError` dengan daftar spec valid. |
+| `get_api_endpoint` | `spec` (wajib bila project punya lebih dari satu spec), `method` + `path` (path persis seperti di spec, termasuk `{param}`) ATAU `operation_id`, `schema_depth` (1-8, default 4) | Detail operasi sebagai JSON satu baris: operasi dengan `$ref` ter-inline, `servers`, `securitySchemes`, dan `markers`. Tidak ketemu: `isError` dengan saran `Similar:`. |
+
+Penanda pada JSON detail:
+
+- `{"$circular": ref}`: skema merujuk dirinya sendiri dan tidak dibuka lagi (didaftar di `markers.circular`).
+- `{"$ref": ref}`: tidak dibuka karena batas `schema_depth` (didaftar di `markers.collapsed`).
+- `{"$truncated": true, ...}`: operasi terlalu besar bahkan tanpa membuka skema; hanya ringkasan.
+- `truncated: true` dengan `hint`: kedalaman diturunkan otomatis agar muat batas respons; `schema_depth` pada hasil adalah kedalaman efektif.
+
+Anggaran byte dihitung dari `MCP_MAX_RESPONSE_BYTES` (default 102400): teks daftar maksimal `max-512` byte, dan `get_api_endpoint` meminta provider memuat hasil dalam `max - min(2048, max/4)` byte, sehingga pemotongan generik gateway praktis tidak terjadi.
+
+Contoh `tools/call`:
+
+```json
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"list_api_specs","arguments":{}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"list_api_endpoints","arguments":{"spec":"petstore","tag":"pets","limit":50}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_api_endpoint","arguments":{"spec":"petstore","method":"GET","path":"/pets/{petId}","schema_depth":4}}}
+```
+
+Kontrak `tools/list` dibekukan di `backend/internal/domain/discovery/internal/apispectools/testdata/tools_list.golden.json` (perbarui dengan `go test ./internal/domain/discovery/internal/apispectools/ -update` lalu periksa diff).
+
 ## Tes manual
 
 ```

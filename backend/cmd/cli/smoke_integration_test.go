@@ -131,20 +131,26 @@ func testSchemaURL(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := "t_" + hex8()
-	if _, err := admin.Exec("CREATE SCHEMA " + schema); err != nil {
+	// Database sendiri per test: tabel sisa di schema public (mis. hasil make seed)
+	// tidak boleh terlihat lewat search_path.
+	dbName := "t_" + hex8()
+	if _, err := admin.Exec("CREATE DATABASE " + dbName); err != nil {
 		t.Fatal(err)
 	}
+	u, _ := url.Parse(base)
+	u.Path = "/" + dbName
 	t.Cleanup(func() {
-		_, _ = admin.Exec("DROP SCHEMA " + schema + " CASCADE")
+		_, _ = admin.Exec("DROP DATABASE " + dbName + " WITH (FORCE)")
 		_ = admin.Close()
 	})
-	u, _ := url.Parse(base)
-	q := u.Query()
-	// public ikut di search_path: ekstensi citext (migrasi auth) dipasang di sana.
-	_, _ = admin.Exec("CREATE EXTENSION IF NOT EXISTS citext SCHEMA public")
-	q.Set("search_path", schema+",public")
-	u.RawQuery = q.Encode()
+	own, err := sql.Open("pgx", u.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer own.Close()
+	if _, err := own.Exec("CREATE EXTENSION IF NOT EXISTS citext"); err != nil {
+		t.Fatal(err)
+	}
 	return u.String()
 }
 

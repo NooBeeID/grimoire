@@ -38,7 +38,7 @@ export default defineConfig({
           url: `${limitsURL}/healthz`,
           reuseExistingServer: true,
           timeout: 60_000,
-          env: { ...serverEnv, HTTP_ADDR: '127.0.0.1:8081', MAX_UPLOAD_BYTES: '2097152', MAX_PROJECT_FILES: '5' },
+          env: { ...serverEnv, HTTP_ADDR: '127.0.0.1:8081', MAX_UPLOAD_BYTES: '2097152', MAX_PROJECT_FILES: '5', APISPEC_MAX_FILE_BYTES: '1048576' },
         },
       ],
 });

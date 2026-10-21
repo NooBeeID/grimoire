@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,9 +20,16 @@ var (
 	created  = time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
 )
 
-type log struct{ events []string }
+type log struct {
+	mu     sync.Mutex
+	events []string
+}
 
-func (l *log) add(s string) { l.events = append(l.events, s) }
+func (l *log) add(s string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.events = append(l.events, s)
+}
 
 type fakeTx struct {
 	l           *log
@@ -71,6 +79,7 @@ func (r *fakeRepo) InTx(_ context.Context, fn func(txRepo) error) error {
 }
 
 type fakeAccess struct {
+	mu    sync.Mutex
 	l     *log
 	err   error
 	calls int
@@ -79,8 +88,10 @@ type fakeAccess struct {
 }
 
 func (a *fakeAccess) Require(_ context.Context, p string, act base.Actor) error {
+	a.mu.Lock()
 	a.calls++
 	a.pid, a.actor = p, act
+	a.mu.Unlock()
 	a.l.add("access")
 	return a.err
 }
