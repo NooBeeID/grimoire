@@ -31,11 +31,12 @@ Akun user untuk agent, key lintas project, scope per folder/tool, kedaluwarsa ot
 
 | Folder | Deskripsi | Titik masuk | Siapa |
 |---|---|---|---|
-| `createkey` | Buat key; plaintext dikembalikan **sekali** | `POST /api/projects/{id}/api-keys` | anggota, super_admin |
-| `listkeys` | Daftar key project (tanpa secret) | `GET /api/projects/{id}/api-keys` | anggota, super_admin |
-| `revokekey` | Cabut key (tidak bisa diaktifkan lagi) | `POST /api/projects/{id}/api-keys/{keyId}/revoke` | anggota, super_admin |
+| `createkey` | Buat key; plaintext dikembalikan **sekali** | `POST /api/projects/{projectID}/api-keys` | anggota, super_admin |
+| `listkeys` | Daftar key project (tanpa secret) | `GET /api/projects/{projectID}/api-keys` | anggota, super_admin |
+| `revokekey` | Cabut key (tidak bisa diaktifkan lagi) | `POST /api/projects/{projectID}/api-keys/{keyID}/revoke` | anggota, super_admin |
 | `verifykey` | Handler bus: verifikasi key → identitas & project | bus `project.apikey.verify` | internal |
 | `touchlastused` | Handler bus: perbarui `last_used_at` (dibatasi frekuensinya) | bus `project.apikey.touch` (Publish) | internal |
+| `countkeys` | Handler bus: hitung key aktif per project untuk T03 | bus `project.apikey.count-keys` (Call) | internal |
 
 ## Aturan bisnis
 
@@ -43,7 +44,8 @@ Akun user untuk agent, key lintas project, scope per folder/tool, kedaluwarsa ot
 - Yang disimpan hanya `SHA-256(secret)` (secret entropi tinggi, jadi hash cepat memadai) beserta prefix. Verifikasi memakai perbandingan waktu-konstan.
 - Plaintext hanya ada di respons `createkey`. Tidak ada cara menampilkannya lagi.
 - Nama wajib 2–60 karakter, unik per project (hanya antar key yang belum dicabut).
-- Batas jumlah key aktif per project (default 20, konfigurabel).
+- Batas jumlah key aktif per project (default 20, env `API_KEY_MAX_ACTIVE_PER_PROJECT`, minimal 1). `PUBLIC_URL` (opsional, URL absolut http(s)) dipakai membentuk `mcp_url` = `PUBLIC_URL + "/mcp"` di respons `createkey` (`null` bila tidak diset).
+- Error bisnis tanpa kode baru; dibedakan lewat `details.reason`: `NAME_TAKEN` (409), `KEY_LIMIT_REACHED` (409, `{reason, limit}`), `ALREADY_REVOKED` (409), `KEY_NOT_FOUND` (404). Validasi nama -> 400 `INVALID_ARGUMENT` `{fields: {name}}`. Project yang tidak boleh dilihat pemanggil -> 404 `project tidak ditemukan`.
 - Key yang dicabut tetap terlihat di daftar (status "dicabut", dicabut oleh siapa dan kapan) demi jejak; tidak ada tombol hapus. Baris hilang hanya saat project dihapus.
 - `verifykey` mengembalikan `Found=false` untuk key tak dikenal/dicabut/salah format; **tidak membedakan alasan** ke pemanggil luar (alasan hanya dicatat ke audit oleh T07, termasuk prefix bila ada).
 - Key tidak terikat pada pembuat: bila pembuat dinonaktifkan atau dikeluarkan dari project, key tetap hidup sampai dicabut anggota project (keputusan desain).
@@ -69,7 +71,7 @@ Disediakan (`lib/contracts/project/apikey/...`):
 - `project.apikey.verify` Call — `{RawKey}` → `{Found, KeyID, KeyName, Prefix, ProjectID}`.
 - `project.apikey.touch` Publish — `{KeyID}` → –.
 
-Dikonsumsi: `project.management.check-access` (otorisasi endpoint HTTP), `core.auth.get-user` (label pembuat), `core.audit.record`.
+Dikonsumsi: `project.management.check-access` (otorisasi endpoint HTTP, fail-closed), `project.management.get-project` (label project untuk audit, fail-soft), `core.audit.record` (fail-open). Label pembuat/pencabut memakai email dari identitas sesi; `core.auth.get-user` tidak dikonsumsi.
 
 Event audit: `apikey.created` (nama, prefix), `apikey.revoked`.
 

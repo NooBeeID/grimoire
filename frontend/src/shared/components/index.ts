@@ -14,3 +14,4 @@ export { toast } from '../stores/toast';
 export { default as Avatar } from './Avatar.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as ThemeSwitch } from './ThemeSwitch.svelte';
+export { default as CopyField } from './CopyField.svelte';

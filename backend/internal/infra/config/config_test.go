@@ -38,7 +38,7 @@ func TestLoad_Defaults(t *testing.T) {
 		LogLevel: "info", LogFormat: "json",
 		SessionIdleTimeout: 12 * time.Hour, SessionAbsoluteTimeout: 168 * time.Hour, PasswordMinLength: 10,
 		Argon2MemoryKiB: 65536, Argon2Iterations: 3, Argon2Parallelism: 2, LoginMaxFailures: 5,
-		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20,
+		LoginFailureWindow: 15 * time.Minute, LoginLockDuration: 15 * time.Minute, LoginRatePerMinute: 20, APIKeyMaxActivePerProject: 20,
 	}
 	if c != want {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -111,6 +111,13 @@ func TestLoad_InvalidValues(t *testing.T) {
 		{"retention", "AUDIT_RETENTION_DAYS", map[string]string{"AUDIT_RETENTION_DAYS": "0"}},
 		{"mcp", "MCP_MAX_RESPONSE_BYTES", map[string]string{"MCP_MAX_RESPONSE_BYTES": "100"}},
 		{"logformat", "LOG_FORMAT", map[string]string{"LOG_FORMAT": "xml"}},
+		{"apikey-max-zero", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "0"}},
+		{"apikey-max-nan", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "abc"}},
+		{"public-ftp", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "ftp://x"}},
+		{"public-nohost", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "g.tim.id"}},
+		{"public-query", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "https://g.tim.id?a=1"}},
+		{"public-fragment", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "https://g.tim.id#x"}},
+		{"public-userinfo", "PUBLIC_URL", map[string]string{"PUBLIC_URL": "https://u:p@g.tim.id"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -213,5 +220,27 @@ func TestLoad_AuthInvalid(t *testing.T) {
 		if !strings.Contains(p, want) {
 			t.Errorf("tidak memuat %q dalam:\n%s", want, p)
 		}
+	}
+}
+
+func TestLoad_APIKeyConfig(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+	}{
+		{"empty", "", ""},
+		{"plain", "https://g.tim.id", "https://g.tim.id"},
+		{"trailing-slash", "https://g.tim.id/", "https://g.tim.id"},
+		{"path", "https://tim.id/grimoire/", "https://tim.id/grimoire"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := Load(env(base(map[string]string{"PUBLIC_URL": tc.in, "API_KEY_MAX_ACTIVE_PER_PROJECT": "3"})))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.PublicURL != tc.want || c.APIKeyMaxActivePerProject != 3 {
+				t.Fatalf("got %q / %d", c.PublicURL, c.APIKeyMaxActivePerProject)
+			}
+		})
 	}
 }

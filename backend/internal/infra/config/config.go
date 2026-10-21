@@ -47,6 +47,9 @@ type Config struct {
 	LoginFailureWindow     time.Duration `env:"LOGIN_FAILURE_WINDOW"`
 	LoginLockDuration      time.Duration `env:"LOGIN_LOCK_DURATION"`
 	LoginRatePerMinute     int           `env:"LOGIN_RATE_PER_MINUTE"`
+
+	APIKeyMaxActivePerProject int    `env:"API_KEY_MAX_ACTIVE_PER_PROJECT"`
+	PublicURL                 string `env:"PUBLIC_URL"`
 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
@@ -250,6 +253,18 @@ func Load(getenv func(string) string) (Config, error) {
 	c.LoginLockDuration = l.dur("LOGIN_LOCK_DURATION", 15*time.Minute)
 	c.LoginRatePerMinute, _ = l.intr("LOGIN_RATE_PER_MINUTE", 20, 1, 1000)
 
+	// API key (T04).
+	c.APIKeyMaxActivePerProject, _ = l.intv("API_KEY_MAX_ACTIVE_PER_PROJECT", 20, 1)
+	if v, ok := l.raw("PUBLIC_URL"); ok {
+		u, err := url.Parse(v)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+			u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.User != nil || strings.Contains(v, "#") {
+			l.fail("PUBLIC_URL", "harus URL absolut http(s) dengan host, tanpa query/fragment/userinfo (nilai %q)", v)
+		} else {
+			c.PublicURL = strings.TrimRight(v, "/")
+		}
+	}
+
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
 		u, err := url.Parse(v)
@@ -339,5 +354,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Duration("login_failure_window", m.LoginFailureWindow),
 		slog.Duration("login_lock_duration", m.LoginLockDuration),
 		slog.Int("login_rate_per_minute", m.LoginRatePerMinute),
+		slog.String("public_url", m.PublicURL),
+		slog.Int("api_key_max_active_per_project", m.APIKeyMaxActivePerProject),
 	)
 }

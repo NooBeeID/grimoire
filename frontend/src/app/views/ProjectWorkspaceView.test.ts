@@ -63,7 +63,7 @@ describe('ProjectWorkspaceView', () => {
   it('without tab replaces to the default tab', async () => {
     stub('owner');
     render(View, { params: { projectID: PID } });
-    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${PID}/members`));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${PID}/api-keys`));
   });
   it('unknown tab keeps the header and shows tab notFound', async () => {
     stub('owner');
@@ -96,5 +96,11 @@ describe('ProjectWorkspaceView', () => {
       expect(await screen.findByText('Zona bahaya')).toBeInTheDocument();
       r.unmount();
     }
+  });
+  it('api-keys tab renders and is marked current', async () => {
+    stub('owner');
+    render(View, { params: { projectID: PID, tab: 'api-keys' } });
+    const link = await screen.findByRole('link', { name: 'API Keys' });
+    expect(link).toHaveAttribute('aria-current', 'page');
   });
 });

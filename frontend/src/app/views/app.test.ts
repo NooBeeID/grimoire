@@ -61,7 +61,7 @@ describe('App', () => {
     expect(document.title).toBe('Project · Grimoire');
   });
 
-  it('home loads the project list and opens the create dialog; created navigates to members tab', async () => {
+  it('home loads the project list and opens the create dialog; created navigates to the default tab', async () => {
     setIdentity(DEV);
     boot('/');
     await vi.waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/projects?'))).toBe(true));
@@ -69,7 +69,7 @@ describe('App', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Project baru' })[0]!);
     await userEvent.type(screen.getByLabelText(/Nama project/), 'Payments');
     await userEvent.click(screen.getByRole('button', { name: 'Buat' }));
-    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${created.id}/members`));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${created.id}/api-keys`));
   });
 
   it('renders not found, then navigates home without reload', async () => {

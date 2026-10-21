@@ -36,6 +36,8 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `LOGIN_FAILURE_WINDOW` | duration | `15m` | tidak | durasi > 0 | Jendela penghitungan gagal login. |
 | `LOGIN_LOCK_DURATION` | duration | `15m` | tidak | durasi > 0 | Lama penundaan login setelah batas gagal. |
 | `LOGIN_RATE_PER_MINUTE` | int | `20` | tidak | 1..1000 | Batas login per menit per IP. |
+| `API_KEY_MAX_ACTIVE_PER_PROJECT` | int | `20` | tidak | >= 1 | Batas API key aktif per project. |
+| `PUBLIC_URL` | string | - | tidak | URL absolut http(s) dengan host, tanpa query/fragment/userinfo; trailing slash dibuang | URL publik server; dipakai membentuk `mcp_url` (`<PUBLIC_URL>/mcp`) di respons buat key. |
 
 ## Env di luar Config
 

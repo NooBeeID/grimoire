@@ -22,6 +22,8 @@
     emptyText,
     caption,
     onretry,
+    rowClass,
+    rowAttrs,
   }: {
     columns: Column[];
     rows: T[];
@@ -32,7 +34,12 @@
     emptyText?: string;
     caption?: string;
     onretry?: () => void;
+    rowClass?: (row: T) => string;
+    rowAttrs?: (row: T) => Record<string, string>;
   } = $props();
+
+  const dataAttrs = (row: T): Record<string, string> =>
+    Object.fromEntries(Object.entries(rowAttrs?.(row) ?? {}).filter(([k]) => k.startsWith('data-')));
 </script>
 
 <div class="overflow-hidden rounded-card border border-border bg-surface shadow-panel">
@@ -54,7 +61,7 @@
       <tr><td colspan={columns.length}><EmptyState title={emptyText ?? $t('table.empty')} /></td></tr>
     {:else}
       {#each rows as row (rowKey(row))}
-        <tr class="h-12 border-t border-rule transition-colors hover:bg-raised/60">
+        <tr class="h-12 border-t border-rule transition-colors hover:bg-raised/60 {rowClass?.(row) ?? ''}" {...dataAttrs(row)}>
           {#each columns as col (col.key)}
             <td class="px-4 py-2 {col.class ?? ''}">
               {#if cell}{@render cell(row, col)}{:else}{(row as Record<string, unknown>)[col.key] ?? ''}{/if}

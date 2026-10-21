@@ -26,3 +26,9 @@ const BUS_PROJECT_MANAGEMENT_GET_PROJECT = "project.management.get-project"
 const BUS_PROJECT_KNOWLEDGE_COUNT_FILES = "project.knowledge.count-files"
 const BUS_PROJECT_APISPEC_COUNT_SPECS = "project.apispec.count-specs"
 const BUS_PROJECT_APIKEY_COUNT_KEYS = "project.apikey.count-keys"
+
+// Provider: T04 project/apikey. Consumer: T07 discovery/mcp-gateway.
+// Kontrak: lib/contracts/project/apikey/verify (Call, fail-closed di consumer)
+// dan lib/contracts/project/apikey/touch (Publish, fire-and-forget).
+const BUS_PROJECT_APIKEY_VERIFY = "project.apikey.verify"
+const BUS_PROJECT_APIKEY_TOUCH = "project.apikey.touch"

@@ -6,6 +6,7 @@ import { ApiError } from '../services/http';
 import { setLocale } from '../stores/i18n';
 import { toast } from '../stores/toast';
 import Button from './Button.svelte';
+import CopyField from './CopyField.svelte';
 import Dialog from './Dialog.svelte';
 import EmptyState from './EmptyState.svelte';
 import ErrorState from './ErrorState.svelte';
@@ -79,6 +80,17 @@ describe('Dialog', () => {
     expect(onclose).toHaveBeenCalledTimes(1);
     expect(dlg).not.toHaveAttribute('open');
   });
+  it('dismissible=false ignores backdrop click and disables close button', async () => {
+    const onclose = vi.fn();
+    render(Dialog, { open: true, title: 'J', dismissible: false, onclose, children: text('isi') });
+    await fireEvent.click(document.querySelector('dialog')!);
+    expect(onclose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Tutup', { selector: 'button' })).toBeDisabled();
+  });
+  it('size lg widens the dialog', () => {
+    render(Dialog, { open: true, title: 'J', size: 'lg', children: text('isi') });
+    expect(document.querySelector('dialog')!.className).toContain('max-w-2xl');
+  });
 });
 
 describe('ToastHost', () => {
@@ -113,6 +125,36 @@ describe('Table', () => {
   it('rows', () => {
     render(Table, { columns, rows: [{ name: 'Budi' }], rowKey });
     expect(screen.getByText('Budi')).toBeInTheDocument();
+  });
+  it('rowClass and rowAttrs apply class and only data-* attributes', () => {
+    render(Table, {
+      columns,
+      rows: [{ name: 'Budi' }],
+      rowKey,
+      rowClass: () => 'opacity-60',
+      rowAttrs: () => ({ 'data-status': 'revoked', onclick: 'x' }),
+    });
+    const tr = document.querySelector('tbody tr')!;
+    expect(tr.className).toContain('opacity-60');
+    expect(tr.getAttribute('data-status')).toBe('revoked');
+    expect(tr.hasAttribute('onclick')).toBe(false);
+  });
+});
+
+describe('CopyField', () => {
+  it('copies value to clipboard and shows Tersalin', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(CopyField, { value: 'abc', label: 'Kunci' });
+    expect(screen.getByLabelText('Kunci')).toHaveValue('abc');
+    await fireEvent.click(screen.getByRole('button', { name: 'Salin' }));
+    expect(writeText).toHaveBeenCalledWith('abc');
+    expect(await screen.findByRole('button', { name: 'Tersalin' })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+  it('multiline renders a textarea', () => {
+    render(CopyField, { value: 'a\nb', label: 'M', multiline: true });
+    expect(screen.getByLabelText('M').tagName).toBe('TEXTAREA');
   });
 });
 

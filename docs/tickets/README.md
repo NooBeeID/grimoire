@@ -11,7 +11,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T01](T01-core-auth.md) | core | auth | L | T00 | Selesai (`329d71d`) |
 | [T02](T02-core-audit-log.md) | core | audit-log | M | T00 | Selesai (`d0a7c19`; e2e terautentikasi aktif, 1 skenario menunggu T04/T07) |
 | [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Selesai (`1b25823`) |
-| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Plan siap |
+| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Dalam pengerjaan (foundation selesai) |
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Plan siap |
 | [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Plan siap |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Belum |
@@ -143,7 +143,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 |---|---|---|---|
 | `core.auth.resolve-session` | Call | T01 | T00 (middleware) |
 | `core.auth.create-admin` | Call | T01 | `cmd/cli` |
-| `core.auth.get-user` | Call | T01 | T03, T04, T05, T06 |
+| `core.auth.get-user` | Call | T01 | T03, T05, T06 |
 | `core.auth.find-developers` | Call | T01 | T03 |
 | `core.audit.record` | Call / Publish (satu handler untuk keduanya) | T02 | T01, T03, T04, T05, T06, T07 |
 | `project.management.check-access` | Call | T03 | T04, T05, T06 |
@@ -161,7 +161,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
 
-Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -> `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
+Kontrak `project.apikey.verify` dan `project.apikey.touch` ada di `lib/contracts/project/apikey/{verify,touch}` (konstanta `BUS_PROJECT_APIKEY_VERIFY`, `BUS_PROJECT_APIKEY_TOUCH`). Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -> `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
 
 Kontrak `core.audit.record`: `lib/contracts/core/audit/record` (konstanta `constants.BUS_CORE_AUDIT_RECORD`), request dikirim sebagai nilai `record.Request`.
 
