@@ -25,9 +25,9 @@
   {#if safeHref(u)}<a class="text-accent-ink underline-offset-2 hover:underline" href={safeHref(u)} rel="noopener noreferrer" target="_blank">{u}</a>{:else}{u}{/if}
 {/snippet}
 
-<ul class="mt-1 flex flex-col gap-3">
+<ul class="divide-y divide-rule">
   {#each schemes as { name, scheme, scopes } (name)}
-    <li class="text-sm">
+    <li class="px-4 py-3 text-sm">
       <span class="font-mono text-[13px] font-medium">{name}</span>
       {#if scheme === null}
         <span class="text-xs text-muted"> · {$t('apispec.doc.securityUnknown')}</span>
@@ -39,7 +39,7 @@
         {@const oidc = asStr(scheme.openIdConnectUrl)}
         {#if oidc}<p class="font-mono text-xs break-all">{@render url(oidc)}</p>{/if}
         {#each flows(scheme) as f (f.kind)}
-          <div class="mt-1 pl-3 text-xs">
+          <div class="mt-2 rounded-base bg-raised/60 px-3 py-2 text-xs">
             <span class="font-mono">{f.kind}</span>
             {#each f.urls as [k, u] (k)}<p class="font-mono break-all">{k}: {@render url(u)}</p>{/each}
             {#if f.scopes.length > 0}

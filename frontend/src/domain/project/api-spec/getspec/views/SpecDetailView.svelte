@@ -38,6 +38,7 @@
   const tree = store.tree;
   const matches = store.matches;
   let retry = $state(0);
+  let navOpen = $state(true);
   let ctrl: AbortController | null = null;
 
   async function load(id: string, n: string) {
@@ -77,10 +78,17 @@
 {:else}
   <div class="flex flex-col gap-6">
     <SpecHeader spec={detail.spec} {actions} />
-    <div class="grid gap-6 md:grid-cols-[18rem_1fr]">
-      <details class="md:contents" open>
-        <summary class="cursor-pointer text-sm font-semibold md:hidden">{$t('apispec.detail.endpoints')}</summary>
-        <aside>
+    <div class="grid items-start gap-6 md:grid-cols-[20rem_minmax(0,1fr)]">
+      <div class="md:contents">
+        <button
+          type="button"
+          aria-expanded={navOpen}
+          onclick={() => (navOpen = !navOpen)}
+          class="mb-3 flex w-full items-center gap-1.5 text-left text-sm font-semibold focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none md:hidden"
+        >
+          <svg aria-hidden="true" viewBox="0 0 16 16" class="size-3 text-muted transition-transform {navOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3.5 10.5 8 6 12.5" /></svg>{$t('apispec.detail.endpoints')}
+        </button>
+        <aside class="{navOpen ? '' : 'max-md:hidden'} md:sticky md:top-4">
           <EndpointSidebar
             tree={$tree}
             matches={$matches}
@@ -91,7 +99,7 @@
             onquery={(q) => store.setQuery(q)}
           />
         </aside>
-      </details>
+      </div>
       <div class="min-w-0">
         {#if selectedOp && info && op}
           <OperationView doc={detail.document} method={op.method} path={op.path} {info} />
