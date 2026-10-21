@@ -126,7 +126,7 @@ func Init(d app.Deps) {
 
 ## Migration
 
-Tidak ada. Memakai tabel `api_keys` dan index `api_keys_project_idx` dari migrasi F `backend/migrations/project/20261023090000000_create_api_keys.sql`.
+Tidak ada. Memakai tabel `api_keys` dan index `api_keys_project_idx` dari migrasi F `backend/migrations/project/<VERSION>_create_api_keys.sql`.
 
 ## Changes
 

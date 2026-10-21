@@ -187,7 +187,7 @@ Semua file baru di `backend/internal/domain/project/internal/apispec/renamespec/
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `api_specs` dari migrasi foundation `backend/migrations/project/20261023090000600_create_api_specs.sql` (constraint `api_specs_project_name_key` dan `api_specs_name_check` sudah mencakup unik per project dan format nama). Tidak ada kolom/indeks baru: UPDATE memakai primary key `id`, lookup memakai `api_specs_project_name_key`.
+Tidak ada. Memakai tabel `api_specs` dari migrasi foundation `backend/migrations/project/<VERSION>_create_api_specs.sql` (constraint `api_specs_project_name_key` dan `api_specs_name_check` sudah mencakup unik per project dan format nama). Tidak ada kolom/indeks baru: UPDATE memakai primary key `id`, lookup memakai `api_specs_project_name_key`.
 
 ## 5. Changes
 

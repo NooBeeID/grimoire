@@ -235,7 +235,7 @@ Kontrak bus: tidak ada yang baru.
 
 ## 4. Migration
 
-Tidak ada. Memakai `backend/migrations/project/20261023090000600_create_api_specs.sql` (foundation). Yang dibutuhkan dari migrasi itu: `api_spec_endpoints.spec_id REFERENCES api_specs(id) ON DELETE CASCADE`. Tidak ada indeks baru: lock/lookup `(project_id, name)` dilayani `api_specs_project_name_key`; hapus endpoint cascade dilayani PK `(spec_id, method, path)` (prefix `spec_id`).
+Tidak ada. Memakai `backend/migrations/project/<VERSION>_create_api_specs.sql` (foundation). Yang dibutuhkan dari migrasi itu: `api_spec_endpoints.spec_id REFERENCES api_specs(id) ON DELETE CASCADE`. Tidak ada indeks baru: lock/lookup `(project_id, name)` dilayani `api_specs_project_name_key`; hapus endpoint cascade dilayani PK `(spec_id, method, path)` (prefix `spec_id`).
 
 ---
 

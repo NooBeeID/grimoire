@@ -24,7 +24,7 @@ Melengkapi `docs/superpowers/plans/project-knowledge/overview.md` (selanjutnya "
 | Resource root | `backend/internal/domain/project/internal/knowledge` |
 | allowedPaths | `.../knowledge/createfile/`, `.../knowledge/base.go` (satu baris `createfile.Init(d)`) |
 
-Prasyarat (dari F overview; bila belum ada, hentikan dan laporkan, jangan dibuat di luar allowedPaths): migrasi `20261024090000000_create_knowledge_files.sql` (atau versi geser, lihat overview bagian 6); config `MaxProjectFiles`; package `base` (`NormalizePath`, `IsHidden`, `IsSupported`, `PrepareContent`, `NewFile`, `File.ToDTO`, `Actor`, `RequestMeta`, `Limits`, `LimitsFrom`, `Invalid`, `TooLarge`, `ErrPathExists`, `Reason*`); `base/store` (`Store`, `New`, `InTx`, `Q`, `LockProject`, `CountFiles`, `IsUniqueViolation`); `base/access` (`Checker`, `New`); `base/audit` (`Recorder`, `Event`, `New`); `record.ActionKnowledgeFileCreated` dan konstanta `BUS_CORE_AUDIT_RECORD` (T02); path `POST /projects/{projectID}/knowledge/files` dan schema `KnowledgeCreateRequest`/`KnowledgeFile` sudah ada di `api/modules/project/knowledge.yml` (dibuat di F; usecase ini hanya memverifikasi, jangan diubah).
+Prasyarat (dari F overview; bila belum ada, hentikan dan laporkan, jangan dibuat di luar allowedPaths): migrasi `<VERSION>_create_knowledge_files.sql` (`<VERSION>` di-generate saat implement, lihat overview bagian 6); config `MaxProjectFiles`; package `base` (`NormalizePath`, `IsHidden`, `IsSupported`, `PrepareContent`, `NewFile`, `File.ToDTO`, `Actor`, `RequestMeta`, `Limits`, `LimitsFrom`, `Invalid`, `TooLarge`, `ErrPathExists`, `Reason*`); `base/store` (`Store`, `New`, `InTx`, `Q`, `LockProject`, `CountFiles`, `IsUniqueViolation`); `base/access` (`Checker`, `New`); `base/audit` (`Recorder`, `Event`, `New`); `record.ActionKnowledgeFileCreated` dan konstanta `BUS_CORE_AUDIT_RECORD` (T02); path `POST /projects/{projectID}/knowledge/files` dan schema `KnowledgeCreateRequest`/`KnowledgeFile` sudah ada di `api/modules/project/knowledge.yml` (dibuat di F; usecase ini hanya memverifikasi, jangan diubah).
 
 ## Summary Plan
 
@@ -182,7 +182,7 @@ Nama method route mengikuti pola `management` (pola penuh dengan `{projectID}`, 
 
 ## Migration
 
-Tidak ada. Tabel `knowledge_files` (kolom, `UNIQUE (project_id, path)` bernama `knowledge_files_project_id_path_key`, CHECK, indeks GIN dan prefix) dibuat oleh `backend/migrations/project/20261024090000000_create_knowledge_files.sql` pada langkah F overview. Usecase ini hanya `INSERT`.
+Tidak ada. Tabel `knowledge_files` (kolom, `UNIQUE (project_id, path)` bernama `knowledge_files_project_id_path_key`, CHECK, indeks GIN dan prefix) dibuat oleh `backend/migrations/project/<VERSION>_create_knowledge_files.sql` pada langkah F overview. Usecase ini hanya `INSERT`.
 
 ## Changes
 

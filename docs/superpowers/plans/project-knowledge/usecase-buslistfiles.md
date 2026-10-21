@@ -102,7 +102,7 @@ Prasyarat: foundation F selesai. Cek `ls backend/internal/domain/project/interna
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (foundation). Indeks `knowledge_files_project_path_prefix` melayani `LIKE 'prefix/%'` dan `ORDER BY path COLLATE "C"`.
+Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (foundation). Indeks `knowledge_files_project_path_prefix` melayani `LIKE 'prefix/%'` dan `ORDER BY path COLLATE "C"`.
 
 ## 5. Changes
 

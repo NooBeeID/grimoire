@@ -593,9 +593,9 @@ func New(b *bus.Registry, log *slog.Logger) *BusRecorder
 
 ## 6. Migration
 
-Satu file: `backend/migrations/project/20261023090000000_create_api_keys.sql`
+Satu file: `backend/migrations/project/<VERSION>_create_api_keys.sql`
 
-Versi lebih besar dari `20261022090000000` (T03, `projects`), sehingga urutan migrasi menjamin tabel `projects` ada. Sebelum commit, pastikan tidak ada versi 17 digit kembar di `backend/migrations/**` (saat plan ditulis: hanya `core/20261021090000000_create_audit_log.sql`); bila bentrok, geser menit ke atas.
+`<VERSION>` bukan nilai tetap: di-generate saat implementasi dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`) (format `YYYYMMDDHHMMSSmmm`, 17 digit sesuai validasi runner). Karena dibuat saat implement, otomatis lebih besar dari migrasi T03 (`create_projects`). Sebelum commit, pastikan tidak ada versi kembar di `backend/migrations/**`; bila kembar, generate ulang.
 
 ```sql
 -- T04 project/api-key. gen_random_uuid() bawaan Postgres >= 13.
@@ -646,7 +646,7 @@ W  wiring final: apikey/base.go (6 Init), project/base.go, test integrasi lintas
 ### F — foundation module
 
 1. **Prasyarat T03**: cek `main`. Bila `backend/migrations/project/20261022090000000_create_projects.sql`, `lib/contracts/project/management/{checkaccess,getproject,contentcount}` dan konstanta T03 belum ada, buat persis plan T03 (bagian 5.1-5.4 dan 6). Bila sudah ada, jangan sentuh.
-2. **Migrasi**: buat `backend/migrations/project/20261023090000000_create_api_keys.sql` (bagian 6). Jalankan `go test -tags integration ./internal/infra/db/...` (TestDB menjalankan semua migrasi) untuk memastikan file valid.
+2. **Migrasi** (generate `<VERSION>` dulu dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`)): buat `backend/migrations/project/<VERSION>_create_api_keys.sql` (bagian 6). Jalankan `go test -tags integration ./internal/infra/db/...` (TestDB menjalankan semua migrasi) untuk memastikan file valid.
 3. **Konstanta**: tambah `BUS_PROJECT_APIKEY_VERIFY`, `BUS_PROJECT_APIKEY_TOUCH` di `backend/lib/constants/bus.go` (5.1).
 4. **Kontrak** (stdlib saja, rule 4.5): `backend/lib/contracts/project/apikey/verify/verify.go` (5.2), `backend/lib/contracts/project/apikey/touch/touch.go` (5.3).
 5. **Config (K8)**, `backend/internal/infra/config/config.go`:
@@ -713,7 +713,7 @@ Lib, config, migrasi (F):
 - `backend/lib/contracts/project/apikey/verify/verify.go` (baru).
 - `backend/lib/contracts/project/apikey/touch/touch.go` (baru).
 - `backend/lib/contracts/project/management/{checkaccess,getproject,contentcount}/*.go` (baru HANYA bila T03 belum merge; isi persis plan T03).
-- `backend/migrations/project/20261023090000000_create_api_keys.sql` (baru).
+- `backend/migrations/project/<VERSION>_create_api_keys.sql` (baru).
 - `backend/migrations/project/20261022090000000_create_projects.sql` (baru HANYA bila T03 belum merge).
 - `backend/internal/infra/config/config.go` (ubah): 2 field + validasi + `LogValue`.
 - `backend/internal/infra/config/config_test.go` (ubah): kasus K8.

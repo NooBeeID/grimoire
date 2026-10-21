@@ -35,7 +35,7 @@ allowedPaths (hanya ini yang boleh disentuh):
 - Overview T06: 3.2 (struktur feature), 3.3 (konvensi handler/actor), 3.4 (urutan akses), 3.6 (urutan), 4.1 (`SpecSummary`), 4.4 (`ErrProjectNotFound`), 4.6 (`SpecDTO`, `ToSummaryDTO`), 6.1 (`store.ListSpecs`), 6.2 (`access.Checker`), 9 (migrasi), 10 (`APISPEC_MAX_SPECS`), 15 (body).
 - Infra T00 di `main`: `app.Deps{Ctx, Config, Log, DB, Bus, Jobs, API, MCP}` (`internal/infra/app`), `respond.WriteJSON/WriteError` (`internal/infra/http/respond`), `middleware.RequireAuth()` (`internal/infra/middleware`), `errs`, `reqctx` (`lib/common`).
 - Prasyarat dari foundation F (HARUS sudah ada; bila belum, berhenti dan laporkan, jangan membuatnya di folder feature):
-  - Migrasi `api_specs` dan `api_spec_endpoints` (`migrations/project/20261023090000600_create_api_specs.sql`).
+  - Migrasi `api_specs` dan `api_spec_endpoints` (`migrations/project/<VERSION>_create_api_specs.sql`).
   - `Config.APISpecMaxSpecs` (env `APISPEC_MAX_SPECS`, default 100).
   - `base`: `SpecSummary`, `SpecDTO`, `ToSummaryDTO`, `Actor`, `ActorFrom`, `ErrProjectNotFound`.
   - `base/store`: `New`, `Store.ListSpecs`. `base/access`: `Checker`, `New`.
@@ -178,7 +178,7 @@ Pola route penuh per feature (T03 D4), bukan `Route("/projects", ...)`, agar tid
 
 ## Migration
 
-Tidak ada. Tabel `api_specs` dan `api_spec_endpoints` dibuat oleh foundation F (`backend/migrations/project/20261023090000600_create_api_specs.sql`). Feature ini hanya membaca. EXPLAIN query `ListSpecs` pada project dengan 100 spec x 500 endpoint dicatat di PR (rule 8.8): harus index scan pada `api_specs_project_name_key` dan aggregate lewat `api_spec_endpoints_pkey`, tanpa seq scan pada `api_spec_endpoints` untuk project lain.
+Tidak ada. Tabel `api_specs` dan `api_spec_endpoints` dibuat oleh foundation F (`backend/migrations/project/<VERSION>_create_api_specs.sql`). Feature ini hanya membaca. EXPLAIN query `ListSpecs` pada project dengan 100 spec x 500 endpoint dicatat di PR (rule 8.8): harus index scan pada `api_specs_project_name_key` dan aggregate lewat `api_spec_endpoints_pkey`, tanpa seq scan pada `api_spec_endpoints` untuk project lain.
 
 ## Changes
 

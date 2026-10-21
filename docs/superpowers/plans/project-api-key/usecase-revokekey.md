@@ -187,7 +187,7 @@ Param WAJIB `{projectID}` dan `{keyID}` (K4). Jangan `Mount`/`Route` pada `/proj
 
 ## Migration
 
-Tidak ada. Tabel `api_keys` dibuat di foundation: `backend/migrations/project/20261023090000000_create_api_keys.sql`. Usecase ini hanya memakai kolom `revoked_at`, `revoked_by`, `revoked_by_label`, CHECK `api_keys_revoked_consistent`, dan partial unique index `api_keys_project_active_name_key` yang sudah ada.
+Tidak ada. Tabel `api_keys` dibuat di foundation: `backend/migrations/project/<VERSION>_create_api_keys.sql`. Usecase ini hanya memakai kolom `revoked_at`, `revoked_by`, `revoked_by_label`, CHECK `api_keys_revoked_consistent`, dan partial unique index `api_keys_project_active_name_key` yang sudah ada.
 
 ## Changes
 

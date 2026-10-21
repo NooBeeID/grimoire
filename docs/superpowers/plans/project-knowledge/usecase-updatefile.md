@@ -198,7 +198,7 @@ Semua file di `backend/internal/domain/project/internal/knowledge/updatefile/`. 
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari migrasi F `backend/migrations/project/20261024090000000_create_knowledge_files.sql`. Tidak ada indeks baru: `UNIQUE (project_id, path)` melayani syarat `project_id = $1 AND path = $2`, filter `content_hash` dievaluasi pada satu baris hasil indeks.
+Tidak ada. Memakai tabel `knowledge_files` dari migrasi F `backend/migrations/project/<VERSION>_create_knowledge_files.sql`. Tidak ada indeks baru: `UNIQUE (project_id, path)` melayani syarat `project_id = $1 AND path = $2`, filter `content_hash` dievaluasi pada satu baris hasil indeks.
 
 ## 5. Changes
 

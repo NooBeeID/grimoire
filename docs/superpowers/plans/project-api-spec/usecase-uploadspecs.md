@@ -259,7 +259,7 @@ Tulis tes (bagian 6), jalankan `go vet ./...`, `go test ./internal/domain/projec
 
 ## 4. Migration
 
-Tidak ada. Tabel `api_specs` dan `api_spec_endpoints` dibuat oleh foundation: `backend/migrations/project/20261023090000600_create_api_specs.sql` (OV 9). Feature ini bergantung pada constraint `api_specs_project_name_key` (UNIQUE `project_id, name`) dan FK `ON DELETE CASCADE` dari endpoint ke spec.
+Tidak ada. Tabel `api_specs` dan `api_spec_endpoints` dibuat oleh foundation: `backend/migrations/project/<VERSION>_create_api_specs.sql` (OV 9). Feature ini bergantung pada constraint `api_specs_project_name_key` (UNIQUE `project_id, name`) dan FK `ON DELETE CASCADE` dari endpoint ke spec.
 
 ---
 

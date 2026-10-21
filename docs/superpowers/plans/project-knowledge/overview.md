@@ -895,9 +895,9 @@ Catatan: "Kontrak T05 di `lib/contracts/project/knowledge/{listfiles,readfile,se
 
 ## 6. Migration
 
-Satu file: `backend/migrations/project/20261024090000000_create_knowledge_files.sql`
+Satu file: `backend/migrations/project/<VERSION>_create_knowledge_files.sql`
 
-Sebelum commit: `ls backend/migrations/**/ | grep 20261024090000000` harus hanya file ini (T04/T06 direncanakan paralel; bila bentrok, geser menit ke atas, mis. `20261024091000000`). Versi harus lebih besar dari migrasi `create_projects` T03 (`20261022090000000`).
+`<VERSION>` bukan nilai tetap: di-generate saat implementasi dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`) (format `YYYYMMDDHHMMSSmmm`, 17 digit sesuai validasi runner). Karena dibuat saat implement, otomatis lebih besar dari migrasi T03 (`create_projects`). Sebelum commit, pastikan tidak ada versi kembar di `backend/migrations/**`; bila kembar, generate ulang.
 
 ```sql
 -- T05 project/knowledge. Forward-only. gen_random_uuid() bawaan Postgres >= 13.
@@ -963,7 +963,7 @@ Feature hanya bergantung pada `base*`, jadi secara kode semua gelombang bisa par
 ### F — foundation module
 
 1. **OpenAPI dulu (rule 11.6)**: buat `api/modules/project/knowledge.yml` (bagian 14) dengan 6 path item dan schema; tambah `$ref` di `api/root.yml` (paths dan components); `make api-bundle`; `make api-check` lulus; commit `api/openapi.yml`.
-2. **Migrasi**: `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (bagian 6). Verifikasi `make migrate-up` lokal atau test `db.TestDB`.
+2. **Migrasi** (generate `<VERSION>` dulu dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`)): `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (bagian 6). Verifikasi `make migrate-up` lokal atau test `db.TestDB`.
 3. **Config**: bagian 7.
 4. **Konstanta**: 3 konstanta di `backend/lib/constants/bus.go` (5.1) + perbarui komentar `COUNT_FILES`. Bila kontrak/konstanta T03 belum ada, tambahkan persis plan T03 5.1-5.4.
 5. **Kontrak** (stdlib saja, rule 4.5): `backend/lib/contracts/project/knowledge/listfiles/listfiles.go`, `readfile/readfile.go`, `search/search.go` (5.2-5.4) + `*_test.go` kecil yang memastikan konstanta limit (DefaultLimit/MaxLimit) sesuai.
@@ -996,7 +996,7 @@ Tiap usecase mengikuti plan `usecase-<slug>.md`: buat folder feature, `init.go` 
 | `api/modules/project/knowledge.yml` | baru: 6 path item, 9 operasi, schema `KnowledgeFile`, `KnowledgeTree`, `KnowledgeUploadResult`, `KnowledgeSearchResult`, `KnowledgeConflictDetails` |
 | `api/root.yml` | tambah 6 `$ref` path + schema |
 | `api/openapi.yml` | regenerate (`make api-bundle`) |
-| `backend/migrations/project/20261024090000000_create_knowledge_files.sql` | baru (bagian 6) |
+| `backend/migrations/project/<VERSION>_create_knowledge_files.sql` | baru (bagian 6) |
 | `backend/internal/infra/config/config.go`, `config_test.go` | `MaxProjectFiles` (bagian 7) |
 | `docs/configuration.md` | baris `MAX_PROJECT_FILES` |
 | `backend/lib/constants/bus.go` | 3 konstanta + komentar COUNT_FILES |

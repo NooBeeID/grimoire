@@ -888,7 +888,7 @@ Route statis `upload`/`validate` hanya POST; `{name}` hanya GET/PATCH/DELETE. Sp
 
 ## 9. Migration
 
-Satu file: `backend/migrations/project/20261023090000600_create_api_specs.sql` (setelah `20261022090000000_create_projects.sql` T03). Sebelum commit, pastikan tidak ada versi 17 digit yang sama di `backend/migrations/**` (T04/T05 mungkin memakai tanggal yang sama); bila bentrok, naikkan milidetik.
+Satu file: `backend/migrations/project/<VERSION>_create_api_specs.sql` (setelah `20261022090000000_create_projects.sql` T03). `<VERSION>` bukan nilai tetap: di-generate saat implementasi dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`) (format `YYYYMMDDHHMMSSmmm`, 17 digit sesuai validasi runner). Karena dibuat saat implement, otomatis lebih besar dari migrasi T03 (`create_projects`). Sebelum commit, pastikan tidak ada versi kembar di `backend/migrations/**`; bila kembar, generate ulang.
 
 ```sql
 -- T06 project/apispec. Butuh tabel projects (T03).
@@ -970,7 +970,7 @@ Secara kode semua feature hanya bergantung pada F, jadi gelombang B boleh dimula
 
 ### F — foundation
 
-1. **Migrasi**: `backend/migrations/project/20261023090000600_create_api_specs.sql` (bagian 9). Validasi dengan `make migrate-up` lokal di atas migrasi T03.
+1. **Migrasi** (generate `<VERSION>` dulu dengan `python3 -c "import datetime;print(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17])"` (milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`)): `backend/migrations/project/<VERSION>_create_api_specs.sql` (bagian 9). Validasi dengan `make migrate-up` lokal di atas migrasi T03.
 2. **Config**: tambah 2 env var (bagian 10) ke `backend/internal/infra/config/config.go`, `config_test.go`, `docs/configuration.md`, dan `.env.example` bila ada.
 3. **Dependensi**: `go get go.yaml.in/yaml/v3@<versi stabil terbaru>`; `go mod tidy`. Catat alasan di PR (D2).
 4. **Konstanta**: 3 konstanta di `backend/lib/constants/bus.go` (7.1). Bila T03 belum merge: blok konstanta T03 5.1 persis.
@@ -1029,7 +1029,7 @@ Lib, config, migrasi (F):
 - `backend/lib/constants/bus.go` (ubah): 3 konstanta T06 (+ blok T03 bila belum ada).
 - `backend/lib/contracts/project/apispec/{listspecs,listendpoints,getendpoint}/*.go` (baru).
 - `backend/lib/contracts/project/management/{checkaccess,contentcount}/*.go` (baru HANYA bila T03 belum merge; isi persis plan T03).
-- `backend/migrations/project/20261023090000600_create_api_specs.sql` (baru).
+- `backend/migrations/project/<VERSION>_create_api_specs.sql` (baru).
 - `backend/internal/infra/config/config.go`, `config_test.go` (ubah): 2 env var.
 
 Domain:

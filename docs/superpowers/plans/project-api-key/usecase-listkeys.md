@@ -48,7 +48,7 @@ Prasyarat dari foundation F (overview bagian 7). Plan ini TIDAK membuatnya; bila
 - `base/store`: `New`, `Store.SelectKeys`, `ValidUUID`, konstanta `KeyColumns`.
 - `base/access`: `Checker`, `New(b)`.
 - Kontrak T03 `lib/contracts/project/management/checkaccess` dan konstanta `constants.BUS_PROJECT_MANAGEMENT_CHECK_ACCESS`.
-- Migrasi `backend/migrations/project/20261023090000000_create_api_keys.sql` (index `api_keys_project_idx`).
+- Migrasi `backend/migrations/project/<VERSION>_create_api_keys.sql` (index `api_keys_project_idx`).
 - Path dan schema `GET /api/projects/{projectID}/api-keys` di `api/modules/project/api-key.yml` (F langkah 10).
 
 ## 3. Plan (langkah berurutan)
@@ -157,7 +157,7 @@ Dipanggil lewat `access.Checker.Require` (foundation). Feature ini tidak menyedi
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `api_keys` dari `backend/migrations/project/20261023090000000_create_api_keys.sql` (foundation). Hanya BACA.
+Tidak ada. Memakai tabel `api_keys` dari `backend/migrations/project/<VERSION>_create_api_keys.sql` (foundation). Hanya BACA.
 
 Query (milik `listkeys/repository.go`):
 

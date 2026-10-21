@@ -156,7 +156,7 @@ func Init(d app.Deps) {
 
 ## Migration
 
-Tidak ada. Membaca tabel `api_specs` dan `api_spec_endpoints` dari migrasi F (`backend/migrations/project/20261023090000600_create_api_specs.sql`).
+Tidak ada. Membaca tabel `api_specs` dan `api_spec_endpoints` dari migrasi F (`backend/migrations/project/<VERSION>_create_api_specs.sql`).
 
 ## Changes
 

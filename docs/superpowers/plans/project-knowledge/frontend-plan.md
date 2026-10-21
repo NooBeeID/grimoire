@@ -439,7 +439,7 @@ Kunci flat; paritas id/en dijaga `i18n-keys.test.ts`. Tidak ada string hard-code
 
 ## Migration
 
-Tidak ada (frontend tidak menyentuh database). Migrasi backend `backend/migrations/project/20261024090000000_create_knowledge_files.sql` ada di `overview.md` bagian 6.
+Tidak ada (frontend tidak menyentuh database). Migrasi backend `backend/migrations/project/<VERSION>_create_knowledge_files.sql` ada di `overview.md` bagian 6.
 
 ---
 

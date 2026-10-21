@@ -255,7 +255,7 @@ Tambah satu baris `uploadfiles.Init(d)` di `backend/internal/domain/project/inte
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (foundation F langkah 2). Tidak butuh kolom/indeks tambahan: `UNIQUE (project_id, path)` melayani `path = ANY($2)`.
+Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (foundation F langkah 2). Tidak butuh kolom/indeks tambahan: `UNIQUE (project_id, path)` melayani `path = ANY($2)`.
 
 ---
 

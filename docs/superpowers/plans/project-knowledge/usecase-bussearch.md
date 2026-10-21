@@ -87,7 +87,7 @@ Perilaku error:
 
 ## 4. Migration
 
-Tidak ada. Tabel `knowledge_files` (kolom `search` generated + indeks GIN + `text_pattern_ops`) dibuat oleh foundation: `backend/migrations/project/20261024090000000_create_knowledge_files.sql`.
+Tidak ada. Tabel `knowledge_files` (kolom `search` generated + indeks GIN + `text_pattern_ops`) dibuat oleh foundation: `backend/migrations/project/<VERSION>_create_knowledge_files.sql`.
 
 ## 5. Changes
 

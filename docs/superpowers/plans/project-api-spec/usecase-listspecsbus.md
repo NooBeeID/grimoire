@@ -36,7 +36,7 @@ allowedPaths (hanya ini yang boleh disentuh):
 - Prasyarat dari foundation F (HARUS sudah ada; bila belum, kontrak dan konstanta dibuat persis seperti di bawah; selain itu hentikan dan laporkan, jangan membuat di luar allowedPaths):
   - `base.SpecSummary`, `base/store.New`, `Store.ListSpecs` (`LEFT JOIN` count, `ORDER BY name`, filter `project_id = $1`, id bukan uuid -> `nil, nil` tanpa query).
   - `apispec.Register` di `apispec/base.go`.
-  - Migrasi `20261023090000600_create_api_specs.sql`.
+  - Migrasi `<VERSION>_create_api_specs.sql`.
 - Infra di `main`: `bus.Registry.Register(endpoint string, h Handler)` (`Handler func(ctx, req any) (any, error)`; panik bila endpoint terdaftar dua kali), `bus.Expect[T]`, `bus.ErrBadRequestType`, `errs.Wrap`, `errs.CodeInvalid`, `errs.ErrInvalid` (`backend/lib/common/errs`). `github.com/google/uuid` sudah ada di `go.mod`.
 
 ## Summary Plan
@@ -172,7 +172,7 @@ Tidak ada route HTTP.
 
 ## Migration
 
-Tidak ada. Feature ini hanya membaca `api_specs` dan `api_spec_endpoints` dari `backend/migrations/project/20261023090000600_create_api_specs.sql` (milik F).
+Tidak ada. Feature ini hanya membaca `api_specs` dan `api_spec_endpoints` dari `backend/migrations/project/<VERSION>_create_api_specs.sql` (milik F).
 
 ## Changes
 

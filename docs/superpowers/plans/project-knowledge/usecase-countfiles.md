@@ -27,7 +27,7 @@ Melengkapi `docs/superpowers/plans/project-knowledge/overview.md` (F: migrasi `k
 Prasyarat (dari F atau T03; bila belum ada, buat persis seperti plan T03 overview 5.1 dan 5.4, jangan versi baru):
 - `backend/lib/contracts/project/management/contentcount/contentcount.go`: `MaxProjectIDs = 100`, `Request{ProjectIDs []string}`, `Response{Counts map[string]int}`.
 - Konstanta `BUS_PROJECT_KNOWLEDGE_COUNT_FILES = "project.knowledge.count-files"` di `backend/lib/constants/bus.go`.
-- Migrasi `20261024090000000_create_knowledge_files.sql` (tabel `knowledge_files`, `UNIQUE (project_id, path)`).
+- Migrasi `<VERSION>_create_knowledge_files.sql` (tabel `knowledge_files`, `UNIQUE (project_id, path)`).
 - `knowledge.Register(d app.Deps)` dan `project.Register` memanggilnya; `store.New(d.DB)` dari `base/store`.
 - Cek awal: `ls backend/lib/contracts/project/management/contentcount` dan `grep -n COUNT_FILES backend/lib/constants/bus.go`.
 
@@ -141,7 +141,7 @@ Registrasi ganda = panic (sifat bus), jadi `Init` hanya dipanggil sekali dari `k
 
 ## Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari migrasi F `backend/migrations/project/20261024090000000_create_knowledge_files.sql`. Indeks yang dipakai: `knowledge_files_project_id_path_key` (UNIQUE `(project_id, path)`).
+Tidak ada. Memakai tabel `knowledge_files` dari migrasi F `backend/migrations/project/<VERSION>_create_knowledge_files.sql`. Indeks yang dipakai: `knowledge_files_project_id_path_key` (UNIQUE `(project_id, path)`).
 
 ## Changes
 

@@ -134,7 +134,7 @@ Aturan arsitektur: feature hanya meng-import `base`, `base/store`, `base/access`
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (foundation). Indeks `knowledge_files_project_path_prefix (project_id, path text_pattern_ops)` melayani `LIKE 'prefix/%'` pada DELETE; hapus baris juga otomatis memperbarui GIN `search`.
+Tidak ada. Memakai tabel `knowledge_files` dari `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (foundation). Indeks `knowledge_files_project_path_prefix (project_id, path text_pattern_ops)` melayani `LIKE 'prefix/%'` pada DELETE; hapus baris juga otomatis memperbarui GIN `search`.
 
 ## 5. Changes
 

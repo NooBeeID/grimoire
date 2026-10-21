@@ -38,7 +38,7 @@ allowedPaths (hanya ini yang boleh disentuh):
 Prasyarat dari foundation F (HARUS sudah ada; bila belum, berhenti dan laporkan, kecuali dua butir pertama yang boleh dibuat sesuai aturan "yang merge lebih dulu membuat kontrak"):
 - `constants.BUS_PROJECT_APISPEC_LIST_ENDPOINTS = "project.apispec.list-endpoints"` di `lib/constants/bus.go`.
 - `lib/contracts/project/apispec/listendpoints/listendpoints.go` persis overview 7.3 (isi ada di bagian Request/Response body di bawah, tipe + doc comment).
-- Migrasi `api_specs` + `api_spec_endpoints` (`migrations/project/20261023090000600_create_api_specs.sql`) dengan `api_specs_project_name_key (project_id, name)` dan `api_spec_endpoints_pkey (spec_id, method, path)`.
+- Migrasi `api_specs` + `api_spec_endpoints` (`migrations/project/<VERSION>_create_api_specs.sql`) dengan `api_specs_project_name_key (project_id, name)` dan `api_spec_endpoints_pkey (spec_id, method, path)`.
 - `base`: `Endpoint`, `Methods`, `MethodOrder`. `base/store`: `New`, `Store.ListSpecNames`.
 
 ## Summary Plan
@@ -225,7 +225,7 @@ Tidak ada. Usecase ini tidak punya UI. T09 yang merender hasil untuk agent.
 
 ## Migration
 
-Tidak ada. Tabel dan indeks berasal dari migrasi foundation `backend/migrations/project/20261023090000600_create_api_specs.sql`. Alasan tidak menambah indeks (rule 8.8): query selalu diawali `project_id` (unique index `api_specs_project_name_key`), JOIN ke `api_spec_endpoints_pkey` via prefix `spec_id`; filter tag/teks dikerjakan sebagai filter pada baris satu project. Bukti EXPLAIN WAJIB dicatat (AC4). Bila pada 100 spec x 500 endpoint median > 100 ms, itu temuan: laporkan dan usulkan indeks lewat perubahan migrasi foundation, jangan menambah migrasi dari feature ini.
+Tidak ada. Tabel dan indeks berasal dari migrasi foundation `backend/migrations/project/<VERSION>_create_api_specs.sql`. Alasan tidak menambah indeks (rule 8.8): query selalu diawali `project_id` (unique index `api_specs_project_name_key`), JOIN ke `api_spec_endpoints_pkey` via prefix `spec_id`; filter tag/teks dikerjakan sebagai filter pada baris satu project. Bukti EXPLAIN WAJIB dicatat (AC4). Bila pada 100 spec x 500 endpoint median > 100 ms, itu temuan: laporkan dan usulkan indeks lewat perubahan migrasi foundation, jangan menambah migrasi dari feature ini.
 
 ## Changes
 

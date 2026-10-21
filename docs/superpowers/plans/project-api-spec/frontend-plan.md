@@ -433,7 +433,7 @@ Ditambahkan ke `id.json` dan `en.json` (flat; parameter `{x}`). Kunci yang sudah
 
 ## Migration
 
-Tidak ada. Frontend tidak punya migrasi. Migrasi backend T06 (`backend/migrations/project/20261023090000600_create_api_specs.sql`) dibuat di langkah F `overview.md`.
+Tidak ada. Frontend tidak punya migrasi. Migrasi backend T06 (`backend/migrations/project/<VERSION>_create_api_specs.sql`) dibuat di langkah F `overview.md`.
 
 ---
 

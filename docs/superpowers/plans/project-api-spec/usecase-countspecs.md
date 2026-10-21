@@ -33,7 +33,7 @@ allowedPaths (hanya ini yang boleh disentuh):
 - Overview T03: 5.4 (doc comment `contentcount`: `MaxProjectIDs = 100`, `Request{ProjectIDs []string}`, `Response{Counts map[string]int}`), D1 (consumer fail-soft: error apa pun menjadi hitungan `null`).
 - Infra di `main`: `bus.Handler = func(ctx, req any) (any, error)`, `bus.Expect[T](req)` (mengembalikan error yang membungkus `bus.ErrBadRequestType`), `Registry.Register(endpoint, h)`; `errs.Wrap(code, msg, err)`, `errs.ErrInvalid`, `errs.CodeInvalid`; `db.Querier`.
 - Prasyarat (HARUS sudah ada; bila belum, berhenti dan laporkan, jangan dibuat di folder feature kecuali disebut di bawah):
-  - Migrasi `api_specs` (foundation F, `backend/migrations/project/20261023090000600_create_api_specs.sql`).
+  - Migrasi `api_specs` (foundation F, `backend/migrations/project/<VERSION>_create_api_specs.sql`).
   - Konstanta `BUS_PROJECT_APISPEC_COUNT_SPECS` di `backend/lib/constants/bus.go` dan paket `backend/lib/contracts/project/management/contentcount`. Keduanya milik T03. Bila T03 belum merge, foundation F membuatnya persis seperti T03 5.1/5.4 (aturan "yang merge lebih dulu membuat kontrak"). Usecase ini TIDAK membuat atau mengubahnya, dan tidak menduplikasi konstanta.
   - `apispec/base.go` dengan `Register(d app.Deps)` (kerangka F).
 
@@ -178,7 +178,7 @@ Tidak ada (handler internal). Efek terlihat tidak langsung di UI T03 (jumlah spe
 
 ## Migration
 
-Tidak ada. Tabel `api_specs` dibuat foundation F (`backend/migrations/project/20261023090000600_create_api_specs.sql`). Feature ini hanya membaca.
+Tidak ada. Tabel `api_specs` dibuat foundation F (`backend/migrations/project/<VERSION>_create_api_specs.sql`). Feature ini hanya membaca.
 
 Catatan performa (rule 8.8): catat `EXPLAIN` query pada 100 project x 100 spec di PR; harapannya index scan/bitmap pada `api_specs_project_name_key` (prefix `project_id`) dengan HashAggregate/GroupAggregate, tanpa seq scan pada tabel besar. Pada tabel kecil planner boleh memilih seq scan; yang diverifikasi adalah query tunggal tanpa N+1.
 

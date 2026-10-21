@@ -25,7 +25,7 @@ Melengkapi `docs/superpowers/plans/project-knowledge/overview.md` (F: migrasi `k
 | Resource root | `backend/internal/domain/project/internal/knowledge` |
 | allowedPaths | `.../knowledge/getfile/`, `.../knowledge/base.go` (satu baris `getfile.Init(d)`) |
 
-Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.NormalizePath`, `base.Reason`, `base.Invalid`, `base.ErrFileNotFound`, `base.ErrProjectNotFound`, `base.File`/`File.ToDTO`/`FileDTO`, `base/store.Store.FindByPath` (projectID bukan uuid -> not found tanpa query), `base/access.Checker`/`BusChecker`, `knowledge.Register`, path `GET .../knowledge/files` + schema `KnowledgeFile` di `api/modules/project/knowledge.yml`, migrasi `20261024090000000_create_knowledge_files.sql`, serta handler T03 `check-access` (atau palsu di test).
+Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.NormalizePath`, `base.Reason`, `base.Invalid`, `base.ErrFileNotFound`, `base.ErrProjectNotFound`, `base.File`/`File.ToDTO`/`FileDTO`, `base/store.Store.FindByPath` (projectID bukan uuid -> not found tanpa query), `base/access.Checker`/`BusChecker`, `knowledge.Register`, path `GET .../knowledge/files` + schema `KnowledgeFile` di `api/modules/project/knowledge.yml`, migrasi `<VERSION>_create_knowledge_files.sql`, serta handler T03 `check-access` (atau palsu di test).
 
 ## Summary Plan
 
@@ -109,7 +109,7 @@ Pola route penuh dengan param (T03 D4). Tanpa `BodyLimit` khusus. Rute `GET .../
 
 ## Migration
 
-Tidak ada. `getfile` hanya membaca `knowledge_files` (dibuat F: `backend/migrations/project/20261024090000000_create_knowledge_files.sql`). Indeks `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani lookup equality.
+Tidak ada. `getfile` hanya membaca `knowledge_files` (dibuat F: `backend/migrations/project/<VERSION>_create_knowledge_files.sql`). Indeks `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani lookup equality.
 
 ## Changes
 

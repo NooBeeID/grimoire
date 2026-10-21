@@ -123,7 +123,7 @@ Aturan arsitektur: feature tidak meng-import feature lain; hanya `base`, `base/s
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files`, kolom generated `search`, dan indeks `knowledge_files_search_gin` dari `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (foundation).
+Tidak ada. Memakai tabel `knowledge_files`, kolom generated `search`, dan indeks `knowledge_files_search_gin` dari `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (foundation).
 
 ## 5. Changes
 

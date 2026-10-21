@@ -24,7 +24,7 @@ Melengkapi `docs/superpowers/plans/project-api-key/overview.md` (selanjutnya "ov
 | Resource root | `backend/internal/domain/project/internal/apikey` |
 | allowedPaths | `.../apikey/createkey/`, `.../apikey/base.go` (satu baris `createkey.Init(d)`) |
 
-Prasyarat (dari F overview; bila belum ada, hentikan dan laporkan, jangan dibuat di luar allowedPaths): migrasi `20261023090000000_create_api_keys.sql`; `base` (`RawKey`, `GenerateRawKey`, `Key`, `NewKey`, `ValidateName`, `CheckActiveLimit`, `ToDTO`, `CreateKeyResult`, `MCPURL`, `Actor`, `ActorFrom`, `RequestMeta`, `NewRequestMeta`, `Clock`, `FieldErrors`, `InvalidFields`, `ErrProjectNotFound`, `ErrNameTaken`, `ErrPrefixCollision`, `ErrKeyLimitReached`); `base/store` (`Store`, `New`, `WithTx`, `Querier`, `GetKey`, `KeyColumns`, `Violation`, `CodeUniqueViolation`, `CodeFKViolation`, `ConstraintPrefixUnique`, `ConstraintActiveName`); `base/access` (`Checker`, `New`); `base/audit` (`Recorder`, `Event`, `New`); konstanta `BUS_PROJECT_MANAGEMENT_CHECK_ACCESS`, `BUS_PROJECT_MANAGEMENT_GET_PROJECT`, `BUS_CORE_AUDIT_RECORD`, `record.ActionAPIKeyCreated`; field config K8. Path `POST /projects/{projectID}/api-keys` dan schema `CreateApiKeyRequest`/`CreateApiKeyResponse`/`ApiKey` sudah ada di `api/modules/project/api-key.yml` dari F; usecase ini hanya memverifikasi.
+Prasyarat (dari F overview; bila belum ada, hentikan dan laporkan, jangan dibuat di luar allowedPaths): migrasi `<VERSION>_create_api_keys.sql`; `base` (`RawKey`, `GenerateRawKey`, `Key`, `NewKey`, `ValidateName`, `CheckActiveLimit`, `ToDTO`, `CreateKeyResult`, `MCPURL`, `Actor`, `ActorFrom`, `RequestMeta`, `NewRequestMeta`, `Clock`, `FieldErrors`, `InvalidFields`, `ErrProjectNotFound`, `ErrNameTaken`, `ErrPrefixCollision`, `ErrKeyLimitReached`); `base/store` (`Store`, `New`, `WithTx`, `Querier`, `GetKey`, `KeyColumns`, `Violation`, `CodeUniqueViolation`, `CodeFKViolation`, `ConstraintPrefixUnique`, `ConstraintActiveName`); `base/access` (`Checker`, `New`); `base/audit` (`Recorder`, `Event`, `New`); konstanta `BUS_PROJECT_MANAGEMENT_CHECK_ACCESS`, `BUS_PROJECT_MANAGEMENT_GET_PROJECT`, `BUS_CORE_AUDIT_RECORD`, `record.ActionAPIKeyCreated`; field config K8. Path `POST /projects/{projectID}/api-keys` dan schema `CreateApiKeyRequest`/`CreateApiKeyResponse`/`ApiKey` sudah ada di `api/modules/project/api-key.yml` dari F; usecase ini hanya memverifikasi.
 
 ## Summary Plan
 
@@ -197,7 +197,7 @@ Route pola penuh langsung di `d.API` (K4), param WAJIB `{projectID}`; jangan `Ro
 
 ## Migration
 
-Tidak ada di usecase ini. Memakai tabel `api_keys` dari `backend/migrations/project/20261023090000000_create_api_keys.sql` (F overview bagian 6). Usecase bergantung pada:
+Tidak ada di usecase ini. Memakai tabel `api_keys` dari `backend/migrations/project/<VERSION>_create_api_keys.sql` (F overview bagian 6). Usecase bergantung pada:
 - unique index `api_keys_prefix_key` (tabrakan prefix -> retry) dan `api_keys_project_active_name_key` (partial `WHERE revoked_at IS NULL`, nama kembar aktif -> 409);
 - FK `project_id -> projects(id)` (23503 -> 404);
 - CHECK `api_keys_name_len`, `api_keys_prefix_fmt`, `api_keys_secret_hash_len` sebagai jaring pengaman (bukan sumber pesan error).

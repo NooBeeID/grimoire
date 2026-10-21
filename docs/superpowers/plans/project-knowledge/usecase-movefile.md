@@ -25,7 +25,7 @@ Melengkapi `docs/superpowers/plans/project-knowledge/overview.md` (F: migrasi `k
 | Resource root | `backend/internal/domain/project/internal/knowledge` |
 | allowedPaths | `.../knowledge/movefile/`, `.../knowledge/base.go` (satu baris `movefile.Init(d)`), `backend/lib/contracts/core/audit/record/actions.go`, `actions_test.go`, `frontend/src/domain/core/audit-log/listentries/types.ts`, `docs/tickets/README.md` (katalog aksi) |
 
-Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.NormalizePath`, `base.IsHidden`, `base.IsSupported`, `base.Reason*` (`same_path`, `hidden`, `unsupported_type`), `base.Invalid`, `base.ErrFileNotFound`, `base.ErrPathExists`, `base.File`/`File.ToDTO`/`FileDTO`, `base.Actor`, `base.RequestMeta`, `base/store` (`Store`, `InTx`, `Q`, `LockProject`, `FindByPath`, `ListMeta`, `Search`, `IsUniqueViolation`), `base/access`, `base/audit`, `knowledge.Register`, path `POST .../knowledge/files/move` + schema `KnowledgeMoveRequest` di `api/modules/project/knowledge.yml`, migrasi `20261024090000000_create_knowledge_files.sql`, handler T03 `check-access` (atau palsu di test). Aksi `ActionKnowledgeFileMoved` ditambahkan F (overview langkah F6); bila belum ada di `main`, tambahkan di langkah B0 di bawah.
+Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.NormalizePath`, `base.IsHidden`, `base.IsSupported`, `base.Reason*` (`same_path`, `hidden`, `unsupported_type`), `base.Invalid`, `base.ErrFileNotFound`, `base.ErrPathExists`, `base.File`/`File.ToDTO`/`FileDTO`, `base.Actor`, `base.RequestMeta`, `base/store` (`Store`, `InTx`, `Q`, `LockProject`, `FindByPath`, `ListMeta`, `Search`, `IsUniqueViolation`), `base/access`, `base/audit`, `knowledge.Register`, path `POST .../knowledge/files/move` + schema `KnowledgeMoveRequest` di `api/modules/project/knowledge.yml`, migrasi `<VERSION>_create_knowledge_files.sql`, handler T03 `check-access` (atau palsu di test). Aksi `ActionKnowledgeFileMoved` ditambahkan F (overview langkah F6); bila belum ada di `main`, tambahkan di langkah B0 di bawah.
 
 ## Summary Plan
 
@@ -185,7 +185,7 @@ Pola route penuh dengan param (T03 D4). Tanpa `BodyLimit` khusus. Rute `POST ...
 
 ## Migration
 
-Tidak ada. `movefile` hanya `UPDATE` pada `knowledge_files` (dibuat F: `backend/migrations/project/20261024090000000_create_knowledge_files.sql`). Kolom `search` (generated, stored) dihitung ulang otomatis oleh Postgres; indeks GIN `knowledge_files_search_gin` dan `knowledge_files_project_path_prefix` ikut ter-update. `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani cek `PathExists` dan jaring pengaman 409.
+Tidak ada. `movefile` hanya `UPDATE` pada `knowledge_files` (dibuat F: `backend/migrations/project/<VERSION>_create_knowledge_files.sql`). Kolom `search` (generated, stored) dihitung ulang otomatis oleh Postgres; indeks GIN `knowledge_files_search_gin` dan `knowledge_files_project_path_prefix` ikut ter-update. `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani cek `PathExists` dan jaring pengaman 409.
 
 ## Changes
 

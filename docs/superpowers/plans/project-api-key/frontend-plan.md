@@ -353,7 +353,7 @@ Ditambahkan ke `id.json` dan `en.json` (flat). Kunci yang sudah ada (`common.*`,
 
 ## Migration
 
-Tidak ada. Frontend tidak punya migrasi. Migrasi backend T04 (`backend/migrations/project/20261023090000000_create_api_keys.sql`) dibuat di langkah F `overview.md`.
+Tidak ada. Frontend tidak punya migrasi. Migrasi backend T04 (`backend/migrations/project/<VERSION>_create_api_keys.sql`) dibuat di langkah F `overview.md`.
 
 ---
 

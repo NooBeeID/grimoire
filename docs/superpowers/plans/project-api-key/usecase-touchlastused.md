@@ -155,7 +155,7 @@ func Init(d app.Deps) {
 
 ## Migration
 
-Tidak ada. Memakai tabel `api_keys` dari `backend/migrations/project/20261023090000000_create_api_keys.sql` (kolom `last_used_at timestamptz NULL`, PK `id` melayani lookup). Tidak butuh index tambahan.
+Tidak ada. Memakai tabel `api_keys` dari `backend/migrations/project/<VERSION>_create_api_keys.sql` (kolom `last_used_at timestamptz NULL`, PK `id` melayani lookup). Tidak butuh index tambahan.
 
 ## Changes
 

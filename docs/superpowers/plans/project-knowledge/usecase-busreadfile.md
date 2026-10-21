@@ -126,7 +126,7 @@ Tambah satu baris `busreadfile.Init(d)` (dan import) di `Register(d app.Deps)`. 
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari migrasi foundation `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (atau versi yang digeser bila bentrok, lihat overview bagian 6).
+Tidak ada. Memakai tabel `knowledge_files` dari migrasi foundation `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (`<VERSION>` di-generate saat implement, lihat overview bagian 6).
 
 ---
 

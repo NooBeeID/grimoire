@@ -24,7 +24,7 @@ Melengkapi `docs/superpowers/plans/project-api-spec/overview.md` (F: migrasi, `b
 | Resource root | `backend/internal/domain/project/internal/apispec` |
 | allowedPaths | `.../apispec/getspec/`, `.../apispec/base.go` (satu baris `getspec.Init(d)`) |
 
-Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.Spec`, `base.Endpoint`, `base.SpecSummary`, `base.SpecDTO`, `base.EndpointDTO`, `base.ToSummaryDTO`, `base.ToEndpointDTOs`, `base.ErrSpecNotFound`, `base.ErrProjectNotFound`; `openapi.Parse`, `openapi.ToJSON`, `openapi.Format`, `openapi.DefaultLimits`, `openapi.Issue`; `store.Store.FindSpec` dan `ListSpecEndpoints`; `access.New`/`access.Checker`; `apispec/base.go`; path `GET .../api-specs/{name}` + schema `ApiSpecDetail` di `api/modules/project/apispec.yml`; migrasi `20261023090000600_create_api_specs.sql`.
+Prasyarat dari F (jangan dibuat di sini; bila belum ada, hentikan dan laporkan): `base.Spec`, `base.Endpoint`, `base.SpecSummary`, `base.SpecDTO`, `base.EndpointDTO`, `base.ToSummaryDTO`, `base.ToEndpointDTOs`, `base.ErrSpecNotFound`, `base.ErrProjectNotFound`; `openapi.Parse`, `openapi.ToJSON`, `openapi.Format`, `openapi.DefaultLimits`, `openapi.Issue`; `store.Store.FindSpec` dan `ListSpecEndpoints`; `access.New`/`access.Checker`; `apispec/base.go`; path `GET .../api-specs/{name}` + schema `ApiSpecDetail` di `api/modules/project/apispec.yml`; migrasi `<VERSION>_create_api_specs.sql`.
 
 ## Summary Plan
 
@@ -172,7 +172,7 @@ Hanya GET; PATCH dan DELETE pada pola yang sama didaftarkan `renamespec` dan `de
 
 ## Migration
 
-Tidak ada. Memakai tabel `api_specs` dan `api_spec_endpoints` dari `backend/migrations/project/20261023090000600_create_api_specs.sql` (foundation).
+Tidak ada. Memakai tabel `api_specs` dan `api_spec_endpoints` dari `backend/migrations/project/<VERSION>_create_api_specs.sql` (foundation).
 
 ## Changes
 

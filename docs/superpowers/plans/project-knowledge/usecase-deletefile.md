@@ -173,7 +173,7 @@ Kontrak bus: tidak ada kontrak baru. Yang dipakai (sudah didefinisikan di overvi
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dari migrasi foundation `backend/migrations/project/20261024090000000_create_knowledge_files.sql`. Indeks `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani `WHERE project_id=$1 AND path=$2`.
+Tidak ada. Memakai tabel `knowledge_files` dari migrasi foundation `backend/migrations/project/<VERSION>_create_knowledge_files.sql`. Indeks `UNIQUE (project_id, path)` (`knowledge_files_project_id_path_key`) melayani `WHERE project_id=$1 AND path=$2`.
 
 ---
 

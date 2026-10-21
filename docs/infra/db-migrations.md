@@ -7,6 +7,7 @@ Paket: `backend/internal/infra/db` (runner) dan `backend/migrations` (file SQL t
 - File berada di `backend/migrations/core/` atau `backend/migrations/project/`.
 - Nama file: `YYYYMMDDHHMMSSmmm_<snake_case>.sql`, divalidasi `^\d{17}_[a-z0-9_]+\.sql$`.
 - Versi (17 digit pertama) harus unik secara global, lintas `core` dan `project`. Duplikat ditolak.
+- Timestamp di-generate saat implement dengan milidetik asli, bukan `000`; lihat `.claude/rules/migrations.md`.
 - File non-`.sql` (mis. `.keep`, README) diabaikan.
 - Embed memakai `//go:embed all:core all:project` agar `.keep` ikut dan folder kosong tidak menggagalkan build.
 

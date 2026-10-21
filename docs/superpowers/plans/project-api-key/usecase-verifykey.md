@@ -125,7 +125,7 @@ Kontrak bus (ringkas; definisi lengkap di `overview.md` 5.2):
 
 ## Migration
 
-Tidak ada. Tabel `api_keys` dan unique index `api_keys_prefix_key` dibuat oleh migrasi foundation `backend/migrations/project/20261023090000000_create_api_keys.sql`. Query verifikasi memakai index itu. Tes integrasi memakai `db.TestDB(t)` yang sudah menerapkan semua migrasi.
+Tidak ada. Tabel `api_keys` dan unique index `api_keys_prefix_key` dibuat oleh migrasi foundation `backend/migrations/project/<VERSION>_create_api_keys.sql`. Query verifikasi memakai index itu. Tes integrasi memakai `db.TestDB(t)` yang sudah menerapkan semua migrasi.
 
 ## Changes
 

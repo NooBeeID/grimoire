@@ -105,7 +105,7 @@ Tidak ada kontrak bus baru. Aturan arsitektur: feature tidak meng-import feature
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `knowledge_files` dan indeks `knowledge_files_project_path_prefix` dari `backend/migrations/project/20261024090000000_create_knowledge_files.sql` (foundation).
+Tidak ada. Memakai tabel `knowledge_files` dan indeks `knowledge_files_project_path_prefix` dari `backend/migrations/project/<VERSION>_create_knowledge_files.sql` (foundation).
 
 ## 5. Changes
 

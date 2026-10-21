@@ -169,7 +169,7 @@ Kontrak bus: tidak ada yang baru. Yang dikonsumsi: `project.management.check-acc
 
 ## 4. Migration
 
-Tidak ada. Memakai tabel `api_specs` dari migrasi foundation `backend/migrations/project/20261023090000600_create_api_specs.sql`. Tidak ada indeks baru: lookup `(project_id, name)` dilayani `api_specs_project_name_key`.
+Tidak ada. Memakai tabel `api_specs` dari migrasi foundation `backend/migrations/project/<VERSION>_create_api_specs.sql`. Tidak ada indeks baru: lookup `(project_id, name)` dilayani `api_specs_project_name_key`.
 
 ---
 
