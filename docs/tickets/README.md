@@ -15,7 +15,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Selesai (`3221efc`) |
 | [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Selesai (0a26586) |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Selesai (`35c4fa4`) |
-| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Plan siap |
+| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Selesai (TBD) |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Plan siap |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -173,7 +173,7 @@ Catatan: konstanta dan kontrak `core.auth.resolve-session` didefinisikan T00 (`l
 
 TODO (ditambah T01): `core.auth.create-admin` (Call, provider T01, consumer `cmd/cli`). T01 menambah konstanta, kontrak, dan menyempurnakan baris katalog ini; sampai saat itu `create-admin` di CLI mencetak `create-admin belum tersedia (butuh T01)`.
 
-(`register-tool` bukan endpoint runtime; mekanisme pendaftaran tool dijelaskan di T07.)
+(`register-tool` bukan endpoint runtime; `toolkit.Result.Structured` (opsional, JSON object) diteruskan gateway sebagai `structuredContent`, dipakai T08; mekanisme pendaftaran tool dijelaskan di T07.)
 
 ### Pola fail-open penulisan audit
 

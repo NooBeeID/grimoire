@@ -140,7 +140,7 @@ func TestT07_AC1_RealKeyInitializeAndToolsList(t *testing.T) {
 		t.Fatalf("initialize: %d %s", resp.StatusCode, body)
 	}
 	resp, body = e.mcp(e.rawKey, listBody, nil)
-	if resp.StatusCode != 200 || !strings.Contains(body, `"tools":[]`) {
+	if resp.StatusCode != 200 || !strings.Contains(body, `"name":"list_files"`) {
 		t.Fatalf("tools/list: %d %s", resp.StatusCode, body)
 	}
 	var actorType, actorID, label string

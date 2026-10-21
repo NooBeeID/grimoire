@@ -55,3 +55,19 @@ export function watchCsp(page: Page): string[] {
   });
   return violations;
 }
+
+/** Teks deterministik `bytes` byte: ASCII + 'é' (2B) + '€' (3B) + '𝄞' (4B) berulang, dipotong di batas karakter. */
+export function bigText(bytes: number): string {
+  const unit = ['knowledge-', 'é', '€', '𝄞', '\n'];
+  let out = '';
+  let size = 0;
+  for (let i = 0; ; i++) {
+    const ch = unit[i % unit.length];
+    const n = Buffer.byteLength(ch);
+    if (size + n > bytes) break;
+    out += ch;
+    size += n;
+  }
+  // isi sisa dengan ASCII agar ukuran tepat
+  return out + 'x'.repeat(bytes - size);
+}

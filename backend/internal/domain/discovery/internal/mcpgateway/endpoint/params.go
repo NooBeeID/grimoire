@@ -140,6 +140,8 @@ type callToolResult struct {
 	Content []contentItem `json:"content"`
 	IsError bool          `json:"isError"`
 	Meta    *callToolMeta `json:"_meta,omitempty"`
+	// StructuredContent diisi dari Outcome.Result.Structured; hasil buatan gateway tidak memilikinya.
+	StructuredContent map[string]any `json:"structuredContent,omitempty"`
 }
 
 type callToolMeta struct {
@@ -161,8 +163,9 @@ func toToolEntries(tools []toolkit.Tool) []toolEntry {
 
 func toCallToolResult(o base.Outcome) callToolResult {
 	r := callToolResult{
-		Content: []contentItem{{Type: "text", Text: o.Result.Text}},
-		IsError: o.Result.IsError || o.ErrorCode != "",
+		Content:           []contentItem{{Type: "text", Text: o.Result.Text}},
+		IsError:           o.Result.IsError || o.ErrorCode != "",
+		StructuredContent: o.Result.Structured,
 	}
 	if o.Truncated {
 		r.Meta = &callToolMeta{Truncated: true, OriginalBytes: o.OriginalBytes}

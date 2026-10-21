@@ -43,4 +43,8 @@ type Result struct {
 	TargetType string         // audit, mis. "file", "api_spec"
 	Target     string         // audit, mis. path
 	Summary    map[string]any // metadata saja (count, bytes, error_code); DILARANG berisi isi file
+	// Structured opsional, menjadi structuredContent hasil MCP. Wajib JSON object (map dengan nilai
+	// yang bisa di-marshal), berisi metadata/daftar saja. Tidak masuk audit dan tidak dipotong gateway;
+	// tool bertanggung jawab menjaga ukurannya kecil (daftar dibatasi limit tool).
+	Structured map[string]any
 }

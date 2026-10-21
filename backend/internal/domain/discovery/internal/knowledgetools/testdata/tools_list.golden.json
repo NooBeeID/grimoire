@@ -1,0 +1,103 @@
+[
+  {
+    "name": "list_files",
+    "title": "Daftar file knowledge",
+    "description": "Daftar file knowledge project (read-only). Mulai dari akar (tanpa path) untuk memahami struktur sebelum membaca. Default hanya satu tingkat: subfolder tampil sebagai entri [folder]; panggil lagi dengan path=<folder> untuk masuk, atau recursive=true untuk semua file di bawah path. Lanjutkan daftar yang terpotong dengan offset. Baca isi dengan read_file, cari berdasarkan isi dengan search_knowledge.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 200,
+          "description": "jumlah file per halaman",
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "lewati sejumlah file; pakai nilai dari penanda [ada N file lagi ...]",
+          "maximum": 1000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "description": "prefix folder, mis. docs/guides; kosong = akar",
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "recursive": {
+          "default": false,
+          "description": "true = semua file di bawah path; false = satu tingkat beserta entri [folder]",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "read_file",
+    "title": "Baca file knowledge",
+    "description": "Baca isi satu file knowledge (read-only). path persis seperti dari list_files atau search_knowledge. File besar dikembalikan per potongan: bila ada penanda [terpotong: ... offset=N ...], panggil lagi dengan offset=N untuk lanjutan tanpa duplikat. offset dan limit dalam byte.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 40000,
+          "description": "jumlah byte maksimal per potongan",
+          "maximum": 101888,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "posisi byte awal; pakai nilai dari penanda terpotong",
+          "maximum": 2147483647,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "description": "path file, mis. docs/guides/a.md",
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "search_knowledge",
+    "title": "Cari knowledge",
+    "description": "Cari file knowledge berdasarkan kata kunci (full-text, read-only, bukan semantik). Frasa dalam tanda kutip dicari utuh. Hasil berisi path, skor, dan cuplikan dengan kata kunci bertanda **...**; baca file utuh dengan read_file(path). Persempit dengan path=<folder>.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 10,
+          "description": "jumlah hasil maksimal",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "description": "prefix folder opsional, mis. docs/guides",
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "query": {
+          "description": "kata kunci atau frasa dalam tanda kutip, mis. \"rate limit\"",
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    }
+  }
+]

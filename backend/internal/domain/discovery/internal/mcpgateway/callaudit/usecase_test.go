@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -382,4 +383,23 @@ func TestNewUsecaseDefaults(t *testing.T) {
 		t.Fatalf("%+v", uc.opt)
 	}
 	uc.Invoke(context.Background(), principal, "x", nil)
+}
+
+func TestT08_D1_StructuredForwardedNotAudited(t *testing.T) {
+	st := map[string]any{"items": []any{map[string]any{"path": "docs/a.md"}}}
+	uc, fw, _ := newUC(t, []toolkit.Tool{tool("read_file", okH(toolkit.Result{Text: "x", Structured: st, Summary: map[string]any{"count": 1}}))}, Options{})
+	out := uc.Invoke(context.Background(), principal, "read_file", nil)
+	if !reflect.DeepEqual(out.Result.Structured, st) {
+		t.Fatalf("Structured tidak diteruskan: %v", out.Result.Structured)
+	}
+	e := one(t, fw)
+	if _, ok := e.Result["items"]; ok {
+		t.Fatalf("items masuk audit: %v", e.Result)
+	}
+	if _, ok := e.Result["structured"]; ok {
+		t.Fatalf("structured masuk audit: %v", e.Result)
+	}
+	if strings.Contains(fmt.Sprint(e), "docs/a.md") {
+		t.Fatalf("isi Structured bocor ke audit: %v", e)
+	}
 }

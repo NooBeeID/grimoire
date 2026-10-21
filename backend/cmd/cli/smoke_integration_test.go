@@ -207,7 +207,7 @@ func TestT00_AC2_BuiltBinaryServesWithOnlyRequiredEnv(t *testing.T) {
 func TestBuiltBinary_MigrateUpIdempotent(t *testing.T) {
 	dbURL := testSchemaURL(t)
 	env := []string{"DATABASE_URL=" + dbURL, "SESSION_SECRET=" + secret}
-	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\n", "tidak ada migrasi baru\n"} {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105258455_create_api_specs.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\n", "tidak ada migrasi baru\n"} {
 		out, errOut, code := runBin(t, env, "", "migrate", "up")
 		if code != 0 || !strings.HasSuffix(out, want) { // log JSON ikut tercetak di stdout
 			t.Fatalf("run %d: code=%d out=%q err=%q", i, code, out, errOut)

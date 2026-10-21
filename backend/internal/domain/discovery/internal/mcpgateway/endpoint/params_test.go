@@ -133,3 +133,19 @@ func TestToCallToolResult(t *testing.T) {
 		t.Fatal("kosong / _meta")
 	}
 }
+
+func TestToCallToolResult_StructuredContent(t *testing.T) {
+	var none base.Outcome
+	none.Result.Text = "hi"
+	b, _ := json.Marshal(toCallToolResult(none))
+	if strings.Contains(string(b), "structuredContent") {
+		t.Fatalf("structuredContent muncul tanpa Structured: %s", b)
+	}
+	var withS base.Outcome
+	withS.Result.Text = "hi"
+	withS.Result.Structured = map[string]any{"total": 3}
+	b, _ = json.Marshal(toCallToolResult(withS))
+	if !strings.Contains(string(b), `"structuredContent":{"total":3}`) {
+		t.Fatalf("%s", b)
+	}
+}

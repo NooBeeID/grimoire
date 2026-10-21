@@ -89,6 +89,32 @@ Hasil sukses: `{"content":[{"type":"text","text":"..."}],"isError":false}`. Kega
 
 Katalog tidak valid membuat server panic saat start dengan pesan berawalan `mcpgateway:`. Tool tidak boleh menulis audit sendiri; hormati `ctx` (deadline `MCP_TOOL_TIMEOUT`).
 
+## Tool knowledge
+
+Module `discovery/knowledge-tools` (T08) mendaftarkan tiga tool read-only. Project selalu dari API key; tidak ada argumen `project_id` (argumen itu ditolak). Argumen ketat (`additionalProperties: false`): field tak dikenal atau tipe salah menghasilkan `isError` dengan penjelasan field yang salah. Nilai di luar rentang ditolak, bukan dipotong. Hasil sukses membawa teks, `structuredContent` (object JSON), dan metadata audit tanpa isi file.
+
+| Tool | Argumen | Keterangan |
+|---|---|---|
+| `list_files` | `path` (string, maks 1024, kosong = akar), `recursive` (boolean, default `false`), `limit` (1-500, default 200), `offset` (0-1000000, default 0) | Tanpa `recursive`, satu tingkat dengan subfolder sebagai entri `[folder]`. Terpotong: `[ada N file lagi, panggil list_files dengan offset=...]`. |
+| `read_file` | `path` (wajib, 1-1024), `offset` (0-2147483647, default 0), `limit` (1 sampai `MCP_MAX_RESPONSE_BYTES-512`, default 40000) | `offset` dan `limit` dalam BYTE (bukan karakter), dipotong pada batas UTF-8. Terpotong: `[terpotong: lanjutkan dengan offset=N dari total M byte]`. File tidak ada: `isError` dengan saran path mirip. |
+| `search_knowledge` | `query` (wajib, 1-200), `path` (prefix opsional), `limit` (1-20, default 10) | Full-text, bukan semantik. Frasa dalam kutip dicari utuh. Kata kunci di cuplikan bertanda `**...**`. |
+
+Contoh `tools/call`:
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_files","arguments":{"path":"docs","recursive":true,"limit":50}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"read_file","arguments":{"path":"docs/guides/a.md","offset":40000,"limit":40000}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"search_knowledge","arguments":{"query":"\"rate limit\"","path":"docs","limit":5}}}
+```
+
+Kontrak `tools/list` dibekukan di `backend/internal/domain/discovery/internal/knowledgetools/testdata/tools_list.golden.json` (perbarui dengan `go test ./internal/domain/discovery/internal/knowledgetools/ -update` lalu periksa diff).
+
 ## Tes manual
 
 ```

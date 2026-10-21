@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../../../shared/services/http';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { mockSummary } from '../mocks/entries';
-import { AUDIT_ACTIONS, EMPTY_FILTER, type AuditFilter } from '../types';
+import { ACTION_GROUPS, AUDIT_ACTIONS, EMPTY_FILTER, type AuditFilter } from '../types';
 import ActionPicker from './ActionPicker.svelte';
 import AuditTable from './AuditTable.svelte';
 import FilterBar from './FilterBar.svelte';
@@ -149,5 +149,12 @@ describe('FilterBar', () => {
     expect(screen.getByLabelText('Jenis aktor')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(onreset).toHaveBeenCalled();
+  });
+});
+
+describe('katalog aksi T08', () => {
+  it('grup mcp memuat tiga aksi knowledge-tools', () => {
+    const mcp = ACTION_GROUPS.find((g) => g.key === 'mcp');
+    expect(mcp?.actions).toEqual(expect.arrayContaining(['mcp.list_files', 'mcp.read_file', 'mcp.search_knowledge']));
   });
 });

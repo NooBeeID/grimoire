@@ -72,6 +72,14 @@ Tidak ada.
 6. Tes kontrak: bentuk `tools/list` (nama, deskripsi, schema) stabil dan tervalidasi sebagai JSON Schema.
 7. Tidak ada impor terlarang (lolos tes arsitektur T00).
 
+## Keputusan
+
+- D1. `toolkit.Result` mendapat field aditif `Structured map[string]any`; gateway T07 meneruskannya sebagai `structuredContent` (tidak diaudit, tidak dipotong). Tiket mewajibkan `structuredContent`, tetapi toolkit T07 belum punya field untuk itu. Tidak ada `outputSchema` di `tools/list`.
+- D2. `offset` dan `limit` `read_file` memakai satuan BYTE, bukan karakter seperti tertulis di bagian spesifikasi di atas. Kontrak T05 berbasis byte dan memotong di batas UTF-8, sehingga `offset=NextOffset` menyambung tanpa duplikat atau celah (AC2).
+- D3. Argumen ketat: `additionalProperties: false`, field tak dikenal ditolak, dan `project_id`/`projectId`/`project` mendapat pesan khusus. Project tidak pernah berubah (AC5).
+- D5. Nilai di luar rentang ditolak (`isError`), tidak di-clamp. `read_file.limit` maksimal `max(1024, MCPMaxResponseBytes-512)` agar gateway tidak memotong isi file.
+- D12. Folder `register` tidak dibuat sebagai feature; wiring ada di `knowledgetools/base.go` ditambah satu baris di `discovery/base.go`.
+
 ## Pertanyaan terbuka
 
 Tidak ada.
