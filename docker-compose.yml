@@ -1,0 +1,36 @@
+# Menjalankan Grimoire dari image Docker Hub (achimonchi/grimoire) + Postgres.
+# Pemakaian: lihat README bagian "Menjalankan dari Docker Hub".
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: grimoire
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di .env}
+      POSTGRES_DB: grimoire
+    volumes:
+      - grimoire_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grimoire -d grimoire"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  grimoire:
+    image: achimonchi/grimoire:${GRIMOIRE_TAG:-scratch}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://grimoire:${POSTGRES_PASSWORD}@db:5432/grimoire?sslmode=disable
+      SESSION_SECRET: ${SESSION_SECRET:?isi SESSION_SECRET di .env (>= 32 byte)}
+      RUN_MIGRATIONS_ON_START: "true"
+      # false hanya untuk akses via http://localhost; set true bila di belakang HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  grimoire_pgdata:
