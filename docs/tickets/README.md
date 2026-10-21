@@ -18,6 +18,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Selesai (`b8699f4`) |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Selesai (`741a85c`) |
 | [T10](T10-project-api-spec-swagger2.md) | project | api-spec (dukungan Swagger 2.0) | L | T06, T09 | Selesai (`f44ab86`) |
+| [T11](T11-discovery-search-quality.md) | discovery | knowledge-tools (pengukuran kualitas pencarian) | M | T02, T05, T08 | Plan siap |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
@@ -32,6 +33,7 @@ T00 foundation (ROOT)
 │       ├── T04 project/api-key
 │       │   └── T07 discovery/mcp-gateway  + butuh T02
 │       │       ├── T08 discovery/knowledge-tools   + butuh T05
+│       │       │   └── T11 discovery/search-quality    + butuh T02, T05
 │       │       └── T09 discovery/api-spec-tools    + butuh T06
 │       ├── T05 project/knowledge
 │       └── T06 project/api-spec
@@ -49,7 +51,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 4 | T04, T05, T06 |
 | 5 | T07 |
 | 6 | T08, T09 |
-| 7 | T10 |
+| 7 | T10, T11 |
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
 
