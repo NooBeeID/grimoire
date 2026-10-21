@@ -80,9 +80,10 @@ export async function createReadyUserApi(
 }
 
 /** Context browser yang sudah login sebagai admin e2e, dengan izin clipboard. */
-export async function adminContext(browser: Browser): Promise<BrowserContext> {
+export async function adminContext(browser: Browser, locale?: string): Promise<BrowserContext> {
   const context = await browser.newContext({
     baseURL: baseURL(),
+    locale,
     permissions: ['clipboard-read', 'clipboard-write'],
   });
   await apiLogin(context.request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -90,6 +91,6 @@ export async function adminContext(browser: Browser): Promise<BrowserContext> {
 }
 
 /** Context browser baru tanpa sesi. */
-export function newContext(browser: Browser): Promise<BrowserContext> {
-  return browser.newContext({ baseURL: baseURL() });
+export function newContext(browser: Browser, locale?: string): Promise<BrowserContext> {
+  return browser.newContext({ baseURL: baseURL(), locale });
 }

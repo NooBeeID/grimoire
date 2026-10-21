@@ -45,7 +45,7 @@ export function retryAfterOf(details: unknown): number | null {
   return r.success ? r.data.retry_after_seconds : null;
 }
 
-export const ReasonDetails = z.object({ reason: z.string() });
+export const ReasonDetails = z.object({ reason: z.string().min(1) });
 export function reasonOf(details: unknown): string | null {
   const r = ReasonDetails.safeParse(details);
   return r.success ? r.data.reason : null;

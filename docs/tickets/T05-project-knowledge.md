@@ -92,6 +92,8 @@ index: gin(search); (project_id, path text_pattern_ops)  -- untuk prefix folder
 ## Kontrak bus
 
 Disediakan (`lib/contracts/project/knowledge/...`) — semuanya sudah dibatasi pada `ProjectID` yang diberikan pemanggil; module ini tidak tahu soal key:
+- `project.knowledge.count-files` Call — kontrak `lib/contracts/project/management/contentcount` (`{ProjectIDs}` → `{Counts map[string]int}`): jumlah file per project untuk T03. Hanya menghitung `ProjectIDs` yang diberikan; maksimal `contentcount.MaxProjectIDs`.
+- Semua tabel dengan `project_id` WAJIB `REFERENCES projects(id) ON DELETE CASCADE`; route memakai param `{projectID}`.
 - `project.knowledge.list-files` — `{ProjectID, Prefix, Recursive, Limit, Offset}` → `{Items[{Path, SizeBytes, UpdatedAt}], Total, Truncated}`.
 - `project.knowledge.read-file` — `{ProjectID, Path, Offset, Limit}` → `{Found, Path, Content, SizeBytes, TotalBytes, NextOffset, Truncated, Similar[]}` (`Similar` berisi path mirip bila tidak ketemu).
 - `project.knowledge.search` — `{ProjectID, Query, Prefix, Limit}` → `{Items[{Path, Score, Snippet}], Total}`.

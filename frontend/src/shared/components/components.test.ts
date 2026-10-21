@@ -15,6 +15,7 @@ import Pagination from './Pagination.svelte';
 import Select from './Select.svelte';
 import Spinner from './Spinner.svelte';
 import Table from './Table.svelte';
+import Textarea from './Textarea.svelte';
 import ToastHost from './Toast.svelte';
 
 afterEach(() => {
@@ -51,6 +52,19 @@ describe('Input', () => {
     expect(ids.map((i) => document.getElementById(i)?.textContent)).toContain('wajib');
     await userEvent.type(input, 'abc');
     expect(input.value).toBe('abc');
+  });
+});
+
+describe('Textarea', () => {
+  it('links label, error, and binds value', async () => {
+    render(Textarea, { label: 'Deskripsi', error: 'terlalu panjang', rows: 3 });
+    const ta = screen.getByLabelText('Deskripsi') as HTMLTextAreaElement;
+    expect(ta).toHaveAttribute('aria-invalid', 'true');
+    expect(ta).toHaveAttribute('rows', '3');
+    const ids = ta.getAttribute('aria-describedby')!.split(' ');
+    expect(ids.map((i) => document.getElementById(i)?.textContent)).toContain('terlalu panjang');
+    await userEvent.type(ta, 'abc');
+    expect(ta.value).toBe('abc');
   });
 });
 

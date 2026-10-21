@@ -8,6 +8,7 @@
     type = 'button',
     disabled = false,
     loading = false,
+    ariaLabel,
     onclick,
     children,
   }: {
@@ -16,6 +17,7 @@
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
     loading?: boolean;
+    ariaLabel?: string;
     onclick?: (e: MouseEvent) => void;
     children?: Snippet;
   } = $props();
@@ -33,6 +35,7 @@
   {type}
   disabled={disabled || loading}
   aria-busy={loading}
+  aria-label={ariaLabel}
   {onclick}
   class="inline-flex items-center justify-center gap-2 rounded-base font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 {variants[variant]} {sizes[size]}"
 >

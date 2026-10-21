@@ -18,8 +18,9 @@
     }
   }
   const path = $derived($current.location.path);
+  const isActive = (href: string) => (href === '/' ? path === '/' || path.startsWith('/projects/') : path === href);
   const links = $derived([
-    { href: '/', label: $t('nav.home') },
+    { href: '/', label: $t('nav.projects') },
     ...($session.identity?.role === 'super_admin'
       ? [
           { href: '/admin/users', label: $t('nav.users') },
@@ -37,7 +38,7 @@
     <span class="font-semibold">{$t('app.name')}</span>
     <nav aria-label={$t('nav.main')} class="flex gap-4">
       {#each links as l (l.href)}
-        <a href={l.href} aria-current={path === l.href ? 'page' : undefined} class="hover:underline {path === l.href ? 'font-semibold' : ''}">{l.label}</a>
+        <a href={l.href} aria-current={isActive(l.href) ? 'page' : undefined} class="hover:underline {isActive(l.href) ? 'font-semibold' : ''}">{l.label}</a>
       {/each}
     </nav>
   </div>

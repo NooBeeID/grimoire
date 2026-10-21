@@ -96,3 +96,14 @@ describe('router', () => {
     stop = startRouter(defs);
   });
 });
+
+describe('project workspace routes', () => {
+  it('matches /projects/:projectID and /projects/:projectID/:tab', async () => {
+    const { routes } = await import('./index');
+    const a = match('/projects/abc', routes);
+    expect(a?.params).toEqual({ projectID: 'abc' });
+    expect(a?.route.meta).toMatchObject({ auth: true, layout: 'app' });
+    expect(match('/projects/abc/members', routes)?.params).toEqual({ projectID: 'abc', tab: 'members' });
+    expect(match('/projects/a%2Fb/settings', routes)?.params).toEqual({ projectID: 'a/b', tab: 'settings' });
+  });
+});

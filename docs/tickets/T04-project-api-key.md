@@ -64,6 +64,8 @@ unique(project_id, name) where revoked_at is null
 ## Kontrak bus
 
 Disediakan (`lib/contracts/project/apikey/...`):
+- `project.apikey.count-keys` Call — kontrak `lib/contracts/project/management/contentcount` (`{ProjectIDs}` → `{Counts map[string]int}`): jumlah key aktif (belum dicabut) per project untuk T03. Hanya menghitung `ProjectIDs` yang diberikan; maksimal `contentcount.MaxProjectIDs`.
+- Semua tabel dengan `project_id` WAJIB `REFERENCES projects(id) ON DELETE CASCADE`; route memakai param `{projectID}`.
 - `project.apikey.verify` Call — `{RawKey}` → `{Found, KeyID, KeyName, Prefix, ProjectID}`.
 - `project.apikey.touch` Publish — `{KeyID}` → –.
 

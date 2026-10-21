@@ -86,6 +86,8 @@ Batas jumlah spec per project (default 100).
 ## Kontrak bus
 
 Disediakan (`lib/contracts/project/apispec/...`), dibatasi pada `ProjectID` pemanggil:
+- `project.apispec.count-specs` Call — kontrak `lib/contracts/project/management/contentcount` (`{ProjectIDs}` → `{Counts map[string]int}`): jumlah spec per project untuk T03. Hanya menghitung `ProjectIDs` yang diberikan; maksimal `contentcount.MaxProjectIDs`.
+- Semua tabel dengan `project_id` WAJIB `REFERENCES projects(id) ON DELETE CASCADE`; route memakai param `{projectID}`.
 - `project.apispec.list-specs` — `{ProjectID}` → `[{Name, Title, ApiVersion, OpenapiVersion, EndpointCount, UpdatedAt}]`.
 - `project.apispec.list-endpoints` — `{ProjectID, Spec?, Tag?, Query?, Limit, Offset}` → `{Items[{Spec, Method, Path, OperationID, Summary, Tags, Deprecated}], Total, Truncated}`.
 - `project.apispec.get-endpoint` — `{ProjectID, Spec, Method?, Path?, OperationID?, SchemaDepth}` → `{Found, Spec, Method, Path, Operation(json), Servers, SecuritySchemes, Truncated}` (`Found=false` disertai `Similar[]`).

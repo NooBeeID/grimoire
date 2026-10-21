@@ -23,11 +23,35 @@ function boot(path: string) {
   return render(App);
 }
 
+const emptyList = { items: [], total: 0, limit: 20, offset: 0 };
+const created = {
+  id: '0192f5a0-1111-7aaa-8bbb-000000000001',
+  name: 'Payments',
+  description: '',
+  created_by: null,
+  created_by_label: null,
+  created_at: '2026-10-22T09:00:00Z',
+  updated_at: '2026-10-22T09:00:00Z',
+  my_role: 'owner',
+  access_level: 'owner',
+  is_member: true,
+  member_count: 1,
+  counts: { files: 0, specs: 0, keys: 0 },
+};
+let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   setLocale('id');
   resetSession();
+  fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === 'POST' && url === '/api/projects') return new Response(JSON.stringify(created), { status: 201 });
+    return new Response(JSON.stringify(emptyList), { status: 200 });
+  });
+  vi.stubGlobal('fetch', fetchMock);
 });
-afterEach(() => stop());
+afterEach(() => {
+  stop();
+  vi.unstubAllGlobals();
+});
 
 describe('App', () => {
   it('renders home with id text and title', () => {
@@ -35,6 +59,17 @@ describe('App', () => {
     boot('/');
     expect(screen.getByTestId('home-title')).toHaveTextContent('Selamat datang di Grimoire');
     expect(document.title).toBe('Selamat datang di Grimoire · Grimoire');
+  });
+
+  it('home loads the project list and opens the create dialog; created navigates to members tab', async () => {
+    setIdentity(DEV);
+    boot('/');
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/projects?'))).toBe(true));
+    expect(await screen.findByText('Belum ada project')).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Project baru' })[0]!);
+    await userEvent.type(screen.getByLabelText(/Nama project/), 'Payments');
+    await userEvent.click(screen.getByRole('button', { name: 'Buat' }));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${created.id}/members`));
   });
 
   it('renders not found, then navigates home without reload', async () => {

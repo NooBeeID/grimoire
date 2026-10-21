@@ -105,6 +105,7 @@ Aturan:
 - `bus.Call` untuk lookup/validasi sinkron. `bus.Publish` untuk efek samping fire-and-forget. Handler yang sama terdaftar sekali; registrasi ganda = panic.
 - Hasil "tidak ketemu" dikembalikan sebagai `Found bool`, bukan error.
 - Usecase hanya orkestrasi. Rule bisnis ada di entity. Repository satu-satunya yang menyentuh SQL (sqlx, transaksi lewat `BeginTx(ctx, func...)`).
+- Route di bawah `/api/projects` didaftarkan dengan pola penuh langsung di `d.API` (tanpa `Route`/`Mount` pada `/projects`). Nama param WAJIB `{projectID}` (dan `{userID}` untuk user). Contoh T04: `d.API.With(middleware.RequireAuth()).Get("/projects/{projectID}/api-keys", h)`.
 - Foreign key antar tabel milik module berbeda dibatasi pada `project_id`/`user_id` dengan `ON DELETE CASCADE` (lihat T03). Selain itu tidak ada join lintas module.
 
 ### Frontend (Svelte)
@@ -147,6 +148,9 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `core.audit.record` | Call / Publish (satu handler untuk keduanya) | T02 | T01, T03, T04, T05, T06, T07 |
 | `project.management.check-access` | Call | T03 | T04, T05, T06 |
 | `project.management.get-project` | Call | T03 | T07 |
+| `project.knowledge.count-files` | Call | T05 | T03 |
+| `project.apispec.count-specs` | Call | T06 | T03 |
+| `project.apikey.count-keys` | Call | T04 | T03 |
 | `project.apikey.verify` | Call | T04 | T07 |
 | `project.apikey.touch` | Publish | T04 | T07 |
 | `project.knowledge.list-files` | Call | T05 | T08 |
@@ -156,6 +160,8 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
+
+Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -> `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
 
 Kontrak `core.audit.record`: `lib/contracts/core/audit/record` (konstanta `constants.BUS_CORE_AUDIT_RECORD`), request dikirim sebagai nilai `record.Request`.
 

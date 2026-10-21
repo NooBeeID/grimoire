@@ -43,6 +43,10 @@ describe('retryAfterOf / reasonOf', () => {
   it('reads reason', () => {
     expect(reasonOf({ reason: 'LAST_SUPER_ADMIN' })).toBe('LAST_SUPER_ADMIN');
     expect(reasonOf({ reason: 1 })).toBeNull();
+    expect(reasonOf({ reason: '' })).toBeNull();
+    expect(reasonOf({ fields: {} })).toBeNull();
+    expect(reasonOf(null)).toBeNull();
+    expect(reasonOf({ reason: 'LAST_OWNER' })).toBe('LAST_OWNER');
     expect(reasonOf(undefined)).toBeNull();
   });
 });

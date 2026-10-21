@@ -304,7 +304,7 @@ func TestMigrate_ConnectionReturnedClean(t *testing.T) {
 func TestUp_EmbeddedFS(t *testing.T) {
 	d := TestDB(t)
 	res, err := Up(context.Background(), d, nil)
-	wantApplied := []string{"core/20261021090000000_create_audit_log.sql", "core/20261021100000000_create_auth_tables.sql"}
+	wantApplied := []string{"core/20261021090000000_create_audit_log.sql", "core/20261021100000000_create_auth_tables.sql", "project/20261022090000000_create_projects.sql"}
 	if err != nil || !reflect.DeepEqual(res.Applied, wantApplied) {
 		t.Fatalf("run 1: res=%v err=%v, want %v", res, err, wantApplied)
 	}

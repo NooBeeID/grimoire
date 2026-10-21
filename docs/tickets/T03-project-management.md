@@ -38,15 +38,16 @@ Satu project boleh punya lebih dari satu owner (keputusan saya).
 
 | Folder | Deskripsi | Titik masuk | Siapa |
 |---|---|---|---|
-| `createproject` | Buat project; pembuat jadi owner | `POST /api/projects` | developer, super_admin |
+| `createproject` | Buat project; developer pembuat jadi owner, Super Admin tidak dijadikan anggota (project lahir tanpa owner) | `POST /api/projects` | developer, super_admin |
 | `listprojects` | Developer: project yang ia ikuti. Super Admin: semua (+ filter/pencarian) | `GET /api/projects` | keduanya |
 | `getproject` | Detail + peran saya + ringkasan jumlah (file, spec, key) | `GET /api/projects/{id}` | anggota, super_admin |
 | `updateproject` | Ubah nama/deskripsi | `PATCH /api/projects/{id}` | anggota, super_admin |
 | `deleteproject` | Hapus permanen beserta isinya | `DELETE /api/projects/{id}` | owner, super_admin |
 | `listmembers` | Daftar anggota dengan peran | `GET /api/projects/{id}/members` | anggota, super_admin |
-| `addmember` | Tambah developer aktif (cari lewat email/nama) | `POST /api/projects/{id}/members` | owner, super_admin |
+| `addmember` | Tambah developer aktif; `role` opsional (default `member`, `owner` untuk menunjuk owner) | `POST /api/projects/{id}/members` | owner, super_admin |
 | `removemember` | Keluarkan anggota / keluar sendiri | `DELETE /api/projects/{id}/members/{userId}` | owner, super_admin, diri sendiri |
 | `changememberrole` | Owner ↔ member | `PATCH /api/projects/{id}/members/{userId}` | owner, super_admin |
+| `searchmembercandidates` | Cari developer aktif yang belum menjadi anggota (autocomplete tambah anggota) | `GET /api/projects/{projectID}/member-candidates` | owner, super_admin |
 | `checkaccess` | Handler bus: tentukan level akses user pada project | bus `project.management.check-access` | internal |
 | `getprojectbus` | Handler bus: id → ringkasan project | bus `project.management.get-project` | internal |
 
@@ -77,7 +78,7 @@ Disediakan (`lib/contracts/project/management/...`):
 - `project.management.check-access` Call — `{ProjectID, UserID, UserRole}` → `{ProjectExists, Level}` dengan `Level ∈ none | member | owner | admin`. `admin` untuk `UserRole == super_admin`.
 - `project.management.get-project` Call — `{ProjectID}` → `{Found, ID, Name}`.
 
-Dikonsumsi: `core.auth.get-user`, `core.auth.find-developers` (T01), `core.audit.record` (T02).
+Dikonsumsi: `core.auth.get-user`, `core.auth.find-developers` (T01), `core.audit.record` (T02, Call setelah commit, fail-open), dan hitungan isi `project.knowledge.count-files` (T05), `project.apispec.count-specs` (T06), `project.apikey.count-keys` (T04) lewat `lib/contracts/project/management/contentcount` (fail-soft; `null` sampai provider ada).
 
 Event audit: `project.created`, `project.updated`, `project.deleted` (nama, jumlah file/spec/key saat dihapus), `project.member.added`, `project.member.removed`, `project.member.role_changed`.
 

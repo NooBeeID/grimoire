@@ -27,7 +27,7 @@ test('cache headers', async ({ page }) => {
 });
 
 test('deep link falls back to SPA and client navigation does not reload', async ({ page }) => {
-  const res = await page.goto('/projects/abc');
+  const res = await page.goto('/zzz/abc');
   expect(res?.status()).toBe(200);
   await expect(page.getByTestId('notfound-title')).toBeVisible();
   await page.evaluate(() => ((window as unknown as { __navMarker: number }).__navMarker = 1));

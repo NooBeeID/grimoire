@@ -14,11 +14,22 @@ import HomeView from '../views/HomeView.svelte';
 import AuditLogView from '../views/AuditLogView.svelte';
 import NotFoundView from '../views/NotFoundView.svelte';
 import ProfileView from '../views/ProfileView.svelte';
+import ProjectWorkspaceView from '../views/ProjectWorkspaceView.svelte';
 import UsersView from '../views/UsersView.svelte';
 import type { RouteDef } from './router';
 
 export const routes: RouteDef[] = [
   { path: '/', view: HomeView, meta: { auth: true, layout: 'app', titleKey: 'home.title' } },
+  {
+    path: '/projects/:projectID',
+    view: ProjectWorkspaceView,
+    meta: { auth: true, layout: 'app', titleKey: 'project.workspace.title' },
+  },
+  {
+    path: '/projects/:projectID/:tab',
+    view: ProjectWorkspaceView,
+    meta: { auth: true, layout: 'app', titleKey: 'project.workspace.title' },
+  },
   { path: '/login', view: LoginView, meta: { guestOnly: true, layout: 'blank', titleKey: 'auth.login.title' } },
   {
     path: '/change-password',
