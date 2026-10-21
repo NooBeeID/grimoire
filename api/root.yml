@@ -31,6 +31,10 @@ paths:
     $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1activate
   /api/users/{id}/reset-password:
     $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1reset-password
+  /api/users/invite:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1invite
+  /api/users/{id}/resend-invitation:
+    $ref: ./modules/core/auth.yml#/paths/~1api~1users~1{id}~1resend-invitation
   /api/projects:
     $ref: ./modules/project/management.yml#/paths/~1api~1projects
   /api/projects/{projectID}:
@@ -41,6 +45,12 @@ paths:
     $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1members~1{userID}
   /api/projects/{projectID}/member-candidates:
     $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1member-candidates
+  /api/projects/{projectID}/invitations:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1invitations
+  /api/projects/{projectID}/invitations/{userID}:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1invitations~1{userID}
+  /api/projects/{projectID}/invitations/{userID}/resend:
+    $ref: ./modules/project/management.yml#/paths/~1api~1projects~1{projectID}~1invitations~1{userID}~1resend
   /api/projects/{projectID}/api-keys:
     $ref: ./modules/project/api-key.yml#/paths/~1api~1projects~1{projectID}~1api-keys
   /api/projects/{projectID}/api-keys/{keyID}/revoke:

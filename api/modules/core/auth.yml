@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Grimoire Auth
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /api/auth/login:
     post:
@@ -12,6 +12,8 @@ paths:
         Publik, rate limit per IP. Gagal login (email tidak ada, password salah, user nonaktif)
         dijawab identik 401 INVALID_CREDENTIALS. Lockout per email menghasilkan 429 ACCOUNT_LOCKED
         dengan header Retry-After. Email dinormalisasi lowercase; password maksimal 256 byte.
+        Akun undangan (T12) yang menunggu dan sudah lewat expires_at juga dijawab identik 401
+        INVALID_CREDENTIALS dan dihitung ke lockout.
       security: []
       parameters:
         - $ref: "#/components/parameters/XRequestedWith"
@@ -98,7 +100,9 @@ paths:
       operationId: getMe
       tags: [auth]
       summary: Identitas user yang sedang login
-      description: Exempt dari password gate. 401 adalah hasil normal saat bootstrap tanpa sesi.
+      description: >
+        Exempt dari password gate. 401 adalah hasil normal saat bootstrap tanpa sesi.
+        email_enabled menandakan server dapat mengirim email (undangan lewat email aktif).
       security: [{ sessionCookie: [] }]
       responses:
         "200":
@@ -112,6 +116,7 @@ paths:
                 name: Budi
                 role: developer
                 must_change_password: false
+                email_enabled: false
         "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
         "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
   /api/auth/change-password:
@@ -122,7 +127,8 @@ paths:
       description: >
         Rate limit per user. Password lama salah dijawab 400 (fields.current_password), bukan 401.
         Sukses mencabut semua sesi lain user; sesi saat ini tetap. Mengosongkan must_change_password.
-        409 bila terjadi perubahan password paralel.
+        409 bila terjadi perubahan password paralel. Akun undangan yang sudah lewat expires_at
+        dijawab 400 dengan fields.current_password. Sukses pada akun undangan menandai undangan diterima.
       security: [{ sessionCookie: [] }]
       parameters:
         - $ref: "#/components/parameters/XRequestedWith"
@@ -366,6 +372,167 @@ paths:
         "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
         "429": { $ref: "../infra/foundation.yml#/components/responses/RateLimited" }
         "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/invite:
+    post:
+      operationId: inviteUser
+      tags: [users]
+      summary: Undang developer lewat email (khusus super_admin)
+      description: >
+        Membuat akun developer (nama default dari bagian lokal email bila name kosong), menerbitkan
+        password sementara, dan mengirimnya lewat email dalam satu langkah. Email dinormalisasi
+        lowercase. Bila email terkirim, respons tidak memuat credentials. Bila tidak terkirim
+        (email_status failed atau not_configured) respons memuat credentials SEKALI dengan header
+        Cache-Control no-store; kredensial itu tidak dapat diambil lagi. Akun yang masih menunggu
+        (belum diterima) diterbitkan ulang (created=false) dan dihitung sebagai kirim ulang.
+        409 ALREADY_REGISTERED (details.reason registered, inactive, atau not_developer) bila email
+        sudah terdaftar. Kuota undangan per pengundang 20 per jam (429 scope invite).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InviteUserRequest" }
+            example: { email: "Baru@Contoh.id ", name: "" }
+      responses:
+        "201":
+          description: Undangan diterbitkan
+          headers:
+            Cache-Control:
+              description: no-store, hanya bila respons memuat credentials
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteUserResponse" }
+              examples:
+                sent:
+                  value:
+                    user:
+                      id: 7c1f3c2e-5b7a-4d7e-9a51-1f0b8a3e6d21
+                      email: baru@contoh.id
+                      name: baru
+                      role: developer
+                      is_active: true
+                      must_change_password: true
+                      created_at: "2026-10-21T08:15:00Z"
+                      created_by: 0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d
+                      created_by_label: admin@tim.id
+                      updated_at: "2026-10-21T08:15:00Z"
+                      last_login_at: null
+                      invitation:
+                        pending: true
+                        invited_at: "2026-10-21T08:15:00Z"
+                        sent_at: "2026-10-21T08:15:01Z"
+                        expires_at: "2026-10-28T08:15:00Z"
+                        expired: false
+                        delivery_status: sent
+                        resend_count: 0
+                    created: true
+                    email_sent: true
+                    email_status: sent
+                    expires_at: "2026-10-28T08:15:00Z"
+                fallback:
+                  value:
+                    user:
+                      id: 7c1f3c2e-5b7a-4d7e-9a51-1f0b8a3e6d21
+                      email: baru@contoh.id
+                      name: baru
+                      role: developer
+                      is_active: true
+                      must_change_password: true
+                      created_at: "2026-10-21T08:15:00Z"
+                      created_by: 0b7c6a4e-2f1d-4c8a-9e3b-5d6f7a8b9c0d
+                      created_by_label: admin@tim.id
+                      updated_at: "2026-10-21T08:15:00Z"
+                      last_login_at: null
+                      invitation:
+                        pending: true
+                        invited_at: "2026-10-21T08:15:00Z"
+                        sent_at: null
+                        expires_at: "2026-10-28T08:15:00Z"
+                        expired: false
+                        delivery_status: not_configured
+                        resend_count: 0
+                    created: true
+                    email_sent: false
+                    email_status: not_configured
+                    expires_at: "2026-10-28T08:15:00Z"
+                    credentials:
+                      email: baru@contoh.id
+                      temporary_password: q7XkR2mVtz9HbNcP
+                      login_url: https://grimoire.contoh.id/login
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "409": { $ref: "#/components/responses/AlreadyRegistered" }
+        "429": { $ref: "#/components/responses/InvitationRateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/users/{id}/resend-invitation:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      operationId: resendUserInvitation
+      tags: [users]
+      summary: Kirim ulang undangan (khusus super_admin)
+      description: >
+        Tanpa body. Menerbitkan password sementara baru, memperpanjang expires_at, mencabut semua
+        sesi target, lalu mengirim email. Berlaku juga untuk undangan yang sudah kedaluwarsa (jalur
+        pemulihan). Kuota 3 kirim ulang per jam per undangan (429 scope resend). Credentials hanya
+        ada bila email tidak terkirim, dengan header Cache-Control no-store.
+        404 bila user tidak ada atau id bukan uuid. 409 CONFLICT details.reason
+        INVITATION_NOT_PENDING (undangan sudah diterima atau tidak ada) atau ALREADY_REGISTERED
+        details.reason inactive (akun nonaktif).
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "200":
+          description: Undangan diterbitkan ulang
+          headers:
+            Cache-Control:
+              description: no-store, hanya bila respons memuat credentials
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResendInvitationResult" }
+              examples:
+                sent:
+                  value: { email_sent: true, email_status: sent, expires_at: "2026-10-28T09:00:00Z" }
+                fallback:
+                  value:
+                    email_sent: false
+                    email_status: failed
+                    expires_at: "2026-10-28T09:00:00Z"
+                    credentials:
+                      email: baru@contoh.id
+                      temporary_password: Zp4wNe8TqYv3KdRh
+                      login_url: https://grimoire.contoh.id/login
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/ForbiddenAdmin" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "409":
+          description: Undangan tidak menunggu (CONFLICT INVITATION_NOT_PENDING) atau akun nonaktif (ALREADY_REGISTERED inactive)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                not_pending:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: undangan sudah diterima atau tidak ada
+                      details: { reason: INVITATION_NOT_PENDING }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                inactive:
+                  value:
+                    error:
+                      code: ALREADY_REGISTERED
+                      message: akun nonaktif
+                      details: { reason: inactive }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "429": { $ref: "#/components/responses/InvitationRateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
 components:
   securitySchemes:
     sessionCookie:
@@ -435,6 +602,32 @@ components:
               value:
                 error: { code: CONFLICT, message: email sudah terdaftar, details: null }
                 trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    AlreadyRegistered:
+      description: Email sudah terdaftar (ALREADY_REGISTERED); details.reason registered, inactive, atau not_developer
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: ALREADY_REGISTERED
+              message: email sudah terdaftar
+              details: { reason: registered }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    InvitationRateLimited:
+      description: Kuota undangan atau kirim ulang habis (RATE_LIMITED); details.scope invite atau resend
+      headers:
+        Retry-After:
+          description: Detik sebelum boleh mencoba lagi
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: RATE_LIMITED
+              message: terlalu banyak permintaan undangan
+              details: { retry_after_seconds: 1840, scope: resend }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
   schemas:
     Role:
       type: string
@@ -448,13 +641,16 @@ components:
         password: { type: string, maxLength: 256, writeOnly: true }
     Me:
       type: object
-      required: [id, email, name, role, must_change_password]
+      required: [id, email, name, role, must_change_password, email_enabled]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
         name: { type: string }
         role: { $ref: "#/components/schemas/Role" }
         must_change_password: { type: boolean }
+        email_enabled:
+          type: boolean
+          description: true bila server dapat mengirim email (MAIL_DRIVER terkonfigurasi).
     LoginResponse:
       type: object
       required: [user]
@@ -485,6 +681,7 @@ components:
         - created_by_label
         - updated_at
         - last_login_at
+        - invitation
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -497,6 +694,11 @@ components:
         created_by_label: { type: [string, "null"] }
         updated_at: { type: string, format: date-time }
         last_login_at: { type: [string, "null"], format: date-time }
+        invitation:
+          description: Penanda undangan; null bila akun tanpa undangan atau undangan sudah diterima.
+          oneOf:
+            - $ref: "#/components/schemas/UserInvitation"
+            - type: "null"
     CreateUserRequest:
       type: object
       additionalProperties: false
@@ -545,3 +747,56 @@ components:
           maxLength: 256
           writeOnly: true
           description: Opsional; bila kosong server membangkitkan password sementara.
+    InvitationStatus:
+      type: string
+      enum: [sent, failed, not_configured]
+      description: Hasil pengiriman email undangan.
+    UserInvitation:
+      type: object
+      required: [pending, invited_at, sent_at, expires_at, expired, delivery_status, resend_count]
+      properties:
+        pending: { type: boolean, description: Selalu true bila objek ada. }
+        invited_at: { type: string, format: date-time }
+        sent_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: string, format: date-time }
+        expired: { type: boolean }
+        delivery_status:
+          type: string
+          enum: [pending, sent, failed, not_configured]
+        resend_count: { type: integer, minimum: 0 }
+    InvitationCredentials:
+      type: object
+      description: Kredensial sementara, hanya muncul sekali saat email tidak terkirim.
+      required: [email, temporary_password, login_url]
+      properties:
+        email: { type: string }
+        temporary_password: { type: string }
+        login_url: { type: string }
+    InviteUserRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, maxLength: 254 }
+        name:
+          type: string
+          maxLength: 100
+          description: Opsional; bila kosong diturunkan dari bagian lokal email.
+    InviteUserResponse:
+      type: object
+      required: [user, created, email_sent, email_status, expires_at]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        created: { type: boolean, description: false bila akun menunggu diterbitkan ulang. }
+        email_sent: { type: boolean }
+        email_status: { $ref: "#/components/schemas/InvitationStatus" }
+        expires_at: { type: string, format: date-time }
+        credentials: { $ref: "#/components/schemas/InvitationCredentials" }
+    ResendInvitationResult:
+      type: object
+      required: [email_sent, email_status, expires_at]
+      properties:
+        email_sent: { type: boolean }
+        email_status: { $ref: "#/components/schemas/InvitationStatus" }
+        expires_at: { type: string, format: date-time }
+        credentials: { $ref: "#/components/schemas/InvitationCredentials" }

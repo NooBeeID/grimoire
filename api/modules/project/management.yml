@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Grimoire Project Management
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /api/projects:
     get:
@@ -333,11 +333,244 @@ paths:
               schema: { $ref: "#/components/schemas/MemberCandidateList" }
               example:
                 items:
-                  - { id: 0192f5a0-cccc-7aaa-8bbb-00000000000c, name: Budiman, email: budiman@tim.id }
+                  - { id: 0192f5a0-cccc-7aaa-8bbb-00000000000c, name: Budiman, email: budiman@tim.id, invitation_pending: false }
         "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
         "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
         "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/invitations:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listInvitations
+      tags: [project-invitations]
+      summary: Daftar undangan yang masih menunggu
+      description: >
+        Owner dan super_admin. Hanya anggota berstatus undangan menunggu (termasuk yang sudah
+        kedaluwarsa atau gagal terkirim). Urutan added_at menurun. Member dijawab 403; bukan
+        anggota 404. Gagal membaca data user dijawab 500.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Undangan menunggu
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitationList" }
+              example:
+                items:
+                  - user_id: 7c1f3c2e-5b7a-4d7e-9a51-1f0b8a3e6d21
+                    email: baru@contoh.id
+                    name: Budi
+                    role: member
+                    invited_by_label: Owner Satu
+                    added_at: "2026-10-21T08:15:00Z"
+                    sent_at: null
+                    expires_at: "2026-10-28T08:15:00Z"
+                    expired: false
+                    delivery_status: failed
+                    email_failed: true
+                    resend_count: 1
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    post:
+      operationId: inviteToProject
+      tags: [project-invitations]
+      summary: Undang developer baru lewat email dan jadikan anggota
+      description: >
+        Owner dan super_admin. Mencatat keanggotaan, lalu menerbitkan password sementara dan
+        mengirim email (lewat modul auth). Keanggotaan tetap tercatat walau penerbitan atau
+        pengiriman gagal; respons 201 dengan email_sent false dan email_status failed (tanpa
+        credentials), pulihkan lewat Kirim ulang. credentials hanya ada bila email tidak terkirim
+        dengan header Cache-Control no-store, tampil sekali. role default member. Member dijawab
+        403; bukan anggota 404. 409: CONFLICT details.reason ALREADY_MEMBER, atau ALREADY_REGISTERED
+        (details.reason registered, inactive, not_developer) bila email milik akun terdaftar.
+        429 RATE_LIMITED details.scope invite (kuota 20 per jam per pengundang) atau resend.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InviteMemberRequest" }
+            example: { email: baru@contoh.id, role: member, name: Budi }
+      responses:
+        "201":
+          description: Anggota dicatat dan undangan diproses
+          headers:
+            Cache-Control:
+              description: no-store, hanya bila respons memuat credentials
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteMemberResponse" }
+              examples:
+                sent:
+                  value:
+                    member:
+                      user_id: 7c1f3c2e-5b7a-4d7e-9a51-1f0b8a3e6d21
+                      name: Budi
+                      email: baru@contoh.id
+                      is_active: true
+                      found: true
+                      role: member
+                      added_at: "2026-10-21T08:15:00Z"
+                      added_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                      added_by_label: Owner Satu
+                      invitation_pending: true
+                      invitation_expires_at: "2026-10-28T08:15:00Z"
+                    created: true
+                    email_sent: true
+                    email_status: sent
+                    expires_at: "2026-10-28T08:15:00Z"
+                fallback:
+                  value:
+                    member:
+                      user_id: 7c1f3c2e-5b7a-4d7e-9a51-1f0b8a3e6d21
+                      name: Budi
+                      email: baru@contoh.id
+                      is_active: true
+                      found: true
+                      role: member
+                      added_at: "2026-10-21T08:15:00Z"
+                      added_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                      added_by_label: Owner Satu
+                      invitation_pending: true
+                      invitation_expires_at: "2026-10-28T08:15:00Z"
+                    created: true
+                    email_sent: false
+                    email_status: not_configured
+                    expires_at: "2026-10-28T08:15:00Z"
+                    credentials:
+                      email: baru@contoh.id
+                      temporary_password: q7XkR2mVtz9HbNcP
+                      login_url: https://grimoire.contoh.id/login
+        "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: Sudah anggota (CONFLICT ALREADY_MEMBER) atau email milik akun terdaftar (ALREADY_REGISTERED)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                already_member:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: user sudah menjadi anggota project
+                      details: { reason: ALREADY_MEMBER }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                already_registered:
+                  value:
+                    error:
+                      code: ALREADY_REGISTERED
+                      message: email sudah terdaftar
+                      details: { reason: registered }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "429": { $ref: "#/components/responses/InvitationRateLimited" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/invitations/{userID}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/UserID"
+    delete:
+      operationId: revokeInvitation
+      tags: [project-invitations]
+      summary: Cabut undangan yang masih menunggu
+      description: >
+        Owner dan super_admin. Tanpa body. Hanya untuk undangan yang masih menunggu; mengeluarkan
+        anggota dari project dan membersihkan akun menunggu bila tidak punya keanggotaan lain.
+        Member dijawab 403; bukan anggota, project tidak ada, atau projectID bukan uuid 404.
+        409 CONFLICT details.reason INVITATION_NOT_PENDING (undangan sudah diterima atau tidak
+        ada) atau LAST_OWNER.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "204": { description: Undangan dicabut }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: Undangan tidak menunggu (INVITATION_NOT_PENDING) atau owner terakhir (LAST_OWNER)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              examples:
+                not_pending:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: undangan sudah diterima atau tidak ada
+                      details: { reason: INVITATION_NOT_PENDING }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                last_owner:
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: owner terakhir tidak bisa keluar atau diturunkan; angkat owner lain lebih dulu
+                      details: { reason: LAST_OWNER }
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/invitations/{userID}/resend:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/UserID"
+    post:
+      operationId: resendProjectInvitation
+      tags: [project-invitations]
+      summary: Kirim ulang undangan project
+      description: >
+        Owner dan super_admin. Tanpa body. Menerbitkan password sementara baru dan memperpanjang
+        expires_at; berlaku juga untuk undangan kedaluwarsa. Kuota 3 per jam per undangan (429
+        scope resend). credentials hanya ada bila email tidak terkirim, dengan header
+        Cache-Control no-store. Member dijawab 403; bukan anggota atau target bukan anggota 404.
+        409 CONFLICT INVITATION_NOT_PENDING bila undangan sudah diterima atau tidak ada.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "200":
+          description: Undangan diterbitkan ulang
+          headers:
+            Cache-Control:
+              description: no-store, hanya bila respons memuat credentials
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResendInvitationResponse" }
+              examples:
+                sent:
+                  value: { email_sent: true, email_status: sent, expires_at: "2026-10-28T09:00:00Z" }
+                fallback:
+                  value:
+                    email_sent: false
+                    email_status: failed
+                    expires_at: "2026-10-28T09:00:00Z"
+                    credentials:
+                      email: baru@contoh.id
+                      temporary_password: Zp4wNe8TqYv3KdRh
+                      login_url: https://grimoire.contoh.id/login
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409":
+          description: Undangan tidak menunggu (CONFLICT INVITATION_NOT_PENDING)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error:
+                  code: CONFLICT
+                  message: undangan sudah diterima atau tidak ada
+                  details: { reason: INVITATION_NOT_PENDING }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "429": { $ref: "#/components/responses/InvitationRateLimited" }
         "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
 components:
   securitySchemes:
@@ -376,6 +609,21 @@ components:
       in: query
       schema: { type: integer, minimum: 0, default: 0 }
   responses:
+    InvitationRateLimited:
+      description: Kuota undangan atau kirim ulang habis (RATE_LIMITED); details.scope invite atau resend
+      headers:
+        Retry-After:
+          description: Detik sebelum boleh mencoba lagi
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: RATE_LIMITED
+              message: terlalu banyak permintaan undangan
+              details: { retry_after_seconds: 1840, scope: resend }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
     ProjectNotFound:
       description: >
         Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
@@ -474,7 +722,7 @@ components:
         confirm_name: { type: string }
     Member:
       type: object
-      required: [user_id, name, email, is_active, found, role, added_at, added_by, added_by_label]
+      required: [user_id, name, email, is_active, found, role, added_at, added_by, added_by_label, invitation_pending, invitation_expires_at]
       properties:
         user_id: { type: string, format: uuid }
         name: { type: [string, "null"] }
@@ -485,6 +733,11 @@ components:
         added_at: { type: string, format: date-time }
         added_by: { type: [string, "null"], format: uuid }
         added_by_label: { type: string }
+        invitation_pending: { type: boolean, description: true bila anggota belum menerima undangan email. }
+        invitation_expires_at:
+          type: [string, "null"]
+          format: date-time
+          description: Batas waktu undangan; null bila tidak ada undangan menunggu.
     MemberList:
       type: object
       required: [items]
@@ -494,11 +747,12 @@ components:
           items: { $ref: "#/components/schemas/Member" }
     MemberCandidate:
       type: object
-      required: [id, name, email]
+      required: [id, name, email, invitation_pending]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         email: { type: string }
+        invitation_pending: { type: boolean, description: true bila akun masih menunggu undangan diterima. }
     MemberCandidateList:
       type: object
       required: [items]
@@ -519,3 +773,52 @@ components:
       required: [role]
       properties:
         role: { $ref: "#/components/schemas/ProjectRole" }
+    Invitation:
+      type: object
+      required: [user_id, email, name, role, invited_by_label, added_at, sent_at, expires_at, expired, delivery_status, email_failed, resend_count]
+      properties:
+        user_id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/ProjectRole" }
+        invited_by_label: { type: string }
+        added_at: { type: string, format: date-time }
+        sent_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: string, format: date-time }
+        expired: { type: boolean }
+        delivery_status: { type: string, enum: [pending, sent, failed, not_configured] }
+        email_failed: { type: boolean, description: true bila pengiriman terakhir gagal atau email tidak dikonfigurasi. }
+        resend_count: { type: integer, minimum: 0 }
+    InvitationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Invitation" }
+    InviteMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, maxLength: 254 }
+        role: { $ref: "#/components/schemas/ProjectRole", default: member }
+        name: { type: string, maxLength: 100, description: Opsional; bila kosong diturunkan dari email. }
+    InviteMemberResponse:
+      type: object
+      required: [member, created, email_sent, email_status, expires_at]
+      properties:
+        member: { $ref: "#/components/schemas/Member" }
+        created: { type: boolean, description: false bila akun menunggu yang sudah ada diterbitkan ulang. }
+        email_sent: { type: boolean }
+        email_status: { $ref: "../core/auth.yml#/components/schemas/InvitationStatus" }
+        expires_at: { type: string, format: date-time }
+        credentials: { $ref: "../core/auth.yml#/components/schemas/InvitationCredentials" }
+    ResendInvitationResponse:
+      type: object
+      required: [email_sent, email_status, expires_at]
+      properties:
+        email_sent: { type: boolean }
+        email_status: { $ref: "../core/auth.yml#/components/schemas/InvitationStatus" }
+        expires_at: { type: string, format: date-time }
+        credentials: { $ref: "../core/auth.yml#/components/schemas/InvitationCredentials" }
