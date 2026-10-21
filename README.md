@@ -169,6 +169,30 @@ claude mcp add --transport http grimoire http://localhost:8080/mcp \
 
 Setiap API key terikat ke satu project, jadi agent hanya melihat knowledge project itu. Semua tool read-only. Detail protokol, tool, error, dan rate limit: [docs/mcp-gateway.md](docs/mcp-gateway.md).
 
+### Memasang skill Grimoire
+
+Repo ini menyertakan skill Claude Code di [`skills/grimoire`](skills/grimoire/SKILL.md) yang mengajari agent cara memakai tool Grimoire (memilih server per project, menelusuri dokumen, menelusuri API spec). Pasang di device masing-masing:
+
+```bash
+npx skills add NooBeeID/grimoire
+```
+
+Perintah ini memakai CLI [`skills`](https://github.com/vercel-labs/skills) dan akan menanyakan agent serta lokasi pemasangan (global atau per project).
+
+Alternatif tanpa npx, salin manual dari clone repo ini:
+
+```bash
+# untuk semua project di device ini
+mkdir -p ~/.claude/skills
+cp -r skills/grimoire ~/.claude/skills/
+
+# atau hanya untuk satu repo
+mkdir -p <repo-tujuan>/.claude/skills
+cp -r skills/grimoire <repo-tujuan>/.claude/skills/
+```
+
+Mulai ulang sesi Claude Code, lalu skill aktif otomatis saat Anda menyebut Grimoire, knowledge base, atau spesifikasi API. Skill ini hanya panduan; agent tetap butuh server MCP yang terhubung (langkah di atas).
+
 ## Perintah make
 
 Jalankan `make help` untuk daftar lengkap. Yang utama:
@@ -301,5 +325,6 @@ api/          spesifikasi OpenAPI per module (+ openapi.yml hasil bundle)
 backend/      Go: cmd/ (http, cli), internal/, lib/, migrations/
 frontend/     Svelte + Vite
 docs/         konfigurasi, migrasi, MCP gateway, tiket
+skills/       skill Claude Code untuk dipasang pengguna (grimoire)
 scripts/      make include, seeder, helper
 ```
