@@ -14,7 +14,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T04](T04-project-api-key.md) | project | api-key | M | T03 | Selesai (`d4265df`) |
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Selesai (`3221efc`) |
 | [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Selesai (0a26586) |
-| [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Plan siap |
+| [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Selesai (`35c4fa4`) |
 | [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Plan siap |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Belum |
 
