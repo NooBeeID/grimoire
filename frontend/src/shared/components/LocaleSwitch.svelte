@@ -14,7 +14,7 @@
   {id}
   value={$locale}
   {onchange}
-  class="rounded-base border border-border bg-surface px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+  class="h-7 w-full rounded-base border border-control bg-surface px-2 text-[13px] focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
 >
   {#each SUPPORTED_LOCALES as l (l)}
     <option value={l}>{$t(`locale.${l}`)}</option>

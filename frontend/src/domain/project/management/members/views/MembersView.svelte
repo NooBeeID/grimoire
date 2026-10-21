@@ -308,8 +308,8 @@
 
 <section class="flex flex-col gap-4">
   <header class="flex flex-wrap items-center justify-between gap-2">
-    <h2 class="text-lg font-semibold">
-      {$t('project.members.title')}{#if $list.status === 'ready'} <span class="text-muted">({$list.items.length})</span>{/if}
+    <h2 class="text-base font-semibold">
+      {$t('project.members.title')}{#if $list.status === 'ready'}<span class="ml-2 font-normal text-muted">{$list.items.length}</span>{/if}
     </h2>
     {#if canManage}<Button onclick={openAdd}>{$t('project.members.add.open')}</Button>{/if}
   </header>

@@ -52,13 +52,13 @@
   const hideSm: Record<string, string> = { project: 'hidden sm:table-cell', target: 'hidden sm:table-cell' };
 </script>
 
-<div class="overflow-x-auto" aria-busy={loading}>
+<div class="overflow-x-auto rounded-card border border-border bg-surface shadow-panel" aria-busy={loading}>
   <table class="w-full border-collapse text-left text-sm">
     <caption class="sr-only">{$t('auditLog.title')}</caption>
     <thead>
-      <tr class="border-b border-border">
+      <tr class="bg-raised">
         {#each cols as c (c)}
-          <th scope="col" class="px-3 py-2 font-semibold {hideSm[c] ?? ''}">{$t(`auditLog.columns.${c}`)}</th>
+          <th scope="col" class="h-10 px-4 text-left text-[13px] font-medium text-muted {hideSm[c] ?? ''}">{$t(`auditLog.columns.${c}`)}</th>
         {/each}
       </tr>
     </thead>
@@ -94,29 +94,32 @@
       {:else}
         {#each rows as r (r.id)}
           <tr
-            class="border-b border-border {selectedId === r.id ? 'bg-black/5' : ''}"
+            class="h-12 border-t border-rule {selectedId === r.id ? 'bg-active' : 'transition-colors hover:bg-raised/60'}"
             aria-current={selectedId === r.id ? 'true' : undefined}
           >
-            <td class="px-3 py-2">
+            <td class="px-4 py-2">
               <button
                 type="button"
                 data-entry-id={r.id}
                 title={r.occurred_at}
                 onclick={() => onselect(r.id)}
-                class="text-left underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                class="text-left underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
               >
                 {formatDateTime(r.occurred_at, $locale)}
               </button>
             </td>
-            <td class="px-3 py-2">
-              <span class="inline-flex items-center gap-1.5"><ActorIcon type={r.actor_type} />{r.actor_label}</span>
+            <td class="px-4 py-2">
+              <span class="inline-flex items-center gap-2">
+                <span class="grid h-6 w-6 shrink-0 place-items-center {r.actor_type === 'user' ? 'rounded-full bg-raised text-muted' : 'rounded-card bg-accent/20 text-accent-ink'}"><ActorIcon type={r.actor_type} /></span>
+                <span class={r.actor_type === 'user' ? '' : 'font-mono text-[13px]'}>{r.actor_label}</span>
+              </span>
             </td>
-            <td class="px-3 py-2 {hideSm['project']}">{r.project_label ?? '-'}</td>
-            <td class="px-3 py-2 font-mono text-xs">{r.action}</td>
-            <td class="px-3 py-2 {hideSm['target']}">
-              <span class="block max-w-[24ch] truncate" title={r.target ?? ''}>{r.target ?? '-'}</span>
+            <td class="px-4 py-2 {hideSm['project']}">{r.project_label ?? '-'}</td>
+            <td class="px-4 py-2 font-mono text-[13px]">{r.action}</td>
+            <td class="px-4 py-2 {hideSm['target']}">
+              <span class="block max-w-[26ch] truncate font-mono text-[13px]" title={r.target ?? ''}>{r.target ?? '-'}</span>
             </td>
-            <td class="px-3 py-2"><StatusBadge status={r.status} /></td>
+            <td class="px-4 py-2"><StatusBadge status={r.status} /></td>
           </tr>
         {/each}
       {/if}

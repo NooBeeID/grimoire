@@ -59,6 +59,6 @@
 </script>
 
 <section class="flex flex-col gap-4">
-  <h2 class="text-lg font-semibold">{$t('project.settings.title')}</h2>
+  <h2 class="text-base font-semibold">{$t('project.settings.title')}</h2>
   <ProjectSettingsForm initial={project} {submitting} {fieldErrors} {formError} onsubmit={submit} onreset={() => ((fieldErrors = {}), (formError = null))} />
 </section>

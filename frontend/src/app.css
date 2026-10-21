@@ -14,14 +14,17 @@
   --color-surface: #ffffff;
   --color-fg: #131416;
   --color-muted: #5d5f60;
-  --color-border: #e8eaec;
+  --color-border: #dbe3e7;
 
-  --color-ground: #f9fbfc;
-  --color-raised: #f4f6f8;
-  --color-active: #ebedee;
-  --color-rule: #f0f1f2;
-  --color-control: #cdced1;
-  --color-accent: #1b6c80;
+  --color-ground: #e8eff2;
+  --color-raised: #f3f6f8;
+  --color-active: #e3eaee;
+  --color-rule: #ebf0f2;
+  --color-control: #c3ccd1;
+  /* Kuning: --color-accent untuk isian/garis (tile logo, garis tab, chip agent); --color-accent-ink untuk teks, ikon, dan fokus (kontras >= 4.5:1 di atas putih). */
+  --color-accent: #f2b705;
+  --color-accent-ink: #7a5600;
+  --color-on-accent: #1d1600;
   --color-positive: #1e7b4f;
   --color-warning: #92400e;
   --color-pill-positive-bg: #dcfae5;
@@ -32,9 +35,16 @@
   --color-pill-warning-ink: #92400e;
   --color-pill-neutral-bg: #ebedee;
   --color-pill-neutral-ink: #353736;
-  --color-chart-1: #1b6c80;
+  --color-chart-1: #c98f00;
   --color-chart-2: #2f70bb;
-  --color-chart-3: #a86f0c;
+  --color-chart-3: #1b6c80;
+
+  /* Bayangan berlapis: kontak tipis + hamparan lembut, warna dari ink produk (bukan hitam murni). */
+  --shadow-xs: 0 1px 1px rgb(14 38 48 / 0.06);
+  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 1px 2px rgb(14 38 48 / 0.28);
+  --shadow-panel: 0 1px 2px rgb(14 38 48 / 0.05), 0 6px 16px -6px rgb(14 38 48 / 0.09);
+  --shadow-sheet: 0 1px 2px rgb(14 38 48 / 0.05), 0 14px 36px -14px rgb(14 38 48 / 0.16);
+  --shadow-pop: 0 2px 4px rgb(14 38 48 / 0.08), 0 18px 44px -10px rgb(14 38 48 / 0.28);
 
   --radius-base: 6px;
   --radius-card: 8px;
@@ -54,22 +64,29 @@
   --pad: 24px;
 }
 
-/* Gelap (override variabel; @theme hanya boleh di level atas): elevasi lewat selisih terang, tanpa bayangan. */
-@media (prefers-color-scheme: dark) {
-  :root {
+:root {
+  color-scheme: light;
+}
+
+/* Gelap dipilih lewat data-theme (diatur theme-init.js sebelum render dan stores/theme.ts), bukan media query,
+   supaya toggle pengguna menang atas preferensi sistem. Override variabel; @theme hanya boleh di level atas. */
+:root[data-theme='dark'] {
+    color-scheme: dark;
     --color-primary: #f1f2f3;
     --color-primary-fg: #131416;
     --color-danger: #f0777b;
-    --color-surface: #16181a;
+    --color-surface: #141a1e;
     --color-fg: #eceef0;
     --color-muted: #9a9ea2;
-    --color-border: #2a2d30;
-    --color-ground: #0f1113;
-    --color-raised: #1d2023;
-    --color-active: #272a2e;
-    --color-rule: #212427;
-    --color-control: #3a3e42;
-    --color-accent: #5fb4c8;
+    --color-border: #283138;
+    --color-ground: #0a0d0f;
+    --color-raised: #1a2126;
+    --color-active: #232c32;
+    --color-rule: #20282d;
+    --color-control: #3a444b;
+    --color-accent: #f5c518;
+    --color-accent-ink: #f5c518;
+    --color-on-accent: #1d1600;
     --color-positive: #5fc592;
     --color-warning: #e0a45c;
     --color-pill-positive-bg: #12301f;
@@ -80,10 +97,14 @@
     --color-pill-warning-ink: #f4cf9a;
     --color-pill-neutral-bg: #272a2e;
     --color-pill-neutral-ink: #d4d7da;
-    --color-chart-1: #5fb4c8;
+    --color-chart-1: #f5c518;
     --color-chart-2: #7ba7e0;
-    --color-chart-3: #d9a441;
-  }
+    --color-chart-3: #5fb4c8;
+    --shadow-xs: 0 1px 1px rgb(0 0 0 / 0.4);
+    --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.35), 0 6px 16px -6px rgb(0 0 0 / 0.5);
+    --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 36px -14px rgb(0 0 0 / 0.7);
+    --shadow-pop: 0 2px 4px rgb(0 0 0 / 0.5), 0 18px 44px -10px rgb(0 0 0 / 0.8);
 }
 
 body {
@@ -92,4 +113,51 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Permukaan bawaan browser diberi desain: seleksi, caret, scrollbar, fokus. */
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+input,
+textarea {
+  caret-color: var(--color-accent-ink);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-control) transparent;
+}
+button,
+a,
+select,
+input,
+textarea {
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  select,
+  input,
+  textarea {
+    transition: none;
+  }
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Identitas orang/objek: nada pucat stabil per nama (hue dari hash), bukan data. */
+.avatar {
+  background: oklch(0.93 0.045 var(--h, 220));
+  color: oklch(0.36 0.09 var(--h, 220));
+}
+:root[data-theme='dark'] .avatar {
+  background: oklch(0.32 0.06 var(--h, 220));
+  color: oklch(0.9 0.05 var(--h, 220));
 }

@@ -11,3 +11,6 @@ export { default as EmptyState } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
 export { default as LocaleSwitch } from './LocaleSwitch.svelte';
 export { toast } from '../stores/toast';
+export { default as Avatar } from './Avatar.svelte';
+export { default as PageHeader } from './PageHeader.svelte';
+export { default as ThemeSwitch } from './ThemeSwitch.svelte';

@@ -90,7 +90,7 @@
 <section class="flex min-w-0 flex-col gap-4">
   <header class="flex flex-wrap items-start justify-between gap-2">
     <div>
-      <h1 class="text-2xl font-bold">{$t('auditLog.title')}</h1>
+      <h1 class="text-[22px] leading-8 font-semibold">{$t('auditLog.title')}</h1>
       <p class="text-sm text-muted">{$t('auditLog.subtitle')}</p>
     </div>
     <Button variant="secondary" onclick={() => refreshTick++}>{$t('auditLog.refresh')}</Button>

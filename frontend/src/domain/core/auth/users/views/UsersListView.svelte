@@ -184,7 +184,7 @@
 
 <section class="flex flex-col gap-4">
   <header class="flex items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold">{$t('users.title')}</h1>
+    <h1 class="text-[22px] leading-8 font-semibold">{$t('users.title')}</h1>
     <div class="flex items-center gap-3">
       {#if $usersList.refreshing}<span class="text-sm text-muted" role="status">{$t('common.loading')}</span>{/if}
       <Button onclick={() => (createOpen = true)}>{$t('users.create')}</Button>

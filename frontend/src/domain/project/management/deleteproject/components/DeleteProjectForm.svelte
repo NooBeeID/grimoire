@@ -39,7 +39,7 @@
       keys: n(project.counts.keys),
     })}
   </p>
-  <p class="text-sm">{$t('project.delete.typeToConfirm')} <code class="rounded-base bg-black/5 px-1 break-all">{project.name}</code></p>
+  <p class="text-sm">{$t('project.delete.typeToConfirm')} <code class="rounded-base bg-raised px-1 break-all">{project.name}</code></p>
   <Input bind:value={typed} name="confirm_name" label={$t('project.delete.confirmLabel')} autocomplete="off" disabled={submitting} />
   {#if error}<p role="alert" class="text-sm text-danger">{error}</p>{/if}
   <div class="flex justify-end gap-2">

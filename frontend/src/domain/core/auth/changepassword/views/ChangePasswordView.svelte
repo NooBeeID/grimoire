@@ -52,12 +52,12 @@
   }
 </script>
 
-<section class="mx-auto flex max-w-sm flex-col gap-4">
+<section class="flex flex-col gap-4">
   {#if mode === 'forced'}
-    <h1 class="text-2xl font-bold">{$t('auth.changePassword.forcedTitle')}</h1>
+    <h1 class="text-[22px] leading-8 font-semibold">{$t('auth.changePassword.forcedTitle')}</h1>
     <p class="text-muted">{$t('auth.changePassword.forcedDescription')}</p>
   {:else}
-    <h2 class="text-lg font-semibold">{$t('auth.changePassword.forcedTitle')}</h2>
+    <h2 class="text-base font-semibold">{$t('auth.changePassword.forcedTitle')}</h2>
   {/if}
   <ChangePasswordForm {submitting} {error} cooldownSeconds={cooldown} {resetKey} {onsubmit} />
   {#if mode === 'forced' && onlogout}

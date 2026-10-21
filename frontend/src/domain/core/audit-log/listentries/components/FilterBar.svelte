@@ -100,7 +100,7 @@
     onapply(clone(draft));
   }
 
-  const inputCls = 'w-full rounded-base border bg-surface px-3 py-2 text-sm';
+  const inputCls = 'h-8 w-full rounded-base border bg-surface px-2.5 text-sm';
   const customLabel = $derived(
     value.range === 'custom'
       ? $t('auditLog.range.custom', {
@@ -115,13 +115,13 @@
   role="search"
   aria-label={$t('auditLog.filter.label')}
   onsubmit={submit}
-  class="grid grid-cols-1 gap-3 rounded-base border border-border bg-surface p-3 lg:grid-cols-3"
+  class="grid grid-cols-1 gap-x-4 gap-y-3 rounded-card border border-border bg-raised p-4 sm:grid-cols-2 lg:grid-cols-4"
 >
   <div class="flex flex-col gap-1">
-    <label for="{uid}-atype" class="text-sm font-medium">{$t('auditLog.filter.actorType')}</label>
+    <label for="{uid}-atype" class="text-[13px] font-medium">{$t('auditLog.filter.actorType')}</label>
     <select
       id="{uid}-atype"
-      class="{inputCls} border-border"
+      class="{inputCls} border-control"
       value={draft.actorType}
       onchange={(e) => {
         draft.actorType = e.currentTarget.value as ActorType | '';
@@ -134,10 +134,10 @@
   </div>
 
   <div class="flex flex-col gap-1">
-    <label for="{uid}-actor" class="text-sm font-medium">{$t('auditLog.filter.actor')}</label>
+    <label for="{uid}-actor" class="text-[13px] font-medium">{$t('auditLog.filter.actor')}</label>
     <input
       id="{uid}-actor"
-      class="{inputCls} {err('actorLabel') ? 'border-danger' : 'border-border'}"
+      class="{inputCls} {err('actorLabel') ? 'border-danger' : 'border-control'}"
       list="{uid}-actors"
       maxlength={MAX_TEXT}
       bind:value={draft.actorLabel}
@@ -164,10 +164,10 @@
   </div>
 
   <div class="flex flex-col gap-1">
-    <label for="{uid}-project" class="text-sm font-medium">{$t('auditLog.filter.project')}</label>
+    <label for="{uid}-project" class="text-[13px] font-medium">{$t('auditLog.filter.project')}</label>
     <input
       id="{uid}-project"
-      class="{inputCls} {err('projectId') ? 'border-danger' : 'border-border'}"
+      class="{inputCls} {err('projectId') ? 'border-danger' : 'border-control'}"
       list="{uid}-projects"
       bind:value={projectText}
       aria-invalid={err('projectId') ? 'true' : undefined}
@@ -182,13 +182,13 @@
   </div>
 
   <div class="flex flex-col gap-1">
-    <span class="text-sm font-medium">{$t('auditLog.filter.action')}</span>
+    <span class="text-[13px] font-medium">{$t('auditLog.filter.action')}</span>
     <ActionPicker value={draft.actions} onchange={(v) => (draft.actions = v)} />
     {#if err('actions')}<p class="text-sm text-danger">{err('actions')}</p>{/if}
   </div>
 
   <fieldset class="flex flex-col gap-1">
-    <legend class="text-sm font-medium">{$t('auditLog.filter.status')}</legend>
+    <legend class="text-[13px] font-medium">{$t('auditLog.filter.status')}</legend>
     <div class="flex flex-wrap gap-3">
       {#each AUDIT_STATUSES as s (s)}
         <label class="flex items-center gap-1 text-sm">
@@ -204,10 +204,10 @@
   </fieldset>
 
   <div class="flex flex-col gap-1">
-    <label for="{uid}-range" class="text-sm font-medium">{$t('auditLog.filter.range')}</label>
+    <label for="{uid}-range" class="text-[13px] font-medium">{$t('auditLog.filter.range')}</label>
     <select
       id="{uid}-range"
-      class="{inputCls} {err('range') ? 'border-danger' : 'border-border'}"
+      class="{inputCls} {err('range') ? 'border-danger' : 'border-control'}"
       value={draft.range}
       onchange={(e) => (draft.range = e.currentTarget.value as RangeKey)}
     >
@@ -219,10 +219,10 @@
   </div>
 
   <div class="flex flex-col gap-1">
-    <label for="{uid}-target" class="text-sm font-medium">{$t('auditLog.filter.target')}</label>
+    <label for="{uid}-target" class="text-[13px] font-medium">{$t('auditLog.filter.target')}</label>
     <input
       id="{uid}-target"
-      class="{inputCls} {err('target') ? 'border-danger' : 'border-border'}"
+      class="{inputCls} {err('target') ? 'border-danger' : 'border-control'}"
       maxlength={MAX_TEXT}
       bind:value={draft.target}
       aria-invalid={err('target') ? 'true' : undefined}
@@ -230,7 +230,7 @@
     {#if err('target')}<p class="text-sm text-danger">{err('target')}</p>{/if}
   </div>
 
-  <div class="flex items-end gap-2 lg:col-span-2">
+  <div class="flex items-end gap-2">
     <Button type="submit" {disabled}>{$t('auditLog.filter.apply')}</Button>
     <Button variant="secondary" {disabled} onclick={onreset}>{$t('auditLog.filter.reset')}</Button>
   </div>

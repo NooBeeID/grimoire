@@ -6,7 +6,7 @@
 </script>
 
 <section class="flex flex-col gap-2 rounded-base border border-danger p-4">
-  <h2 class="text-lg font-semibold text-danger">{$t('project.delete.zoneTitle')}</h2>
+  <h2 class="text-base font-semibold text-danger">{$t('project.delete.zoneTitle')}</h2>
   <p class="text-sm">{$t('project.delete.zoneDescription')}</p>
   <div><Button variant="danger" onclick={onrequest}>{$t('project.delete.open')}</Button></div>
 </section>

@@ -15,13 +15,13 @@
   );
 </script>
 
-<header class="flex flex-col gap-2">
+<header class="flex flex-col gap-1">
   <div class="flex flex-wrap items-center gap-3">
-    <h1 class="text-2xl font-bold break-words">{project.name}</h1>
+    <h1 class="text-[22px] leading-8 font-semibold break-words">{project.name}</h1>
     {#if badge}
-      <span class="inline-flex items-center rounded-base border border-border px-2 py-0.5 text-xs font-medium text-muted">{badge}</span>
+      <span class="inline-flex h-5 items-center rounded-full bg-pill-neutral-bg px-2 text-xs font-medium text-pill-neutral-ink">{badge}</span>
     {/if}
   </div>
-  {#if project.description}<p class="break-words whitespace-pre-line">{project.description}</p>{/if}
+  {#if project.description}<p class="text-sm break-words whitespace-pre-line text-muted">{project.description}</p>{/if}
   <p class="text-sm text-muted">{$t('project.detail.memberCount', { n: project.member_count })}</p>
 </header>

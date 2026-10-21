@@ -77,12 +77,13 @@
 </script>
 
 <section class="flex flex-col gap-4" aria-busy={busy}>
-  <header class="flex flex-wrap items-center justify-between gap-2">
-    <h2 class="text-xl font-semibold">{$t('project.list.title')}</h2>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex min-w-0 flex-1 flex-wrap items-center gap-4">
+      <div class="w-full max-w-sm"><ProjectSearchBar value={parsed.q} onsearch={search} /></div>
+      {#if data}<span class="text-sm text-muted">{$t('project.list.resultCount', { total: data.total })}</span>{/if}
+    </div>
     {#if canCreate}<Button onclick={oncreate}>{$t('project.create.open')}</Button>{/if}
-  </header>
-
-  <ProjectSearchBar value={parsed.q} onsearch={search} />
+  </div>
 
   <div class="sr-only" aria-live="polite">{announce}</div>
 

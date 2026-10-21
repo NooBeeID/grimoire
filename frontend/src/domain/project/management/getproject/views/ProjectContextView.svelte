@@ -69,7 +69,7 @@
   <ErrorState error={$store.error} onretry={() => load(projectId)} />
 {:else}
   <div class="flex flex-col gap-3" aria-busy="true">
-    <div class="h-8 w-1/3 rounded-base bg-black/10"></div>
+    <div class="h-8 w-1/3 rounded-base bg-active"></div>
     <div class="p-4"><Spinner /></div>
   </div>
 {/if}

@@ -5,7 +5,7 @@
   let { error, onretry }: { error: unknown; onretry: () => void } = $props();
 </script>
 
-<div class="mx-auto mt-16 flex max-w-md flex-col items-center gap-3 text-center">
+<div class="flex flex-col items-center gap-3 text-center">
   <h1 class="text-xl font-bold">{$t('auth.session.loadFailed')}</h1>
   <ErrorState {error} />
   <Button onclick={onretry}>{$t('common.retry')}</Button>

@@ -77,7 +77,7 @@
   {#if selected}
     <div class="flex items-center justify-between gap-2 rounded-base border border-border bg-surface px-3 py-2">
       <span class="min-w-0 break-words" data-testid="selected-candidate">{selected.name} <span class="text-muted">{selected.email}</span></span>
-      <button type="button" onclick={clear} class="rounded-base px-2 py-1 text-sm underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none">
+      <button type="button" onclick={clear} class="rounded-base px-2 py-1 text-sm underline focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none">
         {$t('project.members.add.clear')}
       </button>
     </div>
@@ -96,7 +96,7 @@
       onkeydown={keydown}
       onfocus={() => (focused = true)}
       onblur={() => (focused = false)}
-      class="rounded-base border border-border bg-surface px-3 py-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+      class="rounded-base border border-border bg-surface px-3 py-2 focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
     />
   {/if}
   <ul
@@ -124,7 +124,7 @@
               e.preventDefault();
               choose(c);
             }}
-            class="cursor-pointer px-3 py-2 text-sm {i === search.activeIndex ? 'bg-black/10' : 'hover:bg-black/5'}"
+            class="cursor-pointer px-3 py-2 text-sm {i === search.activeIndex ? 'bg-active' : 'hover:bg-raised'}"
           >
             <span class="break-words">{c.name}</span> <span class="break-all text-muted">{c.email}</span>
           </li>

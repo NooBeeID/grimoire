@@ -25,7 +25,7 @@
 {#if params.tab}
   <ProjectContextView {projectId}>
     {#snippet children(ctx)}
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-6">
         <WorkspaceTabsNav {projectId} tabs={workspaceTabs} active={tab?.key ?? ''} />
         {#if tab}
           {@const Tab = tab.view}

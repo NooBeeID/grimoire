@@ -5,7 +5,7 @@
 </script>
 
 <div class="mx-auto flex max-w-sm flex-col gap-6">
-  <h1 class="text-2xl font-bold">{$t('auth.profile.title')}</h1>
+  <h1 class="text-[22px] leading-8 font-semibold">{$t('auth.profile.title')}</h1>
   {#if $session.identity}
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1" data-testid="profile-card">
       <dt class="text-muted">{$t('users.form.name')}</dt>

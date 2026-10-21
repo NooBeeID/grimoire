@@ -1,6 +1,7 @@
 <script lang="ts">
   import { CreateProjectDialog } from '../../domain/project/management/createproject';
   import { ProjectListView } from '../../domain/project/management/listprojects';
+  import PageHeader from '../../shared/components/PageHeader.svelte';
   import { t } from '../../shared/stores/i18n';
   import { session } from '../../shared/stores/session';
   import { current, navigate } from '../routes/router';
@@ -16,13 +17,9 @@
   }
 </script>
 
-<h1 data-testid="home-title" class="text-2xl font-bold">{$t('home.title')}</h1>
-{#if $session.identity}<p class="mt-1">{$t('home.greeting', { name: $session.identity.name })}</p>{/if}
-<p class="mt-2 text-muted">{$t('home.subtitle')}</p>
+<PageHeader title={$t('home.title')} testid="home-title" />
 
-<div class="mt-6">
-  <ProjectListView query={$current.location.query} {onquerychange} canCreate oncreate={() => (createOpen = true)} />
-</div>
+<ProjectListView query={$current.location.query} {onquerychange} canCreate oncreate={() => (createOpen = true)} />
 
 <CreateProjectDialog
   open={createOpen}

@@ -19,14 +19,14 @@
 </script>
 
 <div class="flex flex-wrap gap-1">
-  <Button size="sm" variant="secondary" onclick={() => onedit(user)}>{$t('users.action.edit')}</Button>
+  <Button size="sm" variant="ghost" onclick={() => onedit(user)}>{$t('users.action.edit')}</Button>
   <span title={isSelf ? $t('users.self.cannotDeactivate') : undefined}>
-    <Button size="sm" variant="secondary" disabled={isSelf} onclick={() => onstatus(user)}>
+    <Button size="sm" variant="ghost" disabled={isSelf} onclick={() => onstatus(user)}>
       {user.is_active ? $t('users.action.deactivate') : $t('users.action.activate')}
     </Button>
   </span>
   <span title={isSelf ? $t('users.self.useProfile') : undefined}>
-    <Button size="sm" variant="secondary" disabled={isSelf} onclick={() => onreset(user)}>{$t('users.action.resetPassword')}</Button>
+    <Button size="sm" variant="ghost" disabled={isSelf} onclick={() => onreset(user)}>{$t('users.action.resetPassword')}</Button>
   </span>
 </div>
 {#if isSelf}

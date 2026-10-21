@@ -19,8 +19,8 @@
   }
 </script>
 
-<details class="rounded-base border border-border bg-surface">
-  <summary class="cursor-pointer px-3 py-2 text-sm">
+<details class="rounded-base border border-control bg-surface">
+  <summary class="flex h-8 cursor-pointer items-center px-2.5 text-sm">
     {$t('auditLog.filter.action')}: {$t('auditLog.filter.selectedCount', { n: value.length })}
   </summary>
   <div class="flex flex-col gap-2 p-3">

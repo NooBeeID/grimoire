@@ -46,7 +46,7 @@
   }
 </script>
 
-<section class="mx-auto mt-16 flex max-w-sm flex-col gap-4">
-  <h1 class="text-2xl font-bold">{$t('auth.login.title')}</h1>
+<section class="flex flex-col gap-4">
+  <h1 class="text-[22px] leading-8 font-semibold">{$t('auth.login.title')}</h1>
   <LoginForm {submitting} {error} cooldownSeconds={cooldown} {onsubmit} />
 </section>

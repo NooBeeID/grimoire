@@ -31,14 +31,14 @@
   class="min-w-0 rounded-base border border-border bg-surface p-4"
 >
   <div class="flex items-center justify-between gap-2">
-    <h2 id="audit-detail-title" tabindex="-1" bind:this={heading} class="text-lg font-semibold">
+    <h2 id="audit-detail-title" tabindex="-1" bind:this={heading} class="text-base font-semibold">
       {$t('auditLog.detail.title')}
     </h2>
     <button
       type="button"
       aria-label={$t('auditLog.detail.close')}
       onclick={onclose}
-      class="rounded-base px-2 py-1 hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+      class="rounded-base px-2 py-1 hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
     >
       <span aria-hidden="true">×</span>
     </button>
@@ -79,12 +79,12 @@
 
     <section class="mt-4">
       <h3 class="text-sm font-semibold">{$t('auditLog.detail.args')}</h3>
-      <pre class="mt-1 overflow-auto rounded-base bg-black/5 p-2 text-xs break-words whitespace-pre-wrap">{formatJSON(e.args)}</pre>
+      <pre class="mt-1 overflow-auto rounded-base bg-raised p-2 text-xs break-words whitespace-pre-wrap">{formatJSON(e.args)}</pre>
       <p class="mt-1 text-xs text-muted">{$t('auditLog.detail.sanitizedHint')}</p>
     </section>
     <section class="mt-4">
       <h3 class="text-sm font-semibold">{$t('auditLog.detail.result')}</h3>
-      <pre class="mt-1 overflow-auto rounded-base bg-black/5 p-2 text-xs break-words whitespace-pre-wrap">{formatJSON(e.result)}</pre>
+      <pre class="mt-1 overflow-auto rounded-base bg-raised p-2 text-xs break-words whitespace-pre-wrap">{formatJSON(e.result)}</pre>
     </section>
     <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
       <dt class="text-muted">{$t('auditLog.detail.ip')}</dt>

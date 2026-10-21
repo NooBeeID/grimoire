@@ -22,9 +22,17 @@ describe('ProjectTable', () => {
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector(`[data-project-id="${items[0]!.id}"]`)).not.toBeNull();
   });
-  it('null counts render dash', () => {
+  it('drops the file/spec columns while no row has a count', () => {
     render(ProjectTable, { items: [mockProject(1)] });
-    expect(screen.getAllByText(/^-$|: $/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('File')).toBeNull();
+    expect(screen.queryByText('Spec')).toBeNull();
+  });
+  it('shows a count column once any row has a value', () => {
+    const counts = { files: 12, specs: null, keys: null };
+    render(ProjectTable, { items: [mockProject(1, { counts }), mockProject(2)] });
+    expect(screen.getByText('File')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.queryByText('Spec')).toBeNull();
   });
 });
 

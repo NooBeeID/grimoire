@@ -57,8 +57,8 @@ describe('App', () => {
   it('renders home with id text and title', () => {
     setIdentity(DEV);
     boot('/');
-    expect(screen.getByTestId('home-title')).toHaveTextContent('Selamat datang di Grimoire');
-    expect(document.title).toBe('Selamat datang di Grimoire · Grimoire');
+    expect(screen.getByTestId('home-title')).toHaveTextContent('Project');
+    expect(document.title).toBe('Project · Grimoire');
   });
 
   it('home loads the project list and opens the create dialog; created navigates to members tab', async () => {
@@ -98,10 +98,11 @@ describe('App', () => {
     expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
   });
 
-  it('home greets the user', () => {
+  it('home is a work screen: no greeting, user shown in the sidebar footer', () => {
     setIdentity(DEV);
     boot('/');
-    expect(screen.getByText('Halo, Budi')).toBeInTheDocument();
+    expect(screen.queryByText(/^Halo,/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Profil' })).toBeInTheDocument();
   });
 
   it('anonymous at / is sent to login which renders the form', async () => {

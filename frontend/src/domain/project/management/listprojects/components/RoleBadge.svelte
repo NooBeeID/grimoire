@@ -16,7 +16,12 @@
           ? $t('project.badge.notMember')
           : '-',
   );
-  const tone = $derived(myRole === 'owner' ? 'border-primary text-primary' : 'border-border text-muted');
+  // Pil netral (abu); pemilik sedikit lebih gelap. Tidak ada warna untuk peran.
+  const tone = $derived(myRole === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted');
 </script>
 
-<span class="inline-flex items-center rounded-base border px-2 py-0.5 text-xs font-medium {tone}">{label}</span>
+{#if label === '-'}
+  <span class="text-muted">–</span>
+{:else}
+  <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {tone}">{label}</span>
+{/if}

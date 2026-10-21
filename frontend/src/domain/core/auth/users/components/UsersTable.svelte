@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Avatar from '../../../../../shared/components/Avatar.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
   import type { ApiError } from '../../../../../shared/services/http';
   import { locale, t } from '../../../../../shared/stores/i18n';
@@ -34,25 +35,25 @@
     { key: 'role', header: $t('users.col.role') },
     { key: 'status', header: $t('users.col.status') },
     { key: 'last_login_at', header: $t('users.col.lastLogin') },
-    { key: 'actions', header: $t('users.col.actions') },
+    { key: 'actions', header: $t('users.col.actions'), class: 'text-right' },
   ]);
 </script>
 
 <Table {columns} rows={users} rowKey={(u: User) => u.id} {loading} {error} {emptyText} {onretry} caption={$t('users.title')}>
   {#snippet cell(u: User, col)}
     {#if col.key === 'name'}
-      {u.name}{#if u.id === selfId}&nbsp;<span class="text-muted">{$t('users.you')}</span>{/if}
+      <span class="flex items-center gap-2.5"><Avatar name={u.name} size={28} /><span>{u.name}{#if u.id === selfId}&nbsp;<span class="text-muted">{$t('users.you')}</span>{/if}</span></span>
     {:else if col.key === 'email'}
       {u.email}
     {:else if col.key === 'role'}
       {$t(`users.role.${u.role}`)}
     {:else if col.key === 'status'}
-      <span class="rounded-base border border-border px-2 py-0.5 text-xs">{u.is_active ? $t('users.status.active') : $t('users.status.inactive')}</span>
+      <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {u.is_active ? 'bg-pill-positive-bg text-pill-positive-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{u.is_active ? $t('users.status.active') : $t('users.status.inactive')}</span>
       {#if u.must_change_password}
-        <span class="ml-1 rounded-base border border-border px-2 py-0.5 text-xs text-muted">{$t('users.badge.mustChange')}</span>
+        <span class="ml-1 inline-flex h-5 items-center rounded-full bg-pill-warning-bg px-2 text-xs font-medium text-pill-warning-ink">{$t('users.badge.mustChange')}</span>
       {/if}
     {:else if col.key === 'last_login_at'}
-      {u.last_login_at ? formatDateTime(u.last_login_at, $locale) : $t('users.neverLoggedIn')}
+      {#if u.last_login_at}{formatDateTime(u.last_login_at, $locale)}{:else}<span class="text-muted">{$t('users.neverLoggedIn')}</span>{/if}
     {:else}
       <UserRowActions user={u} isSelf={u.id === selfId} {onedit} {onstatus} {onreset} />
     {/if}

@@ -41,9 +41,9 @@
   }
 </script>
 
-<form role="search" onsubmit={submit} class="flex items-end gap-2">
+<form role="search" onsubmit={submit} class="flex items-center gap-2">
   <div class="flex-1" oninput={schedule} role="presentation">
-    <Input bind:value={text} type="search" label={$t('project.list.search')} name="q" />
+    <Input bind:value={text} type="search" label={$t('project.list.search')} placeholder={$t('project.list.search')} hideLabel name="q" />
   </div>
   {#if text}
     <Button variant="ghost" onclick={clear}>

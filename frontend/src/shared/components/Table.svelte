@@ -35,12 +35,13 @@
   } = $props();
 </script>
 
+<div class="overflow-hidden rounded-card border border-border bg-surface shadow-panel">
 <table class="w-full border-collapse text-left text-sm" aria-busy={loading}>
   {#if caption}<caption class="sr-only">{caption}</caption>{/if}
   <thead>
-    <tr class="border-b border-border">
+    <tr class="bg-raised">
       {#each columns as col (col.key)}
-        <th scope="col" class="px-3 py-2 font-semibold {col.class ?? ''}">{col.header}</th>
+        <th scope="col" class="h-10 px-4 text-[13px] font-medium text-muted {col.class ?? ''}">{col.header}</th>
       {/each}
     </tr>
   </thead>
@@ -53,9 +54,9 @@
       <tr><td colspan={columns.length}><EmptyState title={emptyText ?? $t('table.empty')} /></td></tr>
     {:else}
       {#each rows as row (rowKey(row))}
-        <tr class="border-b border-border">
+        <tr class="h-12 border-t border-rule transition-colors hover:bg-raised/60">
           {#each columns as col (col.key)}
-            <td class="px-3 py-2 {col.class ?? ''}">
+            <td class="px-4 py-2 {col.class ?? ''}">
               {#if cell}{@render cell(row, col)}{:else}{(row as Record<string, unknown>)[col.key] ?? ''}{/if}
             </td>
           {/each}
@@ -64,3 +65,4 @@
     {/if}
   </tbody>
 </table>
+</div>
