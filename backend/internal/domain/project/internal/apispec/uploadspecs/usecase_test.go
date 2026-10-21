@@ -255,7 +255,8 @@ func TestUploadSpecs_InvalidSpecs(t *testing.T) {
 		name, path, content, code string
 	}{
 		{"not openapi", "package.json", `{"name":"x","version":"1.0.0"}`, "NOT_OPENAPI"},
-		{"swagger2", "s.yaml", "swagger: '2.0'\ninfo: {title: a, version: '1'}\npaths: {}\n", "NOT_OPENAPI_3"},
+		{"swagger 1.2", "s.yaml", "swagger: '1.2'\ninfo: {title: a, version: '1'}\npaths: {}\n", "UNSUPPORTED_VERSION"},
+		{"swagger2 unresolved", "s2.yaml", "swagger: '2.0'\ninfo: {title: a, version: '1'}\npaths:\n  /p:\n    get:\n      responses:\n        '200':\n          description: ok\n          schema:\n            $ref: '#/definitions/Hilang'\n", "UNRESOLVED_REF"},
 		{"syntax", "b.yaml", "openapi: 3.0.3\ninfo: [\n  bad: : x\n", "SYNTAX"},
 		{"external ref", "r.yaml", "openapi: 3.0.3\ninfo: {title: a, version: '1'}\npaths:\n  /p:\n    get:\n      responses:\n        '200':\n          description: ok\n          content:\n            application/json:\n              schema:\n                $ref: http://127.0.0.1:1/x.yaml\n", "EXTERNAL_REF"},
 		{"unresolved", "u.yaml", "openapi: 3.0.3\ninfo: {title: a, version: '1'}\npaths:\n  /p:\n    get:\n      responses:\n        '200':\n          description: ok\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/Nope'\n", "UNRESOLVED_REF"},
@@ -507,5 +508,73 @@ func TestUploadSpecs_AuditSurvivesCancel(t *testing.T) {
 	_, _ = e.uc.Execute(ctx, Input{ProjectID: pid, Files: []upload.File{file("a.yaml", specYAML())}})
 	if len(e.aud.events) != 1 || e.aud.ctxCancel[0] {
 		t.Fatalf("events=%d cancel=%v", len(e.aud.events), e.aud.ctxCancel)
+	}
+}
+
+func swagger2YAML() string {
+	return `swagger: "2.0"
+info: { title: Swagger Petstore, version: 1.0.0 }
+host: petstore.example.com
+basePath: /v1
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: array
+            items: { $ref: "#/definitions/Pet" }
+    post:
+      operationId: createPet
+      parameters:
+        - { in: body, name: body, required: true, schema: { $ref: "#/definitions/Pet" } }
+      responses:
+        "201": { description: created }
+  /pets/{petId}:
+    parameters:
+      - { in: path, name: petId, required: true, type: string }
+    get:
+      operationId: getPet
+      responses:
+        "200": { description: ok, schema: { $ref: "#/definitions/Pet" } }
+    delete:
+      operationId: deletePet
+      responses:
+        "204": { description: gone }
+definitions:
+  Pet:
+    type: object
+    properties:
+      id: { type: integer }
+      name: { type: string }
+`
+}
+
+func TestUploadSpecs_Swagger2Created(t *testing.T) {
+	e := newEnv(10)
+	out := run(t, e, file("petstore.yaml", swagger2YAML()))
+	r := out.Results[0]
+	if r.Status != base.StatusCreated || r.OpenAPIVersion != "2.0" || r.Title != "Swagger Petstore" ||
+		r.APIVersion != "1.0.0" || r.EndpointCount != 4 {
+		t.Fatalf("%+v", r)
+	}
+	if len(e.repo.inserted) != 1 || e.repo.inserted[0].OpenAPIVersion != "2.0" {
+		t.Fatalf("insert: %+v", e.repo.inserted)
+	}
+	if len(e.repo.replaced) != 1 || len(e.repo.replaced[0]) != 4 {
+		t.Fatalf("replace: %+v", e.repo.replaced)
+	}
+	if len(e.aud.events) != 1 {
+		t.Fatalf("audit = %d", len(e.aud.events))
+	}
+
+	out = run(t, e, file("petstore.yaml", swagger2YAML()))
+	if out.Results[0].Status != base.StatusUnchanged {
+		t.Fatalf("ulang: %+v", out.Results[0])
+	}
+	if len(e.aud.events) != 1 {
+		t.Fatalf("audit bertambah: %d", len(e.aud.events))
 	}
 }

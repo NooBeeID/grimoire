@@ -55,3 +55,11 @@ func TestJoinNames(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestSpecVersionLabel(t *testing.T) {
+	for in, want := range map[string]string{"2.0": "Swagger 2.0", "3.0.3": "OpenAPI 3.0.3", "": "OpenAPI -", "3.1.0": "OpenAPI 3.1.0"} {
+		if got := SpecVersionLabel(in); got != want {
+			t.Fatalf("%q: %q", in, got)
+		}
+	}
+}

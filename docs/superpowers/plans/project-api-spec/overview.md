@@ -1,5 +1,7 @@
 # T06 project/api-spec — Overview Plan (FOUNDATION)
 
+> Revisi T10 (2026-10-21): keputusan di dokumen ini yang memperlakukan Swagger 2.0 sebagai `NOT_OPENAPI_3` (ditolak) digantikan oleh `docs/superpowers/plans/project-api-spec-swagger2/overview.md`. Bagian lain tetap berlaku untuk OpenAPI 3.x.
+
 Tiket: `docs/tickets/T06-project-api-spec.md`
 Sumber aturan: `rules.txt` (menang untuk arsitektur), `docs/tickets/README.md` (konvensi, katalog bus, katalog audit), `docs/superpowers/specs/2026-10-20-grimoire-design.md` (produk), `docs/superpowers/plans/project-management/overview.md` (plan T03: pola module, D1 contentcount, D4 route, D5 audit, D6 identitas).
 Konteks yang dicek: belum ada `CLAUDE.md` dan `.claude/rules/`. Tidak ada knowledge doc module apispec. Di `main` (`11838ec`): T00, T01, T02 sudah merge; T03 baru sampai plan (`backend/internal/domain/project/base.go` masih no-op, `backend/lib/contracts/project/` belum ada, `backend/migrations/project/` kosong). Konstanta `BUS_CORE_AUDIT_RECORD` dan aksi `record.ActionAPISpecUploaded|Updated|Deleted` SUDAH ada di `main`.

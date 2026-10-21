@@ -23,11 +23,11 @@ export const mockRejected = (over: Partial<ApiSpecFileResult> = {}): ApiSpecFile
     name: 'legacy',
     status: 'rejected',
     reason_code: 'INVALID_SPEC',
-    reason: 'Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1',
+    reason: 'versi Swagger "1.2" tidak didukung (hanya 2.0)',
     issues: [
       {
-        code: 'NOT_OPENAPI_3',
-        message: 'Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1 (baris 1, #/swagger)',
+        code: 'UNSUPPORTED_VERSION',
+        message: 'versi Swagger "1.2" tidak didukung (hanya 2.0) (baris 1, #/swagger)',
         pointer: '#/swagger',
         line: 1,
       },
@@ -36,6 +36,35 @@ export const mockRejected = (over: Partial<ApiSpecFileResult> = {}): ApiSpecFile
     title: null,
     api_version: null,
     endpoint_count: null,
+    ...over,
+  });
+
+export const mockSwagger2Created = (over: Partial<ApiSpecFileResult> = {}): ApiSpecFileResult =>
+  mockFileResult({
+    file: 'petstore.yaml',
+    source_path: 'specs/petstore.yaml',
+    name: 'petstore',
+    openapi_version: '2.0',
+    title: 'Swagger Petstore',
+    api_version: '1.0.0',
+    endpoint_count: 4,
+    ...over,
+  });
+
+export const mockSwagger2Unresolved = (over: Partial<ApiSpecFileResult> = {}): ApiSpecFileResult =>
+  mockRejected({
+    file: 'broken.yaml',
+    source_path: 'broken.yaml',
+    name: 'broken',
+    reason: 'referensi tidak ditemukan',
+    issues: [
+      {
+        code: 'UNRESOLVED_REF',
+        message: 'referensi "#/definitions/Hilang" tidak ditemukan (baris 21, #/paths/~1pets/get/responses/200/schema/$ref)',
+        pointer: '#/paths/~1pets/get/responses/200/schema/$ref',
+        line: 21,
+      },
+    ],
     ...over,
   });
 

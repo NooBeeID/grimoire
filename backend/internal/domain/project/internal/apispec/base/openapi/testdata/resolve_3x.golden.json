@@ -1,0 +1,427 @@
+[
+  {
+    "case": "petstore d4",
+    "operation": {
+      "operationId": "listPets",
+      "summary": "Daftar hewan",
+      "tags": [
+        "pets",
+        "pets",
+        "read"
+      ],
+      "parameters": [
+        {
+          "name": "X-Trace",
+          "in": "header",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "owner": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://api.example.com"
+      }
+    ],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 4
+  },
+  {
+    "case": "petstore d1",
+    "operation": {
+      "operationId": "listPets",
+      "summary": "Daftar hewan",
+      "tags": [
+        "pets",
+        "pets",
+        "read"
+      ],
+      "parameters": [
+        {
+          "name": "X-Trace",
+          "in": "header",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "owner": {
+                      "$ref": "#/components/schemas/Owner"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://api.example.com"
+      }
+    ],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 1
+  },
+  {
+    "case": "petstore d0",
+    "operation": {
+      "operationId": "listPets",
+      "summary": "Daftar hewan",
+      "tags": [
+        "pets",
+        "pets",
+        "read"
+      ],
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Trace"
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Pet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://api.example.com"
+      }
+    ],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 0
+  },
+  {
+    "case": "circular full",
+    "operation": {
+      "operationId": "getNode",
+      "summary": "Ambil node",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "verbose",
+          "in": "query",
+          "description": "override",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "node",
+                "properties": {
+                  "children": {
+                    "type": "array",
+                    "items": {
+                      "$circular": "#/components/schemas/Node"
+                    }
+                  },
+                  "meta": {
+                    "type": "object",
+                    "properties": {
+                      "deep": {
+                        "type": "object",
+                        "properties": {
+                          "leaf": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://root.example"
+      }
+    ],
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "truncated": false,
+    "effectiveDepth": 8
+  },
+  {
+    "case": "circular truncated",
+    "operation": {
+      "operationId": "getNode",
+      "summary": "Ambil node",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "verbose",
+          "in": "query",
+          "description": "override",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Node"
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://root.example"
+      }
+    ],
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "truncated": true,
+    "effectiveDepth": 0
+  },
+  {
+    "case": "circular summary",
+    "operation": {
+      "$truncated": true,
+      "summary": "Ambil node",
+      "operationId": "getNode"
+    },
+    "servers": [
+      {
+        "url": "https://root.example"
+      }
+    ],
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "truncated": true,
+    "effectiveDepth": 0
+  },
+  {
+    "case": "petstore31",
+    "operation": {
+      "operationId": "listPets31",
+      "summary": "Daftar",
+      "responses": {
+        "200": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "servers": [],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 4
+  },
+  {
+    "case": "servers get",
+    "operation": {
+      "security": [],
+      "responses": {
+        "200": {
+          "description": "x"
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://path"
+      }
+    ],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 4
+  },
+  {
+    "case": "servers post",
+    "operation": {
+      "servers": [
+        {
+          "url": "https://op"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "x"
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://op"
+      }
+    ],
+    "securitySchemes": {
+      "b": {
+        "type": "http",
+        "scheme": "basic"
+      }
+    },
+    "truncated": false,
+    "effectiveDepth": 4
+  },
+  {
+    "case": "servers trace",
+    "operation": {
+      "responses": {
+        "200": {
+          "description": "x"
+        }
+      }
+    },
+    "servers": [
+      {
+        "url": "https://path"
+      }
+    ],
+    "securitySchemes": {
+      "b": {
+        "type": "http",
+        "scheme": "basic"
+      }
+    },
+    "truncated": false,
+    "effectiveDepth": 4
+  },
+  {
+    "case": "no servers",
+    "operation": {
+      "responses": {
+        "200": {
+          "description": "x"
+        }
+      }
+    },
+    "servers": [],
+    "securitySchemes": {},
+    "truncated": false,
+    "effectiveDepth": 4
+  }
+]

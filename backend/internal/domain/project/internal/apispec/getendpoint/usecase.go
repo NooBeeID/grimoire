@@ -182,6 +182,17 @@ func (u *Usecase) Execute(ctx context.Context, req getendpoint.Request) (getendp
 		SecuritySchemes: r.SecuritySchemes,
 		Truncated:       r.Truncated,
 		EffectiveDepth:  r.EffectiveDepth,
+		OpenAPIVersion:  r.OpenAPIVersion,
+		Consumes:        r.Consumes,
+		Produces:        r.Produces,
+	}
+	if res.OpenAPIVersion != "" {
+		if len(res.Consumes) == 0 {
+			res.Consumes = []byte("[]")
+		}
+		if len(res.Produces) == 0 {
+			res.Produces = []byte("[]")
+		}
 	}
 	if len(res.Servers) == 0 {
 		res.Servers = []byte("[]")

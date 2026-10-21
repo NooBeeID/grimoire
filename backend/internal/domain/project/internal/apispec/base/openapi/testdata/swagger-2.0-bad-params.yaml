@@ -1,0 +1,37 @@
+swagger: "2.0"
+info: {title: X, version: "1"}
+paths:
+  /noin:
+    get:
+      parameters:
+        - name: q
+          type: string
+      responses:
+        "200": {description: ok}
+  /cookie:
+    get:
+      parameters:
+        - name: c
+          in: cookie
+          type: string
+      responses:
+        "200": {description: ok}
+  /items/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          type: string
+      responses:
+        "200": {description: ok}
+  /bodies:
+    post:
+      parameters:
+        - name: a
+          in: body
+          schema: {type: object}
+        - name: b
+          in: body
+          schema: {type: object}
+      responses:
+        "200": {description: ok}

@@ -47,7 +47,7 @@ func ExtractEndpoints(doc Document) []base.Endpoint {
 		if !ok {
 			continue
 		}
-		for _, m := range opMethods {
+		for _, m := range methodsFor(doc) {
 			opv, has := item.Get(m)
 			if !has {
 				continue

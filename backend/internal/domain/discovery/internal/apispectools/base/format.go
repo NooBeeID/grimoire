@@ -40,3 +40,18 @@ func JoinNames(names []string, max int) string {
 	}
 	return strings.Join(names[:max], ", ") + fmt.Sprintf(", ... (+%d lagi)", len(names)-max)
 }
+
+// swagger2Version adalah nilai openapi_version untuk Swagger 2.0 (literal lokal; discovery tidak
+// mengimpor paket internal project).
+const swagger2Version = "2.0"
+
+// SpecVersionLabel: "Swagger 2.0" untuk "2.0"; "OpenAPI -" untuk kosong; selain itu "OpenAPI "+v.
+func SpecVersionLabel(v string) string {
+	switch v {
+	case swagger2Version:
+		return "Swagger 2.0"
+	case "":
+		return "OpenAPI -"
+	}
+	return "OpenAPI " + v
+}

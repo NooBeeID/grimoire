@@ -1948,12 +1948,12 @@ paths:
                     name: broken
                     status: rejected
                     reason_code: INVALID_SPEC
-                    reason: '$ref tidak ditemukan (baris 21, #/paths/~1pets/get/responses/200/schema/$ref)'
+                    reason: 'referensi tidak ditemukan: #/definitions/Hilang (baris 9, #/paths/~1pets/get/responses/200/schema)'
                     issues:
                       - code: UNRESOLVED_REF
-                        message: '$ref tidak ditemukan (baris 21, #/paths/~1pets/get/responses/200/schema/$ref)'
-                        pointer: '#/paths/~1pets/get/responses/200/schema/$ref'
-                        line: 21
+                        message: 'referensi tidak ditemukan: #/definitions/Hilang (baris 9, #/paths/~1pets/get/responses/200/schema)'
+                        pointer: '#/paths/~1pets/get/responses/200/schema'
+                        line: 9
                     openapi_version: null
                     title: null
                     api_version: null

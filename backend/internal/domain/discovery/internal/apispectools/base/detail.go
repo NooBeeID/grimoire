@@ -50,6 +50,15 @@ func NewLookup(ask EndpointAsk, requestedDepth, maxBytes int, resp getendpoint.R
 		} else if !json.Valid(resp.SecuritySchemes) {
 			return nil, fmt.Errorf("securitySchemes dari provider bukan JSON valid")
 		}
+		if resp.OpenAPIVersion != "" {
+			var err error
+			if resp.Consumes, err = listOrEmpty(resp.Consumes, "consumes"); err != nil {
+				return nil, err
+			}
+			if resp.Produces, err = listOrEmpty(resp.Produces, "produces"); err != nil {
+				return nil, err
+			}
+		}
 		return EndpointDetail{Resp: resp, RequestedDepth: requestedDepth, MaxBytes: maxBytes}, nil
 	}
 	switch resp.Reason {
@@ -69,6 +78,16 @@ func NewLookup(ask EndpointAsk, requestedDepth, maxBytes int, resp getendpoint.R
 		return EndpointMiss{Spec: spec, Ask: ask, Similar: append([]getendpoint.EndpointRef(nil), sim...)}, nil
 	}
 	return nil, fmt.Errorf("reason tidak dikenal %q (found=false)", resp.Reason)
+}
+
+func listOrEmpty(raw json.RawMessage, name string) (json.RawMessage, error) {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return json.RawMessage("[]"), nil
+	}
+	if !json.Valid(raw) {
+		return nil, fmt.Errorf("%s dari provider bukan JSON valid", name)
+	}
+	return raw, nil
 }
 
 // EndpointDetail adalah endpoint yang ditemukan.
@@ -95,6 +114,9 @@ type detailJSON struct {
 	Operation       json.RawMessage `json:"operation"`
 	Servers         json.RawMessage `json:"servers"`
 	SecuritySchemes json.RawMessage `json:"securitySchemes"`
+	OpenAPIVersion  string          `json:"openapi_version,omitempty"`
+	Consumes        json.RawMessage `json:"consumes,omitempty"`
+	Produces        json.RawMessage `json:"produces,omitempty"`
 }
 
 func (d EndpointDetail) rootTruncated() bool {
@@ -206,6 +228,9 @@ func (d EndpointDetail) Text() string {
 		Spec: d.Resp.Spec, Method: d.Resp.Method, Path: d.Resp.Path,
 		SchemaDepth: d.Resp.EffectiveDepth, Truncated: d.Resp.Truncated, Hint: d.Hint(),
 		Operation: d.Resp.Operation, Servers: d.Resp.Servers, SecuritySchemes: d.Resp.SecuritySchemes,
+	}
+	if d.Resp.OpenAPIVersion != "" {
+		out.OpenAPIVersion, out.Consumes, out.Produces = d.Resp.OpenAPIVersion, d.Resp.Consumes, d.Resp.Produces
 	}
 	circ, coll := d.Markers()
 	fullCirc, fullColl := d.collect()

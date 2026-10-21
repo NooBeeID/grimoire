@@ -6,6 +6,7 @@ import { mockDetail } from '../mocks/detail-3.0';
 import { mockDetail31 } from '../mocks/detail-3.1';
 import { mockDetailCircular } from '../mocks/detail-circular';
 import { mockDetailWebhooks } from '../mocks/detail-webhooks';
+import { mockDetailSwagger2 } from '../mocks/detail-swagger2';
 import View from './SpecDetailView.svelte';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
@@ -96,5 +97,51 @@ describe('SpecDetailView', () => {
     await screen.findByRole('heading', { level: 3, name: /tree/ });
     await userEvent.click(await screen.findByRole('button', { name: 'children' }));
     expect(screen.getAllByText(/circular/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('SpecDetailView Swagger 2.0', () => {
+  const stub = (d = mockDetailSwagger2()) => vi.stubGlobal('fetch', vi.fn(async () => json(200, d)));
+  it('header, overview server, skema keamanan dan tag', async () => {
+    stub();
+    render(View, props({ name: 'hr-platform' }));
+    expect(await screen.findByText('Ringkasan API')).toBeInTheDocument();
+    expect(screen.getByLabelText('Swagger 2.0')).toBeInTheDocument();
+    expect(screen.getByText('https://api.hr-platform.noobee.id/v1')).toBeInTheDocument();
+    expect(screen.getByText('bearerAuth')).toBeInTheDocument();
+    expect(screen.getByText('hrOauth')).toBeInTheDocument();
+    expect(screen.getByText('employees:write')).toBeInTheDocument();
+  });
+  it('POST /employees: body wajib dan respons', async () => {
+    stub();
+    render(View, props({ name: 'hr-platform', selectedOp: 'POST /employees' }));
+    expect(await screen.findByRole('heading', { name: /\/employees/, level: 3 })).toBeInTheDocument();
+    expect(screen.getAllByText('application/json').length).toBeGreaterThan(0);
+    expect(screen.getByText('201')).toBeInTheDocument();
+    expect(screen.getByText('400')).toBeInTheDocument();
+  });
+  it('unggah dokumen: multipart dengan file binary', async () => {
+    stub();
+    render(View, props({ name: 'hr-platform', selectedOp: 'POST /employees/{employeeId}/documents' }));
+    expect(await screen.findByText('multipart/form-data')).toBeInTheDocument();
+    expect(screen.getByText('file')).toBeInTheDocument();
+    expect(screen.getAllByText(/string \(binary\)/).length).toBeGreaterThan(0);
+    expect(screen.getByText('413')).toBeInTheDocument();
+  });
+  it('GET /leave-requests: parameter header dari $ref path-level', async () => {
+    stub();
+    render(View, props({ name: 'hr-platform', selectedOp: 'GET /leave-requests' }));
+    expect(await screen.findByText('X-Tenant-ID')).toBeInTheDocument();
+    expect(screen.getByText('status')).toBeInTheDocument();
+  });
+  it('operasi tidak ada -> opNotFound', async () => {
+    stub();
+    render(View, props({ name: 'hr-platform', selectedOp: 'DELETE /employees' }));
+    expect(await screen.findByText('Endpoint tidak ada di spec ini')).toBeInTheDocument();
+  });
+  it('dokumen swagger 1.2 -> ErrorState', async () => {
+    stub(mockDetailSwagger2({ document: { swagger: '1.2', info: { title: 't', version: '1' } } as never }));
+    render(View, props({ name: 'hr-platform' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 });

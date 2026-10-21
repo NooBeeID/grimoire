@@ -2,12 +2,18 @@
   import Button from '../../../../../shared/components/Button.svelte';
   import { t } from '../../../../../shared/stores/i18n';
   import { copyText } from '../../../../../shared/utils/clipboard';
+  import { openApiLabel } from '../../../../../shared/utils/openapi';
   import { issueText } from '../model';
   import type { ApiSpecFileResult } from '../types';
   import StatusBadge from './StatusBadge.svelte';
 
   type Row = ApiSpecFileResult & { willOverwrite?: boolean };
   let { results, projectId, linkNames = false }: { results: Row[]; projectId?: string; linkNames?: boolean } = $props();
+
+  const meta = (r: ApiSpecFileResult): string =>
+    [r.title, r.openapi_version ? openApiLabel(r.openapi_version) : null, r.api_version, r.endpoint_count !== null ? `${r.endpoint_count} endpoint` : null]
+      .filter((x) => x !== null && x !== '')
+      .join(' · ');
 
   let copied = $state<number | null>(null);
   let manual = $state<number | null>(null);
@@ -44,10 +50,7 @@
         {#if r.willOverwrite}<span class="text-xs text-warning">{$t('apispec.upload.willOverwrite')}</span>{/if}
       </div>
       {#if r.title}
-        <p class="text-sm text-muted">
-          {r.title}{#if r.openapi_version} · OpenAPI {r.openapi_version}{/if}{#if r.api_version} · {r.api_version}{/if}{#if r.endpoint_count !== null}
-            · {r.endpoint_count} endpoint{/if}
-        </p>
+        <p class="text-sm text-muted">{meta(r)}</p>
       {/if}
       {#if r.status === 'rejected' || r.status === 'skipped'}
         <p class="text-sm">{reasonLabel(r)}</p>

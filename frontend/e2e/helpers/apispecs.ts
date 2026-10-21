@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { z } from 'zod';
 import { CSRF } from './auth';
@@ -295,4 +297,19 @@ export function parseDetail(text: string): EndpointDetailT {
     throw new Error(`teks get_api_endpoint bukan JSON valid: ${text.slice(0, 80)}`);
   }
   return EndpointDetail.parse(json);
+}
+
+/** Baca fixture dari e2e/fixtures/apispec sebagai SpecFile (nama file = nama fixture kecuali `as`). */
+export function readSpecFixture(name: string, as: string = name): SpecFile {
+  const content = readFileSync(join(__dirname, '..', 'fixtures', 'apispec', name), 'utf8');
+  return { file: as, content };
+}
+
+/** Seperti uploadSpecsApi tetapi tanpa assert rejected == 0 (untuk kasus negatif). */
+export async function uploadSpecsRaw(request: APIRequestContext, projectId: string, files: SpecFile[]): Promise<SpecUploadResult> {
+  const form = new FormData();
+  for (const f of files) form.append('files', new Blob([new Uint8Array(Buffer.from(f.content))], { type: 'application/yaml' }), f.file);
+  const res = await request.post(`/api/projects/${projectId}/api-specs/upload`, { headers: CSRF, multipart: form });
+  expect(res.status(), `upload specs: ${await res.text()}`).toBe(200);
+  return (await res.json()) as SpecUploadResult;
 }

@@ -1,0 +1,48 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "Swagger Petstore", "version": "1.0.0"},
+  "host": "petstore.example.com",
+  "basePath": "/v1",
+  "schemes": ["https"],
+  "paths": {
+    "/pets": {
+      "get": {
+        "operationId": "listPets",
+        "summary": "List pets",
+        "tags": ["pets"],
+        "parameters": [{"name": "limit", "in": "query", "type": "integer"}],
+        "responses": {
+          "200": {"description": "ok", "schema": {"type": "array", "items": {"$ref": "#/definitions/Pet"}}},
+          "default": {"description": "error", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "operationId": "createPet",
+        "summary": "Create pet",
+        "tags": ["pets"],
+        "parameters": [{"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/Pet"}}],
+        "responses": {"201": {"description": "created"}}
+      }
+    },
+    "/pets/{petId}": {
+      "parameters": [{"name": "petId", "in": "path", "required": true, "type": "string"}],
+      "get": {
+        "operationId": "getPet",
+        "summary": "Get pet",
+        "tags": ["pets"],
+        "responses": {"200": {"description": "ok", "schema": {"$ref": "#/definitions/Pet"}}}
+      },
+      "delete": {
+        "operationId": "deletePet",
+        "summary": "Delete pet",
+        "tags": ["pets"],
+        "deprecated": true,
+        "responses": {"204": {"description": "deleted"}}
+      }
+    }
+  },
+  "definitions": {
+    "Pet": {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}},
+    "Error": {"type": "object", "properties": {"message": {"type": "string"}}}
+  }
+}

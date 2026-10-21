@@ -28,7 +28,7 @@ describe('results helpers', () => {
   });
   it('issueText includes file, status, reason code and each issue', () => {
     expect(issueText(mockRejected())).toBe(
-      'legacy.yaml [rejected/INVALID_SPEC]: Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1\n  - NOT_OPENAPI_3 Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1 (baris 1, #/swagger)',
+      'legacy.yaml [rejected/INVALID_SPEC]: versi Swagger "1.2" tidak didukung (hanya 2.0)\n  - UNSUPPORTED_VERSION versi Swagger "1.2" tidak didukung (hanya 2.0) (baris 1, #/swagger)',
     );
     expect(rejectedText([mockFileResult(), mockRejected()])).toContain('legacy.yaml');
     expect(rejectedText([mockFileResult()])).toBe('');

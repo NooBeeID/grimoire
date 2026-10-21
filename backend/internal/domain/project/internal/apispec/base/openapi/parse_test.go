@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -46,7 +47,7 @@ func TestParse_Rejections(t *testing.T) {
 		{"package.json", CodeNotOpenAPI},
 		{"broken.yaml", CodeSyntax},
 		{"broken.json", CodeSyntax},
-		{"swagger-2.0.yaml", CodeNotOpenAPI3},
+		{"swagger-1.2.yaml", CodeUnsupportedVersion},
 		{"openapi-4.0.yaml", CodeUnsupportedVersion},
 		{"openapi-number.yaml", CodeUnsupportedVersion},
 		{"ref-unresolved.yaml", CodeUnresolvedRef},
@@ -390,5 +391,106 @@ func TestResolvePointer(t *testing.T) {
 	}
 	if EscapePointerToken("a/b~c") != "a~1b~0c" {
 		t.Fatal("escape")
+	}
+}
+
+func TestParse_Swagger2Accepted(t *testing.T) {
+	for _, f := range []string{"swagger-2.0.yaml", "swagger-2.0-petstore.yaml", "swagger-2.0-petstore.json"} {
+		t.Run(f, func(t *testing.T) {
+			doc := mustParse(t, f)
+			if doc.OpenAPIVersion != "2.0" || !doc.IsSwagger2() || doc.Title != "Swagger Petstore" || doc.APIVersion != "1.0.0" {
+				t.Fatalf("%+v", doc)
+			}
+			if n := len(ExtractEndpoints(doc)); n != 4 {
+				t.Fatalf("endpoints=%d", n)
+			}
+		})
+	}
+	if doc := mustParse(t, "swagger-2.0-numeric.yaml"); doc.OpenAPIVersion != Swagger2Version {
+		t.Fatalf("%+v", doc)
+	}
+}
+
+func TestParse_Swagger2VersionForms(t *testing.T) {
+	ok := []struct {
+		name, src string
+		f         Format
+	}{
+		{"yaml string", "swagger: \"2.0\"\ninfo: {title: X, version: '1'}\npaths: {}\n", FormatYAML},
+		{"yaml float", "swagger: 2.0\ninfo: {title: X, version: '1'}\npaths: {}\n", FormatYAML},
+		{"yaml int", "swagger: 2\ninfo: {title: X, version: '1'}\npaths: {}\n", FormatYAML},
+		{"json int", `{"swagger":2,"info":{"title":"X","version":"1"},"paths":{}}`, FormatJSON},
+		{"json float", `{"swagger":2.0,"info":{"title":"X","version":"1"},"paths":{}}`, FormatJSON},
+	}
+	for _, c := range ok {
+		t.Run(c.name, func(t *testing.T) {
+			doc, is := Parse([]byte(c.src), c.f, DefaultLimits)
+			if len(is) != 0 || doc.OpenAPIVersion != "2.0" {
+				t.Fatalf("%+v %+v", doc, is)
+			}
+		})
+	}
+	bad := []struct{ name, val, msg string }{
+		{"patch", `"2.0.0"`, `versi Swagger "2.0.0" tidak didukung (hanya 2.0)`},
+		{"1.2", `"1.2"`, `versi Swagger "1.2" tidak didukung (hanya 2.0)`},
+		{"3.0", `"3.0"`, `versi Swagger "3.0" tidak didukung (hanya 2.0)`},
+		{"array", `[2]`, `versi Swagger "?" tidak didukung (hanya 2.0)`},
+		{"map", `{a: 1}`, `versi Swagger "?" tidak didukung (hanya 2.0)`},
+		{"float 1.2", `1.2`, `versi Swagger "1.2" tidak didukung (hanya 2.0)`},
+	}
+	for _, c := range bad {
+		t.Run(c.name, func(t *testing.T) {
+			src := "swagger: " + c.val + "\ninfo: {title: X, version: '1'}\npaths: {}\n"
+			_, is := Parse([]byte(src), FormatYAML, DefaultLimits)
+			if len(is) != 1 || is[0].Code != CodeUnsupportedVersion || is[0].Pointer != "#/swagger" || is[0].Line <= 0 ||
+				!strings.Contains(is[0].Message, c.msg) {
+				t.Fatalf("%+v", is)
+			}
+		})
+	}
+	_, is := parseFile(t, "swagger-null.yaml")
+	if len(is) != 1 || is[0].Code != CodeNotOpenAPI || is[0].Pointer != "#" {
+		t.Fatalf("%+v", is)
+	}
+	_, is = Parse([]byte(`{"swagger":null}`), FormatJSON, DefaultLimits)
+	if len(is) != 1 || is[0].Code != CodeNotOpenAPI {
+		t.Fatalf("%+v", is)
+	}
+	// JSON: baris dihitung lewat jsonLineNode.
+	_, is = Parse([]byte("{\n\"swagger\": \"1.2\"\n}"), FormatJSON, DefaultLimits)
+	if len(is) != 1 || is[0].Code != CodeUnsupportedVersion || is[0].Line != 2 {
+		t.Fatalf("%+v", is)
+	}
+}
+
+func TestParse_BothKeysIs3x(t *testing.T) {
+	doc := mustParse(t, "both-keys.yaml")
+	if doc.OpenAPIVersion != "3.0.3" || doc.IsSwagger2() {
+		t.Fatalf("%+v", doc)
+	}
+}
+
+func TestParse_SwaggerKeyInsideInfoIs3x(t *testing.T) {
+	doc := mustParse(t, "swagger-in-info.yaml")
+	if doc.OpenAPIVersion != "3.0.3" || doc.IsSwagger2() {
+		t.Fatalf("%+v", doc)
+	}
+}
+
+func TestParse_NotOpenAPI3NeverEmitted(t *testing.T) {
+	entries, err := os.ReadDir("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		_, is := parseFile(t, e.Name())
+		for _, i := range is {
+			if i.Code == CodeNotOpenAPI3 {
+				t.Errorf("%s menghasilkan %s", e.Name(), CodeNotOpenAPI3)
+			}
+		}
 	}
 }

@@ -7,6 +7,8 @@
 | Bergantung pada | T03 |
 | Dibutuhkan oleh | T09 |
 
+> Revisi T10 (2026-10-21): "Swagger 2.0" pada bagian Non-goals dan penolakan spec Swagger 2.0 pada skenario (skenario 2, yang menyebut spec Swagger 2.0 `rejected`) tidak lagi berlaku. Dukungan Swagger 2.0 dibahas di T10 (`docs/tickets/T10-project-api-spec-swagger2.md`). Ketentuan lain di tiket ini tidak berubah.
+
 ## Ringkasan
 
 Penyimpanan, validasi, dan tampilan terender spesifikasi OpenAPI (YAML/JSON) per project. Satu project boleh punya banyak spec (mis. dipisah per module/domain). Menyediakan akses per-endpoint yang hemat token untuk agent lewat T09.

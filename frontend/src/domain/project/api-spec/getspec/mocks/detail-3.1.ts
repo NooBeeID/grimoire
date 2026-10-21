@@ -9,7 +9,7 @@ export const mockEndpoints31: ApiSpecEndpoint[] = [
 export const mockDocument31 = {
   openapi: '3.1.0',
   info: { title: 'Petstore', version: '2.0.0', summary: 'Toko hewan' },
-  servers: [{ url: 'https://pets.example.com/v2', description: 'Produksi' }],
+  servers: [{ url: 'https://pets.noobee.id/v2', description: 'Produksi' }],
   security: [{ oauth: ['pets:read'] }],
   paths: {
     '/pets/{id}': {
@@ -38,7 +38,7 @@ export const mockDocument31 = {
     securitySchemes: {
       oauth: {
         type: 'oauth2',
-        flows: { authorizationCode: { authorizationUrl: 'https://auth.example.com/authorize', tokenUrl: 'https://auth.example.com/token', scopes: { 'pets:read': 'Baca hewan' } } },
+        flows: { authorizationCode: { authorizationUrl: 'https://auth.noobee.id/authorize', tokenUrl: 'https://auth.noobee.id/token', scopes: { 'pets:read': 'Baca hewan' } } },
       },
     },
   },

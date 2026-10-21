@@ -68,8 +68,8 @@ func (c SpecCatalog) specLine(s listspecs.Spec) string {
 	name := Clip(OneLine(s.Name), specNameMaxRunes)
 	title := orDash(Clip(OneLine(s.Title), specTitleMaxRunes))
 	av := orDash(Clip(OneLine(s.ApiVersion), specVersionMaxRunes))
-	ov := orDash(Clip(OneLine(s.OpenapiVersion), specVersionMaxRunes))
-	return fmt.Sprintf("- %s: %s | versi %s | OpenAPI %s | %d endpoint | diperbarui %s",
+	ov := SpecVersionLabel(Clip(OneLine(s.OpenapiVersion), specVersionMaxRunes))
+	return fmt.Sprintf("- %s: %s | versi %s | %s | %d endpoint | diperbarui %s",
 		name, title, av, ov, s.EndpointCount, FormatTime(s.UpdatedAt))
 }
 

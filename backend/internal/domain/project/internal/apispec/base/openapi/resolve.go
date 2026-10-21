@@ -16,6 +16,10 @@ type Resolved struct {
 	SecuritySchemes json.RawMessage // selalu object JSON
 	Truncated       bool
 	EffectiveDepth  int
+	// Khusus Swagger 2.0. Untuk OpenAPI 3.x: "", nil, nil.
+	OpenAPIVersion string
+	Consumes       json.RawMessage // array JSON efektif
+	Produces       json.RawMessage // array JSON efektif
 }
 
 const maxInlineExpansions = 20000
@@ -27,6 +31,7 @@ func FindOperation(doc Document, method, path, operationID string) (method2, pat
 	if !isMap {
 		return "", "", false
 	}
+	ms := methodsFor(doc)
 	if operationID != "" {
 		for _, p := range paths.Keys() {
 			if strings.HasPrefix(p, "x-") {
@@ -37,7 +42,7 @@ func FindOperation(doc Document, method, path, operationID string) (method2, pat
 			if !ok {
 				continue
 			}
-			for _, m := range opMethods {
+			for _, m := range ms {
 				if op, ok := asMap(mustGet(item, m)); ok {
 					if id, _ := op.Get("operationId"); id == operationID {
 						return strings.ToUpper(m), p, true
@@ -56,7 +61,7 @@ func FindOperation(doc Document, method, path, operationID string) (method2, pat
 		return "", "", false
 	}
 	lm := strings.ToLower(method)
-	for _, m := range opMethods {
+	for _, m := range ms {
 		if m == lm {
 			if _, ok := asMap(mustGet(item, m)); ok {
 				return strings.ToUpper(m), path, true
@@ -218,6 +223,59 @@ func securityNames(op, root *Map) []string {
 	return names
 }
 
+// swagger2Servers membentuk servers dari schemes x host + basePath (D10).
+func swagger2Servers(root *Map) []any {
+	host, _ := mustGet(root, "host").(string)
+	base, _ := mustGet(root, "basePath").(string)
+	if base == "" {
+		base = "/"
+	}
+	one := func(u string) *Map {
+		m := NewMap()
+		m.Set("url", u)
+		return m
+	}
+	if host == "" {
+		return []any{one(base)}
+	}
+	var schemes []string
+	if arr, ok := mustGet(root, "schemes").([]any); ok {
+		for _, e := range arr {
+			if s, ok := e.(string); ok && s != "" && !hasString(schemes, s) {
+				schemes = append(schemes, s)
+			}
+		}
+	}
+	if len(schemes) == 0 {
+		schemes = []string{"https"}
+	}
+	out := make([]any, 0, len(schemes))
+	for _, s := range schemes {
+		out = append(out, one(s+"://"+host+base))
+	}
+	return out
+}
+
+// effectiveStringList: kunci pada operasi (walau kosong) menimpa root; tidak ada keduanya -> [].
+func effectiveStringList(op, root *Map, key string) []any {
+	for _, m := range []*Map{op, root} {
+		if arr, ok := mustGet(m, key).([]any); ok {
+			return arr
+		}
+	}
+	return []any{}
+}
+
+// schemeDefs mengembalikan definisi skema keamanan: securityDefinitions (2.0) atau components.securitySchemes.
+func schemeDefs(doc Document) *Map {
+	if doc.IsSwagger2() {
+		m, _ := asMap(mustGet(doc.Root, "securityDefinitions"))
+		return m
+	}
+	m, _ := asMap(mustGet(mustMap(mustGet(doc.Root, "components")), "securitySchemes"))
+	return m
+}
+
 // ResolveOperation menghasilkan operasi dengan $ref internal di-inline sampai kedalaman depth.
 // Hasil dipotong bertahap (depth turun) bila melebihi maxBytes; maxBytes <= 0 berarti tanpa batas.
 func ResolveOperation(doc Document, method, path string, depth, maxBytes int) (Resolved, error) {
@@ -235,13 +293,19 @@ func ResolveOperation(doc Document, method, path string, depth, maxBytes int) (R
 		return Resolved{}, ErrOperationNotFound
 	}
 	op, ok := asMap(mustGet(item, strings.ToLower(method)))
-	if !ok || !hasString(opMethods, strings.ToLower(method)) {
+	if !ok || !hasString(methodsFor(doc), strings.ToLower(method)) {
 		return Resolved{}, ErrOperationNotFound
 	}
 	merged := mergedOperation(root, item, op)
-	servers := firstServers(op, item, root)
+	swagger2 := doc.IsSwagger2()
+	var servers []any
+	if swagger2 {
+		servers = swagger2Servers(root)
+	} else {
+		servers = firstServers(op, item, root)
+	}
 	names := securityNames(op, root)
-	schemes, _ := asMap(mustGet(mustMap(mustGet(root, "components")), "securitySchemes"))
+	schemes := schemeDefs(doc)
 
 	if depth < 0 {
 		depth = 0
@@ -266,10 +330,22 @@ func ResolveOperation(doc Document, method, path string, depth, maxBytes int) (R
 		if err != nil {
 			return Resolved{}, false, err
 		}
-		return Resolved{Operation: opJSON, Servers: svJSON, SecuritySchemes: scJSON, EffectiveDepth: d}, in.cut, nil
+		res := Resolved{Operation: opJSON, Servers: svJSON, SecuritySchemes: scJSON, EffectiveDepth: d}
+		if swagger2 {
+			res.OpenAPIVersion = Swagger2Version
+			if res.Consumes, err = json.Marshal(effectiveStringList(op, root, "consumes")); err != nil {
+				return Resolved{}, false, err
+			}
+			if res.Produces, err = json.Marshal(effectiveStringList(op, root, "produces")); err != nil {
+				return Resolved{}, false, err
+			}
+		}
+		return res, in.cut, nil
 	}
 
-	size := func(r Resolved) int { return len(r.Operation) + len(r.Servers) + len(r.SecuritySchemes) }
+	size := func(r Resolved) int {
+		return len(r.Operation) + len(r.Servers) + len(r.SecuritySchemes) + len(r.Consumes) + len(r.Produces)
+	}
 	// Telusuri dari kedalaman terkecil naik: ukuran tumbuh monoton dan biaya build tumbuh
 	// eksponensial, jadi berhenti pada level pertama yang melebihi maxBytes menghindari
 	// membangun pohon terdalam yang pasti terlalu besar.

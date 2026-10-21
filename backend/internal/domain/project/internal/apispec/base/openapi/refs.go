@@ -11,17 +11,21 @@ var nameMapKeys = map[string]bool{"properties": true, "patternProperties": true,
 	"callbacks": true, "links": true, "requestBodies": true, "securitySchemes": true, "pathItems": true,
 	"encoding": true, "parameters": true, "paths": true, "webhooks": true, "variables": true}
 
+// Tambahan name-map khusus Swagger 2.0 (nameMapKeys tidak berubah agar 3.x identik).
+var swagger2NameMapKeys = map[string]bool{"securityDefinitions": true, "scopes": true}
+
 // checkRefs memeriksa semua $ref: internal ("#...") harus terselesaikan; selain itu ditolak (EXTERNAL_REF)
 // tanpa pernah di-fetch. Tidak ada resolver, loader, atau HTTP client di package ini.
 func checkRefs(doc Document) []rawIssue {
-	rc := &refChecker{root: doc.Root}
+	rc := &refChecker{root: doc.Root, swagger2: doc.IsSwagger2()}
 	rc.walk(doc.Root, "#", false)
 	return rc.issues
 }
 
 type refChecker struct {
-	root   *Map
-	issues []rawIssue
+	root     *Map
+	swagger2 bool // Swagger 2.0: examples adalah peta MIME -> literal; securityDefinitions/scopes name-map
+	issues   []rawIssue
 }
 
 func (r *refChecker) add(code, msg, ptr string) {
@@ -62,10 +66,13 @@ func (r *refChecker) walk(x any, ptr string, names bool) {
 			}
 			child := joinPtr(ptr, k)
 			switch {
+			case !names && r.swagger2 && k == "examples":
+				// Swagger 2.0: examples = peta MIME -> nilai literal; $ref di dalamnya bukan referensi.
+				continue
 			case !names && k == "examples":
 				r.examples(v, child)
 			default:
-				r.walk(v, child, !names && nameMapKeys[k])
+				r.walk(v, child, !names && (nameMapKeys[k] || (r.swagger2 && swagger2NameMapKeys[k])))
 			}
 		}
 	case []any:

@@ -28,6 +28,10 @@ describe('OpenApiBadge / SpecQuota', () => {
     render(OpenApiBadge, { version: '3.1.0' });
     expect(screen.getByLabelText('Versi OpenAPI 3.1.0')).toHaveTextContent('3.1');
   });
+  it('badge Swagger 2.0 ditulis penuh dengan aria-label Swagger 2.0', () => {
+    render(OpenApiBadge, { version: '2.0' });
+    expect(screen.getByLabelText('Swagger 2.0')).toHaveTextContent('Swagger 2.0');
+  });
   it('quota warns at the limit only', () => {
     const { unmount } = render(SpecQuota, { total: 3, limit: 100 });
     expect(screen.getByText('3 / 100 spec')).toBeInTheDocument();

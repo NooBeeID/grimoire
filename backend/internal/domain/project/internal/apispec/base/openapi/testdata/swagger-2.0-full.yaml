@@ -1,0 +1,137 @@
+swagger: "2.0"
+info:
+  title: Full
+  version: "2.1.0"
+host: api.example.com
+basePath: /v2
+schemes: [http, https]
+consumes: [application/json]
+produces: [application/json]
+securityDefinitions:
+  basic:
+    type: basic
+  api_key:
+    type: apiKey
+    name: X-API-Key
+    in: header
+  oauth:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://auth.example.com/authorize
+    tokenUrl: https://auth.example.com/token
+    scopes:
+      read: Baca
+      write: Tulis
+security:
+  - basic: []
+parameters:
+  Limit:
+    name: limit
+    in: query
+    type: integer
+    collectionFormat: csv
+responses:
+  NotFound:
+    description: tidak ada
+    schema:
+      $ref: '#/definitions/Error'
+paths:
+  /pets:
+    parameters:
+      - $ref: '#/parameters/Limit'
+    get:
+      operationId: listPets
+      summary: Daftar
+      tags: [pets]
+      parameters:
+        - name: X-Trace
+          in: header
+          type: string
+        - name: tag
+          in: query
+          type: array
+          items: {type: string}
+          collectionFormat: multi
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Pet'
+          examples:
+            application/json:
+              - id: 1
+                name: Rex
+        "404":
+          $ref: '#/responses/NotFound'
+    post:
+      operationId: createPet
+      parameters:
+        - name: pet
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Pet'
+      security:
+        - oauth: [write]
+      responses:
+        "201":
+          description: dibuat
+        "204":
+          description: tanpa isi
+  /pets/{petId}/photo:
+    post:
+      operationId: uploadPhoto
+      consumes: [multipart/form-data]
+      produces: [application/json]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          type: string
+        - name: file
+          in: formData
+          type: file
+          required: true
+      security: []
+      responses:
+        "200":
+          description: ok
+    trace:
+      operationId: traceBroken
+      parameters: "bukan array"
+  /pets/{petId}:
+    delete:
+      operationId: deletePet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          type: string
+      security:
+        - api_key: []
+        - basic: []
+      responses:
+        "204":
+          description: dihapus
+definitions:
+  Error:
+    type: object
+    properties:
+      message: {type: string}
+  Animal:
+    type: object
+    discriminator: kind
+    required: [kind]
+    properties:
+      kind: {type: string}
+  Pet:
+    allOf:
+      - $ref: '#/definitions/Animal'
+      - type: object
+        required: [name]
+        properties:
+          name:
+            type: string
+            x-nullable: true

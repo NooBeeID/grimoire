@@ -144,3 +144,25 @@ func TestCatalog_SummaryOnlyNumbers(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalog_Swagger2Label(t *testing.T) {
+	resp := listspecs.Response{Items: []listspecs.Spec{
+		{Name: "petstore", Title: "Swagger Petstore", ApiVersion: "1.0.0", OpenapiVersion: "2.0", EndpointCount: 4, UpdatedAt: ts},
+		{Name: "billing", Title: "B", ApiVersion: "1", OpenapiVersion: "3.0.3", EndpointCount: 2, UpdatedAt: ts},
+		{Name: "legacy", OpenapiVersion: ""},
+	}}
+	text := NewSpecCatalog(resp, 5000).Text()
+	for _, w := range []string{
+		"- petstore: Swagger Petstore | versi 1.0.0 | Swagger 2.0 | 4 endpoint | diperbarui 2026-10-20 08:15 UTC",
+		"| OpenAPI 3.0.3 |",
+		"| OpenAPI - |",
+	} {
+		if !strings.Contains(text, w) {
+			t.Fatalf("tidak ada %q di:\n%s", w, text)
+		}
+	}
+	long := listspecs.Response{Items: []listspecs.Spec{{Name: "x", OpenapiVersion: strings.Repeat("9", 100)}}}
+	if got := NewSpecCatalog(long, 5000).Text(); !strings.Contains(got, "| OpenAPI 9") || !strings.Contains(got, "... |") {
+		t.Fatal(got)
+	}
+}

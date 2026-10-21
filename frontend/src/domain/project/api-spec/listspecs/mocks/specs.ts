@@ -31,6 +31,20 @@ export const mockAuthSpec = (over: Partial<ApiSpec> = {}): ApiSpec =>
     ...over,
   });
 
+export const mockSwagger2Spec = (over: Partial<ApiSpec> = {}): ApiSpec =>
+  mockSpec({
+    name: 'hr-platform',
+    title: 'HR Platform API',
+    openapi_version: '2.0',
+    api_version: '1.12.0',
+    source_path: 'api/openapi.yml',
+    size_bytes: 18432,
+    endpoint_count: 5,
+    created_by_label: 'Rina Pratiwi',
+    updated_by_label: 'Rina Pratiwi',
+    ...over,
+  });
+
 export const mockSpecList = (items: ApiSpec[] = [mockAuthSpec(), mockSpec()], limit = 100): ApiSpecList => ({
   items,
   total: items.length,

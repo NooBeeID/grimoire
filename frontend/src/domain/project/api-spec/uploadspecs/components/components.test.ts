@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
-import { mockFileResult, mockRejected } from '../mocks/results';
+import { mockFileResult, mockRejected, mockSwagger2Created, mockSwagger2Unresolved } from '../mocks/results';
 import FilePicker from './FilePicker.svelte';
 import NameField from './NameField.svelte';
 import ResultSummary from './ResultSummary.svelte';
@@ -61,6 +61,17 @@ describe('ResultSummary', () => {
   });
 });
 describe('ResultTable', () => {
+  it('hasil created Swagger 2.0 berlabel Swagger 2.0 dan 3.x tetap OpenAPI', () => {
+    render(ResultTable, { results: [mockSwagger2Created(), mockFileResult()], projectId: 'p1', linkNames: true });
+    expect(screen.getByText(/Swagger Petstore/)).toHaveTextContent('Swagger Petstore · Swagger 2.0 · 1.0.0 · 4 endpoint');
+    expect(screen.getByText(/Payment API/)).toHaveTextContent('Payment API · OpenAPI 3.0.3 · 1.4.0');
+    expect(screen.getByRole('link', { name: 'petstore' })).toBeInTheDocument();
+  });
+  it('UNRESOLVED_REF 2.0 menampilkan pointer dan baris', () => {
+    render(ResultTable, { results: [mockSwagger2Unresolved()] });
+    expect(screen.getByTestId('issues-0')).toHaveTextContent('UNRESOLVED_REF');
+    expect(screen.getByTestId('issues-0')).toHaveTextContent('(baris 21, #/paths/~1pets/get/responses/200/schema/$ref)');
+  });
   it('shows reason label, full server issue message and copies the issue text', async () => {
     const writeText = vi.fn(async () => {});
     vi.stubGlobal('navigator', { clipboard: { writeText } });
@@ -68,7 +79,7 @@ describe('ResultTable', () => {
     expect(screen.getByText('Dokumen OpenAPI tidak valid')).toBeInTheDocument();
     expect(screen.getByTestId('issues-0')).toHaveTextContent('(baris 1, #/swagger)');
     await userEvent.click(screen.getByRole('button', { name: 'Salin' }));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('NOT_OPENAPI_3'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('UNSUPPORTED_VERSION'));
     expect(await screen.findByText('Tersalin')).toBeInTheDocument();
   });
   it('failed copy shows the manual hint', async () => {

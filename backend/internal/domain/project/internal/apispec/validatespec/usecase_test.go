@@ -86,7 +86,17 @@ func TestValidate_PerFileCases(t *testing.T) {
 		{"package.json", base.StatusRejected, "INVALID_SPEC", "NOT_OPENAPI"},
 		{"broken.yaml", base.StatusRejected, "INVALID_SPEC", "SYNTAX"},
 		{"broken.json", base.StatusRejected, "INVALID_SPEC", "SYNTAX"},
-		{"swagger-2.0.yaml", base.StatusRejected, "INVALID_SPEC", "NOT_OPENAPI_3"},
+		{"swagger-2.0.yaml", base.StatusValid, "", ""},
+		{"swagger-2.0-petstore.yaml", base.StatusValid, "", ""},
+		{"swagger-2.0-petstore.json", base.StatusValid, "", ""},
+		{"swagger-2.0-numeric.yaml", base.StatusValid, "", ""},
+		{"swagger-1.2.yaml", base.StatusRejected, "INVALID_SPEC", "UNSUPPORTED_VERSION"},
+		{"swagger-null.yaml", base.StatusRejected, "INVALID_SPEC", "NOT_OPENAPI"},
+		{"swagger-2.0-unresolved-ref.yaml", base.StatusRejected, "INVALID_SPEC", "UNRESOLVED_REF"},
+		{"swagger-2.0-dup-opid.yaml", base.StatusRejected, "INVALID_SPEC", "DUPLICATE_OPERATION_ID"},
+		{"swagger-2.0-bad-params.yaml", base.StatusRejected, "INVALID_SPEC", "INVALID_STRUCTURE"},
+		{"swagger-2.0-ref-http.yaml", base.StatusRejected, "INVALID_SPEC", "EXTERNAL_REF"},
+		{"swagger-2.0-ref-file.yaml", base.StatusRejected, "INVALID_SPEC", "EXTERNAL_REF"},
 		{"ref-http.yaml", base.StatusRejected, "INVALID_SPEC", "EXTERNAL_REF"},
 		{"ref-file.yaml", base.StatusRejected, "INVALID_SPEC", "EXTERNAL_REF"},
 		{"ref-unresolved.yaml", base.StatusRejected, "INVALID_SPEC", "UNRESOLVED_REF"},
@@ -119,6 +129,13 @@ func TestValidate_PerFileCases(t *testing.T) {
 			}
 			if c.issueCode != "" && r.Issues[0].Code != c.issueCode {
 				t.Fatalf("issue %s want %s", r.Issues[0].Code, c.issueCode)
+			}
+			if strings.HasPrefix(c.fixture, "swagger-2.0-") {
+				for _, is := range r.Issues {
+					if is.Pointer == "" || is.Line <= 0 {
+						t.Fatalf("issue tanpa pointer/baris: %+v", is)
+					}
+				}
 			}
 		})
 	}
@@ -223,13 +240,13 @@ func TestValidate_MixedKeepsOrderAndSummary(t *testing.T) {
 		upload.File{FileName: "README.md", RawPath: "README.md", Content: []byte("#")},
 		loadFixture(t, "swagger-2.0.yaml"),
 		loadFixture(t, "broken.yaml"))
-	want := []base.FileStatus{base.StatusValid, base.StatusSkipped, base.StatusRejected, base.StatusRejected}
+	want := []base.FileStatus{base.StatusValid, base.StatusSkipped, base.StatusValid, base.StatusRejected}
 	for i, w := range want {
 		if res.Results[i].Status != w {
 			t.Fatalf("%d: %s", i, res.Results[i].Status)
 		}
 	}
-	if res.Summary != (base.ValidateSummaryDTO{Valid: 1, Skipped: 1, Rejected: 2}) {
+	if res.Summary != (base.ValidateSummaryDTO{Valid: 2, Skipped: 1, Rejected: 1}) {
 		t.Fatalf("%+v", res.Summary)
 	}
 }

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
-import { mockFileResult, mockRejected, mockUploadResult, mockValidateResult } from '../mocks/results';
+import { mockFileResult, mockRejected, mockSwagger2Created, mockUploadResult, mockValidateResult } from '../mocks/results';
 import Dialog from './UploadSpecsDialog.svelte';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
@@ -38,7 +38,26 @@ describe('UploadSpecsDialog', () => {
     await pick('legacy.yaml');
     await userEvent.click(screen.getByRole('button', { name: 'Unggah' }));
     expect(await screen.findByText('Dokumen OpenAPI tidak valid')).toBeInTheDocument();
-    expect(screen.getByTestId('issues-0')).toHaveTextContent('NOT_OPENAPI_3');
+    expect(screen.getByTestId('issues-0')).toHaveTextContent('UNSUPPORTED_VERSION');
+  });
+  it('T10-AC1: upload Swagger 2.0 tampil created dengan label Swagger 2.0 dan memanggil onuploaded sekali', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockUploadResult([mockSwagger2Created()]))));
+    const p = props();
+    render(Dialog, p);
+    await pick('petstore.yaml');
+    await userEvent.click(screen.getByRole('button', { name: 'Unggah' }));
+    expect(await screen.findByRole('link', { name: 'petstore' })).toBeInTheDocument();
+    expect(screen.getByText(/Swagger Petstore/)).toHaveTextContent('Swagger Petstore · Swagger 2.0');
+    expect(p.onuploaded).toHaveBeenCalledTimes(1);
+  });
+  it('T10: validasi Swagger 2.0 tampil valid tanpa onuploaded', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockValidateResult([mockSwagger2Created({ status: 'valid' })]))));
+    const p = props();
+    render(Dialog, p);
+    await pick('petstore.yaml');
+    await userEvent.click(screen.getByRole('button', { name: 'Validasi saja' }));
+    expect(await screen.findByText(/Swagger 2\.0/)).toBeInTheDocument();
+    expect(p.onuploaded).not.toHaveBeenCalled();
   });
   it('validate hits /validate, marks overwrite and does not call onuploaded', async () => {
     const f = vi.fn(async () => json(200, mockValidateResult([mockFileResult({ status: 'valid' })])));

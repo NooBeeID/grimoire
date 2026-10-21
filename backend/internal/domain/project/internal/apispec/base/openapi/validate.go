@@ -16,6 +16,14 @@ var (
 		"securitySchemes", "links", "callbacks", "pathItems"}
 )
 
+// methodsFor mengembalikan daftar method path item untuk versi dokumen (D5).
+func methodsFor(doc Document) []string {
+	if doc.IsSwagger2() {
+		return swagger2Methods
+	}
+	return opMethods
+}
+
 type validator struct {
 	doc    Document
 	is30   bool

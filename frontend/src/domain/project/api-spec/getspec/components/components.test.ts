@@ -17,6 +17,7 @@ import OperationView from './OperationView.svelte';
 import SchemaTree from './SchemaTree.svelte';
 import SecuritySchemesList from './SecuritySchemesList.svelte';
 import ServersList from './ServersList.svelte';
+import { mockDetailSwagger2 } from '../mocks/detail-swagger2';
 import SpecHeader from './SpecHeader.svelte';
 
 beforeEach(() => setLocale('id'));
@@ -77,6 +78,10 @@ describe('MethodBadge / SpecHeader', () => {
     render(SpecHeader, { spec });
     expect(screen.getByLabelText('Versi OpenAPI 3.0.3')).toHaveTextContent('3.0');
     expect(screen.getByText(/<b>x<\/b>/)).toBeInTheDocument();
+  });
+  it('header Swagger 2.0 memuat label Swagger 2.0', () => {
+    render(SpecHeader, { spec: mockDetailSwagger2().spec });
+    expect(screen.getByLabelText('Swagger 2.0')).toBeInTheDocument();
   });
 });
 
@@ -163,10 +168,10 @@ describe('SchemaTree', () => {
 describe('ApiOverview / security / servers / examples', () => {
   it('overview lists servers, security schemes, tags and webhooks', () => {
     render(ApiOverview, { doc: { ...mockDocument31, ...{ webhooks: mockDocumentWebhooks.webhooks }, tags: [{ name: 'pets', description: 'Hewan **lucu**' }] } });
-    expect(screen.getAllByText('https://pets.example.com/v2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('https://pets.noobee.id/v2').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Skema keamanan' })).toBeInTheDocument();
     expect(screen.getAllByText('oauth').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('https://auth.example.com/token', { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('https://auth.noobee.id/token', { exact: false }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('pets:read', { exact: false }).length).toBeGreaterThan(0);
     expect(screen.getByText('lucu')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Webhook' })).toBeInTheDocument();

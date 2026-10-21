@@ -26,12 +26,20 @@ export const ApiSpecEndpointSchema = z.object({
 });
 // Isi dokumen di luar level atas bebas bentuk; model membacanya secara defensif.
 export const OpenApiDocumentSchema = z.object({ openapi: z.string(), info: z.object({ title: z.string(), version: z.string() }).passthrough() }).passthrough();
+// Swagger 2.0: JSON tersimpan "2.0" (string) atau 2 (YAML `swagger: 2.0`).
+export const Swagger2DocumentSchema = z
+  .object({ swagger: z.union([z.literal('2.0'), z.literal(2)]), info: z.object({ title: z.string(), version: z.string() }).passthrough() })
+  .passthrough();
+export const SpecDocumentSchema = z.union([OpenApiDocumentSchema, Swagger2DocumentSchema]); // 3.x dicoba dulu
+// Bentuk kawat GET detail.
 export const ApiSpecDetailSchema = z.object({
   spec: ApiSpecSchema,
   endpoints: z.array(ApiSpecEndpointSchema),
-  document: OpenApiDocumentSchema,
+  document: SpecDocumentSchema,
 });
 export type ApiSpec = z.infer<typeof ApiSpecSchema>;
 export type ApiSpecEndpoint = z.infer<typeof ApiSpecEndpointSchema>;
-export type ApiSpecDetail = z.infer<typeof ApiSpecDetailSchema>;
+export type ApiSpecDetailWire = z.infer<typeof ApiSpecDetailSchema>;
 export type OpenApiDocument = z.infer<typeof OpenApiDocumentSchema>;
+// Bentuk yang dipakai store dan komponen: dokumen selalu berbentuk 3.x (2.0 sudah diadaptasi di service).
+export type ApiSpecDetail = Omit<ApiSpecDetailWire, 'document'> & { document: OpenApiDocument };

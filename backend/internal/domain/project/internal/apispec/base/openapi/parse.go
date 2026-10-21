@@ -14,14 +14,20 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Document adalah hasil parse dokumen OpenAPI yang valid.
+// Swagger2Version adalah nilai OpenAPIVersion untuk dokumen Swagger 2.0.
+const Swagger2Version = "2.0"
+
+// Document adalah hasil parse dokumen OpenAPI/Swagger yang valid.
 type Document struct {
-	OpenAPIVersion string // "3.0.3" / "3.1.0"
+	OpenAPIVersion string // "3.0.3" / "3.1.0" / "2.0" (Swagger)
 	Title          string
 	APIVersion     string
 	Root           *Map
 	node           *yaml.Node // untuk lookup baris (kosong untuk JSON tanpa issue)
 }
+
+// IsSwagger2 true bila dokumen berformat Swagger 2.0.
+func (d Document) IsSwagger2() bool { return d.OpenAPIVersion == Swagger2Version }
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
@@ -64,31 +70,38 @@ func Parse(content []byte, format Format, lim Limits) (Document, []Issue) {
 	}
 	ver, has := root.Get("openapi")
 	if !has {
-		if _, sw := root.Get("swagger"); sw {
-			return Document{}, []Issue{compose(CodeNotOpenAPI3, "Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1", "#/swagger", lineOfPointer(content, format, node, "#/swagger"))}
+		sw, hasSwagger := root.Get("swagger")
+		if !hasSwagger || sw == nil {
+			return Document{}, []Issue{compose(CodeNotOpenAPI, "bukan dokumen OpenAPI", "#", 1)}
 		}
-		return Document{}, []Issue{compose(CodeNotOpenAPI, "bukan dokumen OpenAPI", "#", 1)}
+		sv, ok, shown := swaggerVersion(sw)
+		if !ok {
+			return Document{}, []Issue{compose(CodeUnsupportedVersion,
+				"versi Swagger "+strconv.Quote(truncRunes(shown, 40))+" tidak didukung (hanya 2.0)",
+				"#/swagger", lineOfPointer(content, format, node, "#/swagger"))}
+		}
+		doc := Document{OpenAPIVersion: sv, Root: root, node: node}
+		raws := validateSwagger2(doc)
+		raws = append(raws, checkRefs(doc)...)
+		return finish(doc, raws, content)
 	}
 	vs, isStr := ver.(string)
 	if !isStr || !versionRe.MatchString(vs) {
-		shown := "?"
-		switch x := ver.(type) {
-		case string:
-			shown = x
-		case json.Number:
-			shown = x.String()
-		case float64:
-			shown = strconv.FormatFloat(x, 'f', -1, 64)
-		}
 		return Document{}, []Issue{compose(CodeUnsupportedVersion,
-			"versi OpenAPI "+strconv.Quote(truncRunes(shown, 40))+" tidak didukung (hanya 3.0.x/3.1.x)",
+			"versi OpenAPI "+strconv.Quote(truncRunes(versionShown(ver), 40))+" tidak didukung (hanya 3.0.x/3.1.x)",
 			"#/openapi", lineOfPointer(content, format, node, "#/openapi"))}
 	}
 
 	doc := Document{OpenAPIVersion: vs, Root: root, node: node}
 	raws := validate(doc)
 	raws = append(raws, checkRefs(doc)...)
+	return finish(doc, raws, content)
+}
+
+// finish mengubah raw issue menjadi Issue terurut (ditolak) atau mengisi Title/APIVersion dari info.
+func finish(doc Document, raws []rawIssue, content []byte) (Document, []Issue) {
 	if len(raws) > 0 {
+		node := doc.node
 		if node == nil {
 			node = jsonLineNode(content)
 		}
@@ -98,11 +111,44 @@ func Parse(content []byte, format Format, lim Limits) (Document, []Issue) {
 		}
 		return Document{}, sortIssues(out)
 	}
-	if info, ok := asMap(mustGet(root, "info")); ok {
+	if info, ok := asMap(mustGet(doc.Root, "info")); ok {
 		doc.Title, _ = mustGet(info, "title").(string)
 		doc.APIVersion, _ = mustGet(info, "version").(string)
 	}
 	return doc, nil
+}
+
+// versionShown membentuk teks versi untuk pesan penolakan.
+func versionShown(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case json.Number:
+		return x.String()
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	}
+	return "?"
+}
+
+// swaggerVersion menerima "2.0" (string), 2.0 (float64), 2 / 2.0 (json.Number); semuanya menjadi "2.0".
+// Nilai lain -> ok=false dan shown untuk pesan.
+func swaggerVersion(v any) (ver string, ok bool, shown string) {
+	switch x := v.(type) {
+	case string:
+		if x == Swagger2Version {
+			return Swagger2Version, true, x
+		}
+	case float64:
+		if x == 2 {
+			return Swagger2Version, true, ""
+		}
+	case json.Number:
+		if s := x.String(); s == "2" || s == Swagger2Version {
+			return Swagger2Version, true, s
+		}
+	}
+	return "", false, versionShown(v)
 }
 
 func mustGet(m *Map, k string) any {

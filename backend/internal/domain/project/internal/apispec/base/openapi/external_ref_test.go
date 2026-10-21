@@ -42,3 +42,23 @@ func TestT06_AC2_ExternalRefNoRequest(t *testing.T) {
 		t.Fatalf("server menerima %d request, want 0", n)
 	}
 }
+
+func TestRefs_Swagger2External(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	for _, f := range []string{"swagger-2.0-ref-http.yaml", "swagger-2.0-ref-file.yaml"} {
+		content := strings.ReplaceAll(string(load(t, f)), "127.0.0.1:__PORT__", host)
+		_, is := Parse([]byte(content), FormatYAML, DefaultLimits)
+		if len(is) != 1 || is[0].Code != CodeExternalRef || is[0].Line <= 0 ||
+			is[0].Pointer != "#/paths/~1pets/get/responses/200/schema" {
+			t.Fatalf("%s: %+v", f, is)
+		}
+	}
+	if n := hits.Load(); n != 0 {
+		t.Fatalf("server menerima %d request, want 0", n)
+	}
+}

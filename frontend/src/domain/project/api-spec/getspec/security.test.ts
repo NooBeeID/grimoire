@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../shared/stores/i18n';
-import { mockDetailXss } from './mocks/detail-xss';
+import { mockDetailSwagger2Xss, mockDetailXss } from './mocks/detail-xss';
 import View from './views/SpecDetailView.svelte';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
@@ -43,7 +43,7 @@ describe('hostile spec content (T06-AC8)', () => {
     // Markdown dirender: HTML mentah menjadi teks, tautan aman dipertahankan.
     expect(screen.getAllByText(/<script>alert\(1\)<\/script>/).length).toBeGreaterThan(0);
     const ok = screen.getByRole('link', { name: 'ok' });
-    expect(ok).toHaveAttribute('href', 'https://example.com/ok');
+    expect(ok).toHaveAttribute('href', 'https://docs.noobee.id/ok');
     expect(ok).toHaveAttribute('rel', expect.stringContaining('noopener'));
     for (const el of screen.getAllByText('klik')) expect(el.closest('a')).toBeNull();
     // URL non-http tampil sebagai teks.
@@ -60,6 +60,23 @@ describe('hostile spec content (T06-AC8)', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /Salin|Copy/ })[0]!);
     expectClean(container);
     expect(screen.getAllByText(/onerror=alert\(1\)/).length).toBeGreaterThan(0);
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('hostile Swagger 2.0 content', () => {
+  beforeEach(() => vi.stubGlobal('fetch', vi.fn(async () => json(200, mockDetailSwagger2Xss()))));
+  it('overview: host javascript: tampil sebagai teks, bukan tautan', async () => {
+    const { container } = render(View, props());
+    await screen.findByText('Evil · 1');
+    for (const el of screen.getAllByText(/javascript:alert\(1\)/)) expect(el.closest('a')).toBeNull();
+    expectClean(container);
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+  it('operation: deskripsi body dan skema tetap inert', async () => {
+    const { container } = render(View, props({ selectedOp: 'POST /x' }));
+    await screen.findByRole('heading', { level: 3, name: /\/x/ });
+    expectClean(container);
     expect(alertSpy).not.toHaveBeenCalled();
   });
 });

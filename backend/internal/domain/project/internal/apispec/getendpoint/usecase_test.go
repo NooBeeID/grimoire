@@ -314,3 +314,90 @@ func TestExecute_RepoError(t *testing.T) {
 		}
 	}
 }
+
+const swagger2YAML = `swagger: "2.0"
+info: {title: P, version: "1"}
+host: petstore.example.com
+basePath: /v1
+schemes: [https]
+consumes: [application/json]
+produces: [application/json]
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses: {"200": {description: ok}}
+    post:
+      operationId: createPet
+      parameters:
+        - {name: body, in: body, required: true, schema: {$ref: '#/definitions/Pet'}}
+      responses: {"201": {description: created}}
+      security: [{api_key: []}]
+definitions:
+  Pet:
+    type: object
+    properties: {id: {type: integer}}
+securityDefinitions:
+  api_key: {type: apiKey, name: X-API-Key, in: header}
+`
+
+func swagger2Repo(pid string) *fakeRepo {
+	return &fakeRepo{
+		specs: map[string]map[string]base.Spec{pid: {"a": spec("a", swagger2YAML)}},
+		eps:   []base.Endpoint{{Method: "GET", Path: "/pets"}, {Method: "POST", Path: "/pets"}},
+	}
+}
+
+func TestExecute_Swagger2SetsOpenAPIVersion(t *testing.T) {
+	res, err := newUC(swagger2Repo(pidA)).Execute(context.Background(), getendpoint.Request{ProjectID: pidA, Method: "post", Path: "/pets"})
+	if err != nil || !res.Found {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if res.OpenAPIVersion != "2.0" || string(res.Consumes) != `["application/json"]` || string(res.Produces) != `["application/json"]` {
+		t.Fatalf("%+v", res)
+	}
+	if string(res.Servers) != `[{"url":"https://petstore.example.com/v1"}]` {
+		t.Fatal(string(res.Servers))
+	}
+	if !json.Valid(res.Operation) || !strings.Contains(string(res.SecuritySchemes), "api_key") {
+		t.Fatalf("%s %s", res.Operation, res.SecuritySchemes)
+	}
+}
+
+func TestExecute_Swagger2ByOperationID(t *testing.T) {
+	res, err := newUC(swagger2Repo(pidA)).Execute(context.Background(), getendpoint.Request{ProjectID: pidA, OperationID: "createPet"})
+	if err != nil || !res.Found || res.Method != "POST" || res.OpenAPIVersion != "2.0" {
+		t.Fatalf("%v %+v", err, res)
+	}
+}
+
+func TestExecute_Swagger2TraceNotFound(t *testing.T) {
+	f := swagger2Repo(pidA)
+	res, err := newUC(f).Execute(context.Background(), getendpoint.Request{ProjectID: pidA, Method: "TRACE", Path: "/pets"})
+	if err != nil || res.Found || res.Reason != getendpoint.ReasonEndpointNotFound || res.Spec != "a" || f.epCalls != 1 {
+		t.Fatalf("%v %+v epCalls=%d", err, res, f.epCalls)
+	}
+	if len(res.Similar) == 0 {
+		t.Fatal("similar kosong")
+	}
+}
+
+func TestExecute_3xFieldsEmpty(t *testing.T) {
+	res, err := newUC(one()).Execute(context.Background(), getendpoint.Request{ProjectID: pidA, Method: "GET", Path: "/pets"})
+	if err != nil || !res.Found {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if res.OpenAPIVersion != "" || res.Consumes != nil || res.Produces != nil {
+		t.Fatalf("%+v", res)
+	}
+	if string(res.Servers) != "[]" || string(res.SecuritySchemes) != "{}" {
+		t.Fatalf("%s %s", res.Servers, res.SecuritySchemes)
+	}
+}
+
+func TestExecute_Swagger2ProjectIsolation(t *testing.T) {
+	res, err := newUC(swagger2Repo(pidB)).Execute(context.Background(), getendpoint.Request{ProjectID: pidA, Spec: "a", Method: "GET", Path: "/pets"})
+	if err != nil || res.Found || res.Reason != getendpoint.ReasonSpecNotFound {
+		t.Fatalf("%v %+v", err, res)
+	}
+}

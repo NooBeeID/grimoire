@@ -1,0 +1,7 @@
+openapi: 3.0.3
+info:
+  title: InInfo
+  version: "1"
+  swagger: "2.0"
+  x-swagger: "2.0"
+paths: {}

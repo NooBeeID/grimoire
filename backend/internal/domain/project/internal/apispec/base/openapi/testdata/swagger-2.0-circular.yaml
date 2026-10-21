@@ -1,0 +1,27 @@
+swagger: "2.0"
+info: {title: Circ, version: "1"}
+paths:
+  /nodes/{id}:
+    get:
+      operationId: getNode
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            $ref: '#/definitions/Node'
+definitions:
+  Node:
+    type: object
+    properties:
+      name: {type: string}
+      children:
+        type: array
+        items:
+          $ref: '#/definitions/Node'
+  Unused:
+    type: object

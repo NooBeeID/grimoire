@@ -245,3 +245,63 @@ func TestNewLookup_UnknownReason(t *testing.T) {
 		}
 	}
 }
+
+func swagger2Resp() getendpoint.Response {
+	r := foundResp()
+	r.OpenAPIVersion = "2.0"
+	r.Consumes = json.RawMessage(`["application/json"]`)
+	r.Produces = json.RawMessage(`["application/json"]`)
+	return r
+}
+
+func TestDetail_Swagger2Fields(t *testing.T) {
+	text := lookupDetail(t, swagger2Resp(), 4).Text()
+	want := `"securitySchemes":{"apiKey":{"type":"apiKey","x":{"$ref":5}}},"openapi_version":"2.0","consumes":["application/json"],"produces":["application/json"]}`
+	if !strings.HasSuffix(text, want) || !json.Valid([]byte(text)) {
+		t.Fatal(text)
+	}
+	r := swagger2Resp()
+	r.Consumes = json.RawMessage(`[]`)
+	if text := lookupDetail(t, r, 4).Text(); !strings.Contains(text, `"consumes":[]`) {
+		t.Fatal(text)
+	}
+	r.Consumes, r.Produces = nil, json.RawMessage("  ")
+	if text := lookupDetail(t, r, 4).Text(); !strings.Contains(text, `"consumes":[],"produces":[]`) {
+		t.Fatal(text)
+	}
+}
+
+func TestDetail_3xOmitsVersionFields(t *testing.T) {
+	base3 := lookupDetail(t, foundResp(), 4).Text()
+	for _, k := range []string{"openapi_version", "consumes", "produces"} {
+		if strings.Contains(base3, k) {
+			t.Fatalf("%s: %s", k, base3)
+		}
+	}
+	r := foundResp()
+	r.Consumes = json.RawMessage(`["x"]`)
+	r.Produces = json.RawMessage(`["y"]`)
+	if got := lookupDetail(t, r, 4).Text(); got != base3 {
+		t.Fatalf("provider salah kirim bocor:\n%s", got)
+	}
+}
+
+func TestNewLookup_InvalidConsumesProduces(t *testing.T) {
+	r := swagger2Resp()
+	r.Consumes = json.RawMessage(`{bad`)
+	if _, err := NewLookup(EndpointAsk{Spec: "p"}, 4, 1000, r); err == nil {
+		t.Fatal("harus error")
+	}
+	r = swagger2Resp()
+	r.Produces = json.RawMessage(`{bad`)
+	if _, err := NewLookup(EndpointAsk{Spec: "p"}, 4, 1000, r); err == nil {
+		t.Fatal("harus error")
+	}
+}
+
+func TestDetail_Swagger2SummaryUnchanged(t *testing.T) {
+	a, b := lookupDetail(t, foundResp(), 4).Summary(), lookupDetail(t, swagger2Resp(), 4).Summary()
+	if fmt.Sprint(a) != fmt.Sprint(b) {
+		t.Fatalf("%v %v", a, b)
+	}
+}
