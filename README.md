@@ -174,10 +174,10 @@ Setiap API key terikat ke satu project, jadi agent hanya melihat knowledge proje
 Repo ini menyertakan skill Claude Code di [`skills/grimoire`](skills/grimoire/SKILL.md) yang mengajari agent cara memakai tool Grimoire (memilih server per project, menelusuri dokumen, menelusuri API spec). Pasang di device masing-masing:
 
 ```bash
-npx skills add NooBeeID/grimoire
+npx skills add NooBeeID/grimoire --skill grimoire
 ```
 
-Perintah ini memakai CLI [`skills`](https://github.com/vercel-labs/skills) dan akan menanyakan agent serta lokasi pemasangan (global atau per project).
+Perintah ini memakai CLI [`skills`](https://github.com/vercel-labs/skills) dan akan menanyakan agent serta lokasi pemasangan (global atau per project). Flag `--skill grimoire` perlu karena repo ini juga menyimpan skill desain untuk pengembangan frontend (`.agents/skills`, `.claude/skills`) yang tidak dibutuhkan pengguna Grimoire. Tanpa flag itu, CLI menampilkan semuanya.
 
 Alternatif tanpa npx, salin manual dari clone repo ini:
 
