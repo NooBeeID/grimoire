@@ -1816,7 +1816,7 @@ paths:
         - project-api-specs
       summary: Upload satu atau banyak file spec OpenAPI
       description: |
-        Anggota (owner/member) dan super_admin. Setiap file divalidasi sebagai OpenAPI 3.0.x/3.1.x (maks APISPEC_MAX_FILE_BYTES per file, UTF-8, .yaml/.yml/.json). Spec bernama sama ditimpa (status updated; unchanged bila isi identik). Hasil dilaporkan per file; kegagalan satu file tidak membatalkan file lain. Referensi eksternal ($ref URL/file) tidak pernah di-fetch dan ditolak. Field name hanya boleh dipakai saat tepat satu file.
+        Anggota (owner/member) dan super_admin. Setiap file divalidasi sebagai OpenAPI 3.0.x/3.1.x atau Swagger 2.0 (maks APISPEC_MAX_FILE_BYTES per file, UTF-8, .yaml/.yml/.json). Spec bernama sama ditimpa (status updated; unchanged bila isi identik). Hasil dilaporkan per file; kegagalan satu file tidak membatalkan file lain. File disimpan dan diunduh apa adanya (Swagger 2.0 tidak dikonversi ke 3.x); openapi_version berisi "2.0" untuk Swagger 2.0. Referensi eksternal ($ref URL/file) tidak pernah di-fetch dan ditolak. Field name hanya boleh dipakai saat tepat satu file.
       security:
         - sessionCookie: []
       parameters:
@@ -1836,6 +1836,17 @@ paths:
                 $ref: '#/components/schemas/ApiSpecUploadResult'
               example:
                 results:
+                  - file: petstore.yaml
+                    source_path: specs/petstore.yaml
+                    name: petstore
+                    status: created
+                    reason_code: null
+                    reason: null
+                    issues: []
+                    openapi_version: '2.0'
+                    title: Swagger Petstore
+                    api_version: 1.0.0
+                    endpoint_count: 4
                   - file: payment.yaml
                     source_path: specs/payment.yaml
                     name: payment
@@ -1863,7 +1874,7 @@ paths:
                     api_version: null
                     endpoint_count: null
                 summary:
-                  created: 0
+                  created: 1
                   updated: 1
                   unchanged: 0
                   skipped: 0
@@ -1921,23 +1932,34 @@ paths:
                 $ref: '#/components/schemas/ApiSpecValidateResult'
               example:
                 results:
-                  - file: legacy.yaml
-                    source_path: legacy.yaml
-                    name: legacy
+                  - file: petstore.yaml
+                    source_path: petstore.yaml
+                    name: petstore
+                    status: valid
+                    reason_code: null
+                    reason: null
+                    issues: []
+                    openapi_version: '2.0'
+                    title: Swagger Petstore
+                    api_version: 1.0.0
+                    endpoint_count: 4
+                  - file: broken.yaml
+                    source_path: broken.yaml
+                    name: broken
                     status: rejected
                     reason_code: INVALID_SPEC
-                    reason: Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1
+                    reason: '$ref tidak ditemukan (baris 21, #/paths/~1pets/get/responses/200/schema/$ref)'
                     issues:
-                      - code: NOT_OPENAPI_3
-                        message: 'Swagger 2.0 tidak didukung, gunakan OpenAPI 3.0/3.1 (baris 1, #/swagger)'
-                        pointer: '#/swagger'
-                        line: 1
+                      - code: UNRESOLVED_REF
+                        message: '$ref tidak ditemukan (baris 21, #/paths/~1pets/get/responses/200/schema/$ref)'
+                        pointer: '#/paths/~1pets/get/responses/200/schema/$ref'
+                        line: 21
                     openapi_version: null
                     title: null
                     api_version: null
                     endpoint_count: null
                 summary:
-                  valid: 0
+                  valid: 1
                   skipped: 0
                   rejected: 1
         '400':
@@ -2007,7 +2029,7 @@ paths:
         - project-api-specs
       summary: Metadata, indeks endpoint, dan dokumen spec terparsir
       description: |
-        Anggota (owner/member) dan super_admin. document adalah spec lengkap sebagai JSON dengan $ref internal dipertahankan apa adanya. Deskripsi Markdown di dalamnya tidak tepercaya dan wajib disanitasi di klien.
+        Anggota (owner/member) dan super_admin. document adalah spec lengkap sebagai JSON, apa adanya dari file unggahan (kunci openapi untuk 3.x, atau swagger "2.0" untuk Swagger 2.0; tidak dikonversi), dengan $ref internal dipertahankan apa adanya (mis. #/definitions/Pet pada 2.0). Deskripsi Markdown di dalamnya tidak tepercaya dan wajib disanitasi di klien.
       security:
         - sessionCookie: []
       responses:
@@ -2017,47 +2039,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSpecDetail'
-              example:
-                spec:
-                  name: payment
-                  title: Payment API
-                  openapi_version: 3.0.3
-                  api_version: 1.4.0
-                  format: yaml
-                  source_path: specs/payment.yaml
-                  size_bytes: 40211
-                  endpoint_count: 2
-                  created_at: '2026-10-23T09:00:00Z'
-                  created_by_label: Budi
-                  updated_at: '2026-10-24T10:00:00Z'
-                  updated_by_label: Sari
-                endpoints:
-                  - method: GET
-                    path: /payments
-                    operation_id: listPayments
-                    summary: Daftar pembayaran
-                    tags:
-                      - payments
-                    deprecated: false
-                  - method: POST
-                    path: /payments
-                    operation_id: createPayment
-                    summary: Buat pembayaran
-                    tags:
-                      - payments
-                    deprecated: false
-                document:
-                  openapi: 3.0.3
-                  info:
-                    title: Payment API
-                    version: 1.4.0
-                  paths:
-                    /payments:
-                      get:
-                        operationId: listPayments
-                        responses:
-                          '200':
-                            description: OK
+              examples:
+                openapi3:
+                  summary: Dokumen OpenAPI 3.x
+                  value:
+                    spec:
+                      name: payment
+                      title: Payment API
+                      openapi_version: 3.0.3
+                      api_version: 1.4.0
+                      format: yaml
+                      source_path: specs/payment.yaml
+                      size_bytes: 40211
+                      endpoint_count: 2
+                      created_at: '2026-10-23T09:00:00Z'
+                      created_by_label: Budi
+                      updated_at: '2026-10-24T10:00:00Z'
+                      updated_by_label: Sari
+                    endpoints:
+                      - method: GET
+                        path: /payments
+                        operation_id: listPayments
+                        summary: Daftar pembayaran
+                        tags:
+                          - payments
+                        deprecated: false
+                      - method: POST
+                        path: /payments
+                        operation_id: createPayment
+                        summary: Buat pembayaran
+                        tags:
+                          - payments
+                        deprecated: false
+                    document:
+                      openapi: 3.0.3
+                      info:
+                        title: Payment API
+                        version: 1.4.0
+                      paths:
+                        /payments:
+                          get:
+                            operationId: listPayments
+                            responses:
+                              '200':
+                                description: OK
+                swagger2:
+                  summary: Dokumen Swagger 2.0 (apa adanya, tidak dikonversi)
+                  value:
+                    spec:
+                      name: petstore
+                      title: Swagger Petstore
+                      openapi_version: '2.0'
+                      api_version: 1.0.0
+                      format: yaml
+                      source_path: specs/petstore.yaml
+                      size_bytes: 1820
+                      endpoint_count: 1
+                      created_at: '2026-10-23T09:00:00Z'
+                      created_by_label: Budi
+                      updated_at: '2026-10-23T09:00:00Z'
+                      updated_by_label: Budi
+                    endpoints:
+                      - method: GET
+                        path: /pets
+                        operation_id: listPets
+                        summary: Daftar hewan
+                        tags:
+                          - pets
+                        deprecated: false
+                    document:
+                      swagger: '2.0'
+                      info:
+                        title: Swagger Petstore
+                        version: 1.0.0
+                      host: petstore.example.com
+                      basePath: /v1
+                      paths:
+                        /pets:
+                          get:
+                            operationId: listPets
+                            responses:
+                              '200':
+                                description: OK
+                                schema:
+                                  $ref: '#/definitions/Pet'
+                      definitions:
+                        Pet:
+                          type: object
+                          properties:
+                            name:
+                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2943,6 +3014,7 @@ components:
         openapi_version:
           type: string
           example: 3.0.3
+          description: Versi dokumen; nomor openapi untuk 3.x, atau "2.0" untuk Swagger 2.0.
         api_version:
           type: string
           example: 1.4.0
@@ -3044,7 +3116,7 @@ components:
         document:
           type: object
           additionalProperties: true
-          description: Dokumen OpenAPI sebagai JSON; $ref internal dipertahankan, urutan kunci mengikuti file asli.
+          description: Dokumen spec sebagai JSON apa adanya (openapi untuk 3.x, swagger "2.0" untuk Swagger 2.0); $ref internal dipertahankan, urutan kunci mengikuti file asli.
     RenameApiSpecRequest:
       type: object
       additionalProperties: false
@@ -3147,6 +3219,7 @@ components:
           type:
             - string
             - 'null'
+          description: Versi dokumen; nomor openapi untuk 3.x, atau "2.0" untuk Swagger 2.0.
         title:
           type:
             - string
