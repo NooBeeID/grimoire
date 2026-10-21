@@ -143,7 +143,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 |---|---|---|---|
 | `core.auth.resolve-session` | Call | T01 | T00 (middleware) |
 | `core.auth.create-admin` | Call | T01 | `cmd/cli` |
-| `core.auth.get-user` | Call | T01 | T03, T05, T06 |
+| `core.auth.get-user` | Call | T01 | T03, T06 |
 | `core.auth.find-developers` | Call | T01 | T03 |
 | `core.audit.record` | Call / Publish (satu handler untuk keduanya) | T02 | T01, T03, T04, T05, T06, T07 |
 | `project.management.check-access` | Call | T03 | T04, T05, T06 |
@@ -160,6 +160,8 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apispec.list-endpoints` | Call | T06 | T09 |
 | `project.apispec.get-endpoint` | Call | T06 | T09 |
 | `discovery.mcpgateway.register-tool` | wiring | T07 | T08, T09 |
+
+Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
 Kontrak `project.apikey.verify` dan `project.apikey.touch` ada di `lib/contracts/project/apikey/{verify,touch}` (konstanta `BUS_PROJECT_APIKEY_VERIFY`, `BUS_PROJECT_APIKEY_TOUCH`). Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -> `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
 
@@ -197,7 +199,7 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 - Auth/user: `auth.login.success`, `auth.login.failed`, `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated`, `user.deactivated`, `user.activated`.
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`.
 - Key: `apikey.created`, `apikey.revoked`.
-- Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
+- Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
 
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)
 

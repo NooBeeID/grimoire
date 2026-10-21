@@ -69,7 +69,7 @@ describe('App', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Project baru' })[0]!);
     await userEvent.type(screen.getByLabelText(/Nama project/), 'Payments');
     await userEvent.click(screen.getByRole('button', { name: 'Buat' }));
-    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${created.id}/api-keys`));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${created.id}/knowledge`));
   });
 
   it('renders not found, then navigates home without reload', async () => {

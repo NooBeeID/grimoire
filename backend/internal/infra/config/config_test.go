@@ -31,7 +31,7 @@ func TestLoad_Defaults(t *testing.T) {
 	want := Config{
 		DatabaseURL: "postgres://u:p@h:5432/d", HTTPAddr: ":8080", AppEnv: "production", SessionSecret: secret32,
 		CookieSecure: true, AuditRetentionDays: 90, MaxFileBytes: 1048576, MaxUploadBytes: 52428800,
-		MaxUploadFiles: 500, MCPMaxResponseBytes: 102400, DBMaxOpenConns: 20, DBMaxIdleConns: 5,
+		MaxUploadFiles: 500, MaxProjectFiles: 5000, MCPMaxResponseBytes: 102400, DBMaxOpenConns: 20, DBMaxIdleConns: 5,
 		DBConnMaxLifetime: 30 * time.Minute, HTTPDefaultBodyBytes: 1048576,
 		HTTPReadHeaderTimeout: 10 * time.Second, HTTPDefaultTimeout: 30 * time.Second,
 		ShutdownTimeout: 15 * time.Second, BusShutdownTimeout: 5 * time.Second,
@@ -61,6 +61,13 @@ func TestLoad_OverridesApplied(t *testing.T) {
 		c.DBConnMaxLifetime != time.Hour || c.BusShutdownTimeout != 4*time.Second || c.LogFormat != "text" ||
 		c.DevViteURL != "http://localhost:5173" || c.MaxUploadBytes != 20 {
 		t.Fatalf("overrides not applied: %+v", c)
+	}
+}
+
+func TestLoad_MaxProjectFiles(t *testing.T) {
+	c, err := Load(env(base(map[string]string{"MAX_PROJECT_FILES": "3"})))
+	if err != nil || c.MaxProjectFiles != 3 {
+		t.Fatalf("got %d, %v", c.MaxProjectFiles, err)
 	}
 }
 
@@ -110,6 +117,8 @@ func TestLoad_InvalidValues(t *testing.T) {
 		{"cookie", "COOKIE_SECURE", map[string]string{"COOKIE_SECURE": "maybe"}},
 		{"retention", "AUDIT_RETENTION_DAYS", map[string]string{"AUDIT_RETENTION_DAYS": "0"}},
 		{"mcp", "MCP_MAX_RESPONSE_BYTES", map[string]string{"MCP_MAX_RESPONSE_BYTES": "100"}},
+		{"projectfiles-zero", "MAX_PROJECT_FILES", map[string]string{"MAX_PROJECT_FILES": "0"}},
+		{"projectfiles-nan", "MAX_PROJECT_FILES", map[string]string{"MAX_PROJECT_FILES": "abc"}},
 		{"logformat", "LOG_FORMAT", map[string]string{"LOG_FORMAT": "xml"}},
 		{"apikey-max-zero", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "0"}},
 		{"apikey-max-nan", "API_KEY_MAX_ACTIVE_PER_PROJECT", map[string]string{"API_KEY_MAX_ACTIVE_PER_PROJECT": "abc"}},

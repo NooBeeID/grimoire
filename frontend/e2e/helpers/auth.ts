@@ -1,4 +1,4 @@
-import { expect, request as pwRequest, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, request as pwRequest, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { z } from 'zod';
 
 export const ADMIN_EMAIL = 'e2e-admin@tim.id';
@@ -6,7 +6,16 @@ export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'e2e-admin-passw
 export const STRONG_PASSWORD = 'Rahasia-Panjang-123!';
 export const CSRF = { 'X-Requested-With': 'grimoire' };
 
-const baseURL = () => process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+// Mengikuti baseURL project Playwright aktif (project knowledge-limits memakai server kedua).
+const baseURL = () => {
+  try {
+    const b = test.info().project.use.baseURL;
+    if (b) return b;
+  } catch {
+    // di luar konteks test (mis. global setup)
+  }
+  return process.env.E2E_BASE_URL ?? 'http://localhost:8080';
+};
 
 const UserResponse = z.object({
   user: z.object({ id: z.string(), email: z.string(), name: z.string(), role: z.string() }),

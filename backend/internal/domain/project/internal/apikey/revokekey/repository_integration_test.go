@@ -47,7 +47,7 @@ func isetup(t *testing.T) ienv {
 func (e ienv) project(t *testing.T, name string) string {
 	t.Helper()
 	var id string
-	if err := e.d.GetContext(context.Background(), &id, `INSERT INTO projects (name) VALUES ($1) RETURNING id::text`, name); err != nil {
+	if err := e.d.GetContext(context.Background(), &id, `INSERT INTO projects (name) VALUES ($1 || ' project') RETURNING id::text`, name); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -62,7 +62,7 @@ func (e ienv) key(t *testing.T, pid, name string) string {
 	var id string
 	err := e.d.GetContext(context.Background(), &id,
 		`INSERT INTO api_keys (project_id, name, prefix, secret_hash) VALUES ($1,$2,$3,$4) RETURNING id::text`,
-		pid, name, fmt.Sprintf("rk%06d", iseq), h[:])
+		pid, name+" key", fmt.Sprintf("rk%06d", iseq), h[:])
 	if err != nil {
 		t.Fatal(err)
 	}

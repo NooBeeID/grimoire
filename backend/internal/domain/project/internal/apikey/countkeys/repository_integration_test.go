@@ -39,7 +39,7 @@ func setup(t *testing.T) env {
 func (e env) project(t *testing.T, name string) string {
 	t.Helper()
 	var id string
-	if err := e.d.GetContext(context.Background(), &id, `INSERT INTO projects (name) VALUES ($1) RETURNING id::text`, name); err != nil {
+	if err := e.d.GetContext(context.Background(), &id, `INSERT INTO projects (name) VALUES ($1 || ' project') RETURNING id::text`, name); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -55,7 +55,7 @@ func (e env) key(t *testing.T, pid string, revoked bool) {
 	if revoked {
 		q = `INSERT INTO api_keys (project_id, name, prefix, secret_hash, revoked_at) VALUES ($1,$2,$3,$4, now())`
 	}
-	if _, err := e.d.ExecContext(context.Background(), q, pid, "k", fmt.Sprintf("pfx%05d", seq), h[:]); err != nil {
+	if _, err := e.d.ExecContext(context.Background(), q, pid, fmt.Sprintf("key%d", seq), fmt.Sprintf("pfx%05d", seq), h[:]); err != nil {
 		t.Fatal(err)
 	}
 }

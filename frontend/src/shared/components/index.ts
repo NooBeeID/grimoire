@@ -15,3 +15,5 @@ export { default as Avatar } from './Avatar.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as ThemeSwitch } from './ThemeSwitch.svelte';
 export { default as CopyField } from './CopyField.svelte';
+export { default as MarkdownView } from './MarkdownView.svelte';
+export { default as MarkdownEditor } from './MarkdownEditor.svelte';

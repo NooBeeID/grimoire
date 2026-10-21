@@ -63,7 +63,7 @@ describe('ProjectWorkspaceView', () => {
   it('without tab replaces to the default tab', async () => {
     stub('owner');
     render(View, { params: { projectID: PID } });
-    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${PID}/api-keys`));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${PID}/knowledge`));
   });
   it('unknown tab keeps the header and shows tab notFound', async () => {
     stub('owner');

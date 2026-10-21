@@ -106,4 +106,14 @@ describe('project workspace routes', () => {
     expect(match('/projects/abc/members', routes)?.params).toEqual({ projectID: 'abc', tab: 'members' });
     expect(match('/projects/a%2Fb/settings', routes)?.params).toEqual({ projectID: 'a/b', tab: 'settings' });
   });
+  it('matches the knowledge tab and keeps the path query', async () => {
+    const { routes } = await import('./index');
+    const m = match('/projects/abc/knowledge', routes);
+    expect(m?.params).toEqual({ projectID: 'abc', tab: 'knowledge' });
+    history.replaceState({}, '', '/projects/abc/knowledge?path=docs%2Fa.md');
+    const stopRouter = startRouter(routes);
+    expect(get(current).match?.params.tab).toBe('knowledge');
+    expect(get(current).location.query.get('path')).toBe('docs/a.md');
+    stopRouter();
+  });
 });

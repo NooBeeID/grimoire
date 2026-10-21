@@ -53,6 +53,7 @@ export const ACTION_GROUPS = [
       'knowledge.file.created',
       'knowledge.file.updated',
       'knowledge.file.deleted',
+      'knowledge.file.moved',
       'knowledge.folder.deleted',
       'knowledge.upload.completed',
       'apispec.uploaded',

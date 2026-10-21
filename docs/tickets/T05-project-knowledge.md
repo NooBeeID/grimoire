@@ -40,7 +40,18 @@ Riwayat versi/rollback, format selain `.md`/`.txt`, gambar/lampiran, semantic se
 | `deletefolder` | Hapus semua file di bawah prefix | `DELETE /api/projects/{id}/knowledge/folders?path=` | anggota, super_admin |
 | `movefile` | Pindah/ubah nama satu file | `POST /api/projects/{id}/knowledge/files/move` | anggota, super_admin |
 | `search` | Pencarian full-text di UI | `GET /api/projects/{id}/knowledge/search?q=` | anggota, super_admin |
-| `busreader` | Handler bus untuk agent: `list-files`, `read-file`, `search` | bus `project.knowledge.*` | internal |
+| `buslistfiles` | Handler bus untuk agent: daftar file (`list-files`) | bus `project.knowledge.list-files` | internal |
+| `busreadfile` | Handler bus untuk agent: baca isi file per potongan byte (`read-file`) | bus `project.knowledge.read-file` | internal |
+| `bussearch` | Handler bus untuk agent: pencarian (`search`) | bus `project.knowledge.search` | internal |
+| `countfiles` | Handler bus hitungan file per project untuk T03 (`count-files`) | bus `project.knowledge.count-files` | internal |
+
+Catatan keputusan (plan `docs/superpowers/plans/project-knowledge/overview.md`):
+- D1: `busreader` dipecah menjadi `buslistfiles`, `busreadfile`, `bussearch` (satu folder = satu handler bus), ditambah `countfiles`.
+- D2: batas per request memakai env T00 yang sudah ada (`MAX_FILE_BYTES` 1 MiB, `MAX_UPLOAD_BYTES` 50 MB, `MAX_UPLOAD_FILES` 500); angka default T00 menang atas angka lama di tiket ini (20 MB/200 file).
+- D3: batas jumlah file per project lewat env baru `MAX_PROJECT_FILES` (default 5000).
+- D4: kolom `title` (dari heading `# ` pertama) ikut diindeks dengan bobot di atas isi; `search` memakai `left(content, 200000)`.
+- D6: label aktor diambil dari identitas sesi (`reqctx.Identity`), bukan `core.auth.get-user`.
+- D8: aksi audit baru `knowledge.file.moved` untuk `movefile`.
 
 (`path` memakai query parameter agar karakter `/` tidak bermasalah di URL.)
 
@@ -81,7 +92,7 @@ Backend T05 hanya menerima Markdown/teks. Tampilan "Upload folder" di UI memilah
 
 ```
 knowledge_files(id uuid pk, project_id fk→projects on delete cascade,
-  path text, content text, content_hash bytea, size_bytes int,
+  path text, title text, content text, content_hash bytea, size_bytes int,
   created_at, created_by uuid, created_by_label text,
   updated_at, updated_by uuid, updated_by_label text,
   search tsvector generated,
@@ -91,16 +102,16 @@ index: gin(search); (project_id, path text_pattern_ops)  -- untuk prefix folder
 
 ## Kontrak bus
 
-Disediakan (`lib/contracts/project/knowledge/...`) — semuanya sudah dibatasi pada `ProjectID` yang diberikan pemanggil; module ini tidak tahu soal key:
+Disediakan (`lib/contracts/project/knowledge/...`) — semuanya sudah dibatasi pada `ProjectID` yang diberikan pemanggil; module ini tidak tahu soal key. Konstanta endpoint ada di `lib/constants/bus.go`:
 - `project.knowledge.count-files` Call — kontrak `lib/contracts/project/management/contentcount` (`{ProjectIDs}` → `{Counts map[string]int}`): jumlah file per project untuk T03. Hanya menghitung `ProjectIDs` yang diberikan; maksimal `contentcount.MaxProjectIDs`.
 - Semua tabel dengan `project_id` WAJIB `REFERENCES projects(id) ON DELETE CASCADE`; route memakai param `{projectID}`.
 - `project.knowledge.list-files` — `{ProjectID, Prefix, Recursive, Limit, Offset}` → `{Items[{Path, SizeBytes, UpdatedAt}], Total, Truncated}`.
 - `project.knowledge.read-file` — `{ProjectID, Path, Offset, Limit}` → `{Found, Path, Content, SizeBytes, TotalBytes, NextOffset, Truncated, Similar[]}` (`Similar` berisi path mirip bila tidak ketemu).
 - `project.knowledge.search` — `{ProjectID, Query, Prefix, Limit}` → `{Items[{Path, Score, Snippet}], Total}`.
 
-Dikonsumsi: `project.management.check-access` (otorisasi HTTP), `core.auth.get-user` (label), `core.audit.record`.
+Dikonsumsi: `project.management.check-access` (otorisasi HTTP, fail-closed), `project.management.get-project` (label project untuk audit, fail-soft), `core.audit.record` (fail-open). `core.auth.get-user` tidak dikonsumsi (D6).
 
-Event audit: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.folder.deleted` (jumlah file), `knowledge.upload.completed` (satu entri per upload: jumlah created/updated/unchanged/rejected dan maksimal N path pertama, bukan satu entri per file).
+Event audit: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted` (jumlah file), `knowledge.upload.completed` (satu entri per upload: jumlah created/updated/unchanged/rejected dan maksimal N path pertama, bukan satu entri per file).
 
 ## UI (Svelte, `domain/project/knowledge/...`)
 

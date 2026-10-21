@@ -35,6 +35,7 @@ const (
 	ActionKnowledgeFileCreated     = "knowledge.file.created"
 	ActionKnowledgeFileUpdated     = "knowledge.file.updated"
 	ActionKnowledgeFileDeleted     = "knowledge.file.deleted"
+	ActionKnowledgeFileMoved       = "knowledge.file.moved"
 	ActionKnowledgeFolderDeleted   = "knowledge.folder.deleted"
 	ActionKnowledgeUploadCompleted = "knowledge.upload.completed"
 	ActionAPISpecUploaded          = "apispec.uploaded"
@@ -55,7 +56,7 @@ func Actions() []string {
 		ActionProjectMemberAdded, ActionProjectMemberRemoved, ActionProjectMemberRoleChanged,
 		ActionAPIKeyCreated, ActionAPIKeyRevoked,
 		ActionKnowledgeFileCreated, ActionKnowledgeFileUpdated, ActionKnowledgeFileDeleted,
-		ActionKnowledgeFolderDeleted, ActionKnowledgeUploadCompleted,
+		ActionKnowledgeFileMoved, ActionKnowledgeFolderDeleted, ActionKnowledgeUploadCompleted,
 		ActionAPISpecUploaded, ActionAPISpecUpdated, ActionAPISpecDeleted,
 	}
 }

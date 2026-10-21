@@ -13,6 +13,7 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `MAX_FILE_BYTES` | int64 | `1048576` | tidak | >= 1 | Ukuran maksimum satu file. |
 | `MAX_UPLOAD_BYTES` | int64 | `52428800` | tidak | >= MAX_FILE_BYTES | Ukuran total satu upload. |
 | `MAX_UPLOAD_FILES` | int | `500` | tidak | >= 1 | Jumlah file maksimum per upload. |
+| `MAX_PROJECT_FILES` | int | `5000` | tidak | >= 1 | Jumlah file knowledge maksimum per project. |
 | `MCP_MAX_RESPONSE_BYTES` | int | `102400` | tidak | >= 1024 | Batas ukuran respons MCP. |
 | `RUN_MIGRATIONS_ON_START` | bool | `false` | tidak | boolean | Jalankan migrasi saat start. |
 | `DB_MAX_OPEN_CONNS` | int | `20` | tidak | >= 1 | Maksimum koneksi terbuka. |

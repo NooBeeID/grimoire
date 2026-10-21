@@ -23,6 +23,7 @@ type Config struct {
 	MaxFileBytes          int64         `env:"MAX_FILE_BYTES"`
 	MaxUploadBytes        int64         `env:"MAX_UPLOAD_BYTES"`
 	MaxUploadFiles        int           `env:"MAX_UPLOAD_FILES"`
+	MaxProjectFiles       int           `env:"MAX_PROJECT_FILES"`
 	MCPMaxResponseBytes   int           `env:"MCP_MAX_RESPONSE_BYTES"`
 	RunMigrationsOnStart  bool          `env:"RUN_MIGRATIONS_ON_START"`
 	DBMaxOpenConns        int           `env:"DB_MAX_OPEN_CONNS"`
@@ -217,6 +218,7 @@ func Load(getenv func(string) string) (Config, error) {
 		l.fail("MAX_UPLOAD_BYTES", "harus >= MAX_FILE_BYTES (%d < %d)", c.MaxUploadBytes, c.MaxFileBytes)
 	}
 	c.MaxUploadFiles, _ = l.intv("MAX_UPLOAD_FILES", 500, 1)
+	c.MaxProjectFiles, _ = l.intv("MAX_PROJECT_FILES", 5000, 1)
 	c.MCPMaxResponseBytes, _ = l.intv("MCP_MAX_RESPONSE_BYTES", 102400, 1024)
 	c.RunMigrationsOnStart = l.boolean("RUN_MIGRATIONS_ON_START", false)
 
@@ -331,6 +333,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Int64("max_file_bytes", m.MaxFileBytes),
 		slog.Int64("max_upload_bytes", m.MaxUploadBytes),
 		slog.Int("max_upload_files", m.MaxUploadFiles),
+		slog.Int("max_project_files", m.MaxProjectFiles),
 		slog.Int("mcp_max_response_bytes", m.MCPMaxResponseBytes),
 		slog.Bool("run_migrations_on_start", m.RunMigrationsOnStart),
 		slog.Int("db_max_open_conns", m.DBMaxOpenConns),

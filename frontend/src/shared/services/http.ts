@@ -64,12 +64,28 @@ function isRawBody(b: unknown): b is FormData | Blob | URLSearchParams {
   );
 }
 
-function handleUnauthorized(): void {
+export function notifyUnauthorized(): void {
   const here = location.pathname;
   if (here === '/login') return;
   const next = here + location.search;
   if (unauthorizedHandler) unauthorizedHandler(next);
   else window.location.assign('/login?next=' + encodeURIComponent(next));
+}
+
+export function toApiError(status: number, bodyText: string, requestId?: string): ApiError {
+  try {
+    const env = ErrorEnvelope.safeParse(JSON.parse(bodyText));
+    if (!env.success) throw new Error('not envelope');
+    return new ApiError({
+      status,
+      code: env.data.error.code,
+      message: env.data.error.message,
+      details: env.data.error.details ?? null,
+      traceId: env.data.trace_id ?? requestId,
+    });
+  } catch {
+    return new ApiError({ status, code: 'INTERNAL', message: tr('error.internal'), traceId: requestId });
+  }
 }
 
 export async function request<T = unknown>(method: string, url: string, o: RequestOptions<T> = {}): Promise<T> {
@@ -122,22 +138,9 @@ export async function request<T = unknown>(method: string, url: string, o: Reque
   }
 
   const text = await res.text().catch(() => '');
-  let err: ApiError;
-  try {
-    const env = ErrorEnvelope.safeParse(JSON.parse(text));
-    if (!env.success) throw new Error('not envelope');
-    err = new ApiError({
-      status: res.status,
-      code: env.data.error.code,
-      message: env.data.error.message,
-      details: env.data.error.details ?? null,
-      traceId: env.data.trace_id ?? requestId,
-    });
-  } catch {
-    err = new ApiError({ status: res.status, code: 'INTERNAL', message: tr('error.internal'), traceId: requestId });
-  }
+  const err = toApiError(res.status, text, requestId);
 
-  if (res.status === 401 && !o.skipAuthRedirect) handleUnauthorized();
+  if (res.status === 401 && !o.skipAuthRedirect) notifyUnauthorized();
   throw err;
 }
 

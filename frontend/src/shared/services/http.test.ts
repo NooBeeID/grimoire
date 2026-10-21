@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ApiError, del, get, isApiError, post, request, setUnauthorizedHandler } from './http';
+import { ApiError, del, get, isApiError, notifyUnauthorized, post, request, setUnauthorizedHandler, toApiError } from './http';
 import { HealthStatus } from '../validation/error';
 import { setLocale } from '../stores/i18n';
 
@@ -184,5 +184,51 @@ describe('success', () => {
     expect(await del('/api/x')).toBeUndefined();
     fetchMock.mockResolvedValue(new Response('', { status: 200 }));
     expect(await get('/api/x')).toBeUndefined();
+  });
+});
+
+describe('toApiError', () => {
+  it('maps a 409 envelope to code, details and traceId', () => {
+    const e = toApiError(
+      409,
+      '{"error":{"code":"CONFLICT","message":"m","details":{"reason":"version_conflict"}},"trace_id":"t"}',
+    );
+    expect(e).toBeInstanceOf(ApiError);
+    expect(e.status).toBe(409);
+    expect(e.code).toBe('CONFLICT');
+    expect(e.message).toBe('m');
+    expect(e.details).toEqual({ reason: 'version_conflict' });
+    expect(e.traceId).toBe('t');
+  });
+  it('falls back to the request id when the body has no trace_id', () => {
+    const e = toApiError(500, '{"error":{"code":"INTERNAL","message":"m"}}', 'req-9');
+    expect(e.traceId).toBe('req-9');
+    expect(e.details).toBeNull();
+  });
+  it('maps a body that is not JSON to INTERNAL', () => {
+    const e = toApiError(502, '<html>bad gateway</html>', 'req-1');
+    expect(e.code).toBe('INTERNAL');
+    expect(e.status).toBe(502);
+    expect(e.traceId).toBe('req-1');
+  });
+  it('maps JSON that is not an envelope to INTERNAL', () => {
+    expect(toApiError(400, '{"foo":1}').code).toBe('INTERNAL');
+  });
+});
+
+describe('notifyUnauthorized', () => {
+  it('calls the registered handler with the current path and query', () => {
+    const h = vi.fn();
+    setUnauthorizedHandler(h);
+    history.pushState({}, '', '/projects/p1/knowledge?path=a.md');
+    notifyUnauthorized();
+    expect(h).toHaveBeenCalledWith('/projects/p1/knowledge?path=a.md');
+  });
+  it('does nothing on the login page', () => {
+    const h = vi.fn();
+    setUnauthorizedHandler(h);
+    history.pushState({}, '', '/login');
+    notifyUnauthorized();
+    expect(h).not.toHaveBeenCalled();
   });
 });

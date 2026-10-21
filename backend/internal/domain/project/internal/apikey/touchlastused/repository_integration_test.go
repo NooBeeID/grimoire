@@ -28,7 +28,7 @@ func setup(t *testing.T) (*db.DB, *Repo, string) {
 		t.Fatalf("migrate: %v", err)
 	}
 	var pid string
-	if err := d.GetContext(context.Background(), &pid, `INSERT INTO projects (name) VALUES ('P') RETURNING id::text`); err != nil {
+	if err := d.GetContext(context.Background(), &pid, `INSERT INTO projects (name) VALUES ('Project') RETURNING id::text`); err != nil {
 		t.Fatal(err)
 	}
 	return d, newRepo(store.New(d)), pid
