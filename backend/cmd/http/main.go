@@ -9,5 +9,6 @@ import (
 )
 
 func main() {
+	server.LoadDotEnv()
 	os.Exit(server.ServeFromEnv(context.Background(), os.Getenv, os.Stderr))
 }
