@@ -15,7 +15,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Selesai (`3221efc`) |
 | [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Selesai (0a26586) |
 | [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Selesai (`35c4fa4`) |
-| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Selesai (TBD) |
+| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Selesai (`b8699f4`) |
 | [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Plan siap |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
