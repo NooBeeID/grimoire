@@ -43,7 +43,7 @@ describe('CredentialNotice', () => {
   it('links to the settings anchor', () => {
     render(CredentialNotice, { props: { state: 'missing', host: 'github.com' } });
     expect(screen.getByText('Anda belum menyimpan token Git untuk github.com.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/profile#token-git');
+    expect(screen.getByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/settings#token-git');
   });
   it('unreadable asks to save again', () => {
     render(CredentialNotice, { props: { state: 'unreadable', host: 'github.com' } });
@@ -74,8 +74,8 @@ describe('SyncErrorBlock', () => {
     expect(screen.getByText(/coba lagi dalam 42 detik/)).toBeInTheDocument();
   });
   it('CREDENTIAL_MISSING renders the notice with the settings link', () => {
-    render(SyncErrorBlock, { props: { error: err({ code: 'CREDENTIAL_MISSING', host: 'github.com', settingsPath: '/profile#token-git' }) } });
-    expect(screen.getByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/profile#token-git');
+    render(SyncErrorBlock, { props: { error: err({ code: 'CREDENTIAL_MISSING', host: 'github.com', settingsPath: '/settings#token-git' }) } });
+    expect(screen.getByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/settings#token-git');
   });
   it('shows the trace id and a retry button for SYNC_IN_PROGRESS', async () => {
     const onretry = vi.fn();

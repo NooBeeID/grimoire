@@ -3215,7 +3215,7 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
           description: |
-            Salah satu dari HOST_NOT_ALLOWED, CREDENTIAL_MISSING, CREDENTIAL_UNREADABLE (details memuat settings_path /profile#token-git), GIT_TOKEN_REJECTED, GIT_ACCESS_DENIED, SYNC_LIMIT_EXCEEDED (details: files, max_files, known_bytes, max_total_bytes), GIT_TREE_TOO_LARGE.
+            Salah satu dari HOST_NOT_ALLOWED, CREDENTIAL_MISSING, CREDENTIAL_UNREADABLE (details memuat settings_path /settings#token-git), GIT_TOKEN_REJECTED, GIT_ACCESS_DENIED, SYNC_LIMIT_EXCEEDED (details: files, max_files, known_bytes, max_total_bytes), GIT_TREE_TOO_LARGE.
           content:
             application/json:
               schema:
@@ -3229,7 +3229,7 @@ paths:
                       details:
                         provider: github
                         host: github.com
-                        settings_path: /profile#token-git
+                        settings_path: /settings#token-git
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
                 credentialUnreadable:
                   value:
@@ -3239,7 +3239,7 @@ paths:
                       details:
                         provider: github
                         host: github.com
-                        settings_path: /profile#token-git
+                        settings_path: /settings#token-git
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
                 syncLimitExceeded:
                   value:

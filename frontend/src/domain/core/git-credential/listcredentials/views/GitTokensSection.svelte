@@ -66,7 +66,7 @@
   const rows = $derived(buildRows(data?.items ?? []));
   const enabled = $derived(data?.enabled ?? true);
   const hosts = $derived(data?.allowed_gitlab_hosts ?? []);
-  // Baris yang sudah tampil (tersimpan atau placeholder) punya tombol Simpan sendiri; tautan tambah hanya untuk host lain.
+  // Host GitLab boleh diketik bebas (divalidasi allowlist server saat simpan); tautan ini selalu tersedia. `addable` hanya saran.
   const addable = $derived(hosts.filter((h) => !rows.some((r) => r.provider === 'gitlab' && r.host === h)));
   const disabledParts = $derived($t('gitCredential.disabled', { key: '\u0001' }).split('\u0001'));
 </script>
@@ -97,7 +97,7 @@
     <p role="alert" class="text-sm text-danger">{$gitCredentials.error.message}</p>
   {/if}
 
-  {#if enabled && onadd && addable.length > 0}
+  {#if enabled && onadd}
     <button
       type="button"
       class="w-fit text-sm text-accent-ink underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"

@@ -10,8 +10,8 @@ describe('toSyncError', () => {
     expect(toSyncError(api('INVALID_REPO_URL', { field: 'branch' }, 400))).toMatchObject({ code: 'INVALID_REPO_URL', field: 'branch', traceId: 'TR-1' });
   });
   it('CREDENTIAL_MISSING falls back to the default settings path', () => {
-    expect(toSyncError(api('CREDENTIAL_MISSING', { host: 'github.com' })).settingsPath).toBe('/profile#token-git');
-    expect(toSyncError(api('CREDENTIAL_MISSING', { settings_path: '/profile#x' })).settingsPath).toBe('/profile#x');
+    expect(toSyncError(api('CREDENTIAL_MISSING', { host: 'github.com' })).settingsPath).toBe('/settings#token-git');
+    expect(toSyncError(api('CREDENTIAL_MISSING', { settings_path: '/settings#x' })).settingsPath).toBe('/settings#x');
   });
   it('RATE_LIMITED retry_after_seconds', () => {
     expect(toSyncError(api('RATE_LIMITED', { retry_after_seconds: 60 }, 429)).retryAfter).toBe(60);

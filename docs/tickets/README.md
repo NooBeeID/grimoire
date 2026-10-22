@@ -23,6 +23,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
 | [T14](T14-project-git-sync.md) | core + project | git-credential (PAT per user), git-sync (sync knowledge & API spec dari git) | L | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`) |
 | [T15](T15-core-audit-log-summary.md) | core | audit-log (dashboard metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Plan siap |
+| [T16](T16-project-notification.md) | project | notification (siaran email manual ke anggota project) | M | T01, T02, T03, T12 | Tiket baru |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
@@ -44,6 +45,7 @@ T00 foundation (ROOT)
 │       ├── T05 project/knowledge
 │       │   └── T14 git-sync (PAT + sync knowledge/api-spec)   + butuh T06
 │       ├── T12 mailer + auth + management (undangan email)   + butuh T02
+│       │   └── T16 project/notification (siaran email)
 │       └── T06 project/api-spec
 │           └── T10 project/api-spec Swagger 2.0   + butuh T09
 └── T02 core/audit-log                     (dipakai T03 dan T07)
@@ -60,7 +62,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 5 | T07 |
 | 6 | T08, T09 |
 | 7 | T10, T11, T12 |
-| 8 | T13, T14, T15 |
+| 8 | T13, T14, T15, T16 |
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
 
@@ -182,6 +184,8 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `core.gitcredential.get-token` | Call | T14 | T14 (gitsync `runsync`, `getconfig`) |
 | `project.knowledge.upsert-files` | Call | T14 | T14 (gitsync `runsync`) |
 | `project.apispec.upsert-specs` | Call | T14 | T14 (gitsync `runsync`) |
+| `project.management.list-member-ids` | Call (baca-saja) | T16 | T16 (notification `sendbroadcast`) |
+| `core.auth.get-contacts` | Call (baca-saja) | T16 | T16 (notification `sendbroadcast`) |
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 

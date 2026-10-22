@@ -34,7 +34,7 @@
   $effect(() => {
     if (open) {
       provider = target.provider ?? 'github';
-      host = target.host ?? target.gitlabHosts[0] ?? '';
+      host = target.host ?? '';
       token = '';
       errors = {};
       formError = null;
@@ -119,6 +119,7 @@
     bind:host
     bind:token
     providerLocked={target.provider !== null}
+    hostLocked={target.host !== null}
     gitlabHosts={target.gitlabHosts}
     disabled={submitting || locked}
     {errors}

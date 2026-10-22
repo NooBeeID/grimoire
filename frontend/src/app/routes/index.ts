@@ -14,6 +14,7 @@ import HomeView from '../views/HomeView.svelte';
 import AuditLogView from '../views/AuditLogView.svelte';
 import NotFoundView from '../views/NotFoundView.svelte';
 import ProfileView from '../views/ProfileView.svelte';
+import SettingsView from '../views/SettingsView.svelte';
 import ProjectWorkspaceView from '../views/ProjectWorkspaceView.svelte';
 import UsersView from '../views/UsersView.svelte';
 import type { RouteDef } from './router';
@@ -42,6 +43,7 @@ export const routes: RouteDef[] = [
     meta: { auth: true, passwordChangeRoute: true, layout: 'blank', titleKey: 'auth.changePassword.forcedTitle' },
   },
   { path: '/profile', view: ProfileView, meta: { auth: true, layout: 'app', titleKey: 'auth.profile.title' } },
+  { path: '/settings', view: SettingsView, meta: { auth: true, layout: 'app', titleKey: 'settings.title' } },
   { path: '/admin/users', view: UsersView, meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'users.title' } },
   {
     path: '/audit-log',

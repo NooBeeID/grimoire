@@ -19,7 +19,7 @@ const (
 	CodeGitTreeTooLarge      errs.Code = "GIT_TREE_TOO_LARGE"    // 422
 )
 
-const settingsPath = "/profile#token-git"
+const settingsPath = "/settings#token-git"
 
 // Sentinel dipakai bersama; usecase TIDAK boleh memodifikasinya. Pesan tidak memuat token atau URL penuh.
 var (

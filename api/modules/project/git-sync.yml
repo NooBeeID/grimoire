@@ -184,7 +184,7 @@ paths:
         "422":
           description: >
             Salah satu dari HOST_NOT_ALLOWED, CREDENTIAL_MISSING, CREDENTIAL_UNREADABLE (details memuat
-            settings_path /profile#token-git), GIT_TOKEN_REJECTED, GIT_ACCESS_DENIED, SYNC_LIMIT_EXCEEDED
+            settings_path /settings#token-git), GIT_TOKEN_REJECTED, GIT_ACCESS_DENIED, SYNC_LIMIT_EXCEEDED
             (details: files, max_files, known_bytes, max_total_bytes), GIT_TREE_TOO_LARGE.
           content:
             application/json:
@@ -195,14 +195,14 @@ paths:
                     error:
                       code: CREDENTIAL_MISSING
                       message: Anda belum menyimpan token Git untuk github.com
-                      details: { provider: github, host: github.com, settings_path: "/profile#token-git" }
+                      details: { provider: github, host: github.com, settings_path: "/settings#token-git" }
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
                 credentialUnreadable:
                   value:
                     error:
                       code: CREDENTIAL_UNREADABLE
                       message: token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token
-                      details: { provider: github, host: github.com, settings_path: "/profile#token-git" }
+                      details: { provider: github, host: github.com, settings_path: "/settings#token-git" }
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
                 syncLimitExceeded:
                   value:

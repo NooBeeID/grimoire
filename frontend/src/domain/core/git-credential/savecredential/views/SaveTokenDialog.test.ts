@@ -61,9 +61,20 @@ describe('SaveTokenDialog', () => {
   it('HOST_NOT_ALLOWED -> host field error', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(422, errBody('HOST_NOT_ALLOWED'))));
     render(Dialog, { props: props({ target: { provider: 'gitlab', host: null, gitlabHosts: ['git.noobee.id'] } }) });
+    await userEvent.type(screen.getByLabelText('Host'), 'evil.example.com');
     await type();
     await submit();
     expect(await screen.findByText(/Host Git tidak diizinkan/)).toBeInTheDocument();
+  });
+  it('GitLab host is typed freely and sent as given', async () => {
+    const f = vi.fn(async () => json(200, { ...saved, provider: 'gitlab', host: 'git.baru.id' }));
+    vi.stubGlobal('fetch', f);
+    render(Dialog, { props: props({ target: { provider: 'gitlab', host: null, gitlabHosts: [] } }) });
+    await userEvent.type(screen.getByLabelText('Host'), 'git.baru.id');
+    await type();
+    await submit();
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(1));
+    expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).host).toBe('git.baru.id');
   });
   it('RATE_LIMITED shows the retry seconds', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(429, errBody('RATE_LIMITED', { retry_after_seconds: 60 }))));

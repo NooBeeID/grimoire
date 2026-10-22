@@ -326,7 +326,7 @@ func TestTokenIsActorsAndNoWriteOnCredentialErrors(t *testing.T) {
 		}
 		if name != "disabled" {
 			d := ee.Details.(map[string]any)
-			if d["settings_path"] != "/profile#token-git" || d["host"] != "github.com" {
+			if d["settings_path"] != "/settings#token-git" || d["host"] != "github.com" {
 				t.Fatalf("%s: %v", name, d)
 			}
 		}

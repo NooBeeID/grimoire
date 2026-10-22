@@ -622,7 +622,7 @@ Lihat `frontend-plan.md` dan ringkasan bagian 9.
 - Komposisi: `frontend/src/app/views/ProfileView.svelte` mendapat seksi "Token Git" dengan anchor `id="token-git"`; lebar dinaikkan dari `max-w-sm` ke `max-w-2xl` (Pertanyaan terbuka 2: bagian dari halaman Profil yang ada, bukan halaman baru).
 - `frontend/src/domain/project/git-sync/{getconfig,runsync}/`: service `getConfig`/`runSync`, store dialog (`idle|running|done|error`), view `GitSyncDialog` (prop `kind`, `projectID`, `onSynced`), komponen `RepoOriginChip`, `ConfigSummary`, `SyncReportTable`, `StatusBadge`.
 - Tombol sekunder "Sync dari Git" di `PageHeader` Knowledge (`app/views/workspace/knowledge/KnowledgeTab.svelte` + `KnowledgeDialogs.svelte`) dan `app/views/workspace/ApiSpecsTab.svelte`; aksi utama tetap Upload; `onSynced` memuat ulang pohon/daftar.
-- Status PAT di dialog: memakai `has_credential`/`credential_unreadable`/`feature_enabled` dari `getconfig` dan error `CREDENTIAL_MISSING` (tanpa import silang git-credential dari git-sync; depcruise hijau). Tautan `/profile#token-git`.
+- Status PAT di dialog: memakai `has_credential`/`credential_unreadable`/`feature_enabled` dari `getconfig` dan error `CREDENTIAL_MISSING` (tanpa import silang git-credential dari git-sync; depcruise hijau). Tautan `/settings#token-git`.
 - i18n `gitCredential.*` dan `gitSync.*` di `frontend/src/shared/i18n/{id,en}.json`, termasuk setiap kode error (6.6). Reason per item memakai kunci reason knowledge/apispec yang sudah ada (D14).
 - **Visual** (DESIGN.md, framed-sheet):
   - Profil/Token Git. Pertanyaan: "Token Git mana yang sudah saya simpan, dan untuk host apa?" Tabel panel (radius 8, `shadow-panel`), kolom Provider (ikon outline 16px + nama), Host (mono), Status (pil positive "Tersimpan" + `…7Qx2` mono redup, atau pil neutral "Belum ada"), Diperbarui (relatif, rata kanan), Aksi (ghost Simpan/Ganti, Hapus). Baris GitHub selalu ada; baris GitLab per host + aksi "Tambah host GitLab". Dialog simpan (`shadow-pop`): Provider, Host (Select dari `allowed_gitlab_hosts`), Token (`type=password`, `autocomplete=off`), teks scope mono (`repo` read; `read_api` + `read_repository`), peringatan redup "Token tidak bisa dilihat lagi setelah disimpan." Fitur nonaktif: seksi tetap berbingkai dengan teks "Sync Git belum dikonfigurasi oleh admin (GIT_CREDENTIAL_KEY)".
@@ -848,10 +848,10 @@ Request api_spec:
 
 Error run:
 ```json
-{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/profile#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
+{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/settings#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
 ```
 ```json
-{ "error": { "code": "CREDENTIAL_UNREADABLE", "message": "token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token", "details": { "provider": "github", "host": "github.com", "settings_path": "/profile#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
+{ "error": { "code": "CREDENTIAL_UNREADABLE", "message": "token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token", "details": { "provider": "github", "host": "github.com", "settings_path": "/settings#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
 ```
 ```json
 { "error": { "code": "INVALID_REPO_URL", "message": "isi Branch", "details": { "field": "branch" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }

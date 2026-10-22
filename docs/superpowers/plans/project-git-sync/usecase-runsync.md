@@ -129,7 +129,7 @@ Prasyarat: FOUNDATION (overview langkah 0) selesai: `secret`, `gitprovider`, `sa
 
    a. `actor, err := u.access.Require(ctx, projectID)`; error dikembalikan apa adanya.
    b. `kind, err := base.ParseKind(in.Kind)`. `ref, err := base.ParseRepoURL(in.URL, in.Branch, in.Folder, allowedFn)` dengan `allowedFn := func(p, h string) bool { return u.git.Policy().Allowed(gitprovider.Provider(p), h) }`. `prefix := ""`; bila `kind==KindKnowledge`, `prefix, err = base.NormalizeTargetPrefix(in.TargetPrefix)`. Error -> kembalikan (400/422), tanpa tulis.
-   c. `tok, err := bus.CallTyped[gettoken.Response](ctx, u.bus, constants.BUS_CORE_GITCREDENTIAL_GET_TOKEN, gettoken.Request{UserID: actor.ID, Provider: ref.Provider, Host: ref.Host})`. Error bus -> bungkus `fmt.Errorf("runsync: get-token: %w", err)` (jadi 500; pesan tidak memuat token karena Request tidak membawa token). Urutan cek: `Disabled` -> `errs.CodeGitFeatureDisabled`; `!Found` -> `base.ErrCredentialMissing(provider, host)`; `Unreadable` -> `base.ErrCredentialUnreadable(provider, host)`. Keduanya dengan `details{provider, host, settings_path:"/profile#token-git"}` (sentinel dibangun lewat constructor di `base/errors.go`).
+   c. `tok, err := bus.CallTyped[gettoken.Response](ctx, u.bus, constants.BUS_CORE_GITCREDENTIAL_GET_TOKEN, gettoken.Request{UserID: actor.ID, Provider: ref.Provider, Host: ref.Host})`. Error bus -> bungkus `fmt.Errorf("runsync: get-token: %w", err)` (jadi 500; pesan tidak memuat token karena Request tidak membawa token). Urutan cek: `Disabled` -> `errs.CodeGitFeatureDisabled`; `!Found` -> `base.ErrCredentialMissing(provider, host)`; `Unreadable` -> `base.ErrCredentialUnreadable(provider, host)`. Keduanya dengan `details{provider, host, settings_path:"/settings#token-git"}` (sentinel dibangun lewat constructor di `base/errors.go`).
    d. `unlock, ok, err := u.repo.TryLock(ctx, projectID, kind)`; `err` -> 500; `!ok` -> `base.ErrSyncInProgress(kind)`. `defer func(){ fctx := fin(ctx); if e := unlock(fctx); e != nil { u.log.WarnContext(fctx, "runsync: unlock gagal", "project_id", projectID, "kind", kind, "error", e) } }()`.
    e. `cfg0 := base.NewConfig(projectID, kind, ref, prefix)`; `saved, err := u.repo.UpsertConfig(ctx, cfg0)`; error -> 500 (belum ada hasil yang perlu dicatat; tidak ada baris config kalau upsert gagal).
    f. **Fase baca** `items, cands, skipped, err := u.pull(ctx, kind, ref, token)` (lihat langkah 4). Bila `err != nil`: `u.fail(ctx, saved, actor, meta, err)` yang (1) memetakan error ke `*errs.Error` (`mapError`), (2) `SaveResult(failed)` dengan `FailedReport(code, message)` (tanpa item) memakai `fin(ctx)`, (3) audit `git_sync.run` status error, (4) mengembalikan `*errs.Error` ke handler.
@@ -230,7 +230,7 @@ Mengikuti struktur domain FE (`components/ services/ stores/ views/ types.ts ind
 
 - **Pertanyaan layar.** "Apa yang akan ditarik dari repo ini, dan setelah dijalankan file mana yang berubah?" Satu dialog, dua state, tanpa halaman baru.
 - **Pola DESIGN.md.** Dialog `shadow-pop` lebar maks 720, header title + chip asal-repo; badan form dengan baris label atas; hasil memakai panel tabel (radius 8, `shadow-panel`, tinggi baris 48, kontrol 32).
-- **State Form.** URL (mono, wajib), Branch, Folder (terisi otomatis dari URL; user dapat mengubah), "Simpan di folder" (hanya knowledge, placeholder "/ (root)"), blok `text-warning` berisi peringatan menimpa, `ConfigSummary` bila ada config. Tombol sekunder "Sync ulang" (menjalankan config tersimpan tanpa edit) dan tombol utama "Sync". Tanpa PAT atau fitur nonaktif: tombol Sync dan Sync ulang nonaktif, kotak info dengan tautan "Atur Token Git" ke `/profile#token-git`; `credential_unreadable` memakai teks "Token perlu disimpan ulang".
+- **State Form.** URL (mono, wajib), Branch, Folder (terisi otomatis dari URL; user dapat mengubah), "Simpan di folder" (hanya knowledge, placeholder "/ (root)"), blok `text-warning` berisi peringatan menimpa, `ConfigSummary` bila ada config. Tombol sekunder "Sync ulang" (menjalankan config tersimpan tanpa edit) dan tombol utama "Sync". Tanpa PAT atau fitur nonaktif: tombol Sync dan Sync ulang nonaktif, kotak info dengan tautan "Atur Token Git" ke `/settings#token-git`; `credential_unreadable` memakai teks "Token perlu disimpan ulang".
 - **State Berjalan.** Tombol utama berganti teks "Menarik dari GitHub…" + `Spinner` kecil, field dinonaktifkan; tombol Batal menutup dialog.
 - **State Hasil.** Baris ringkasan angka `tabular-nums` (dibuat, diperbarui, tidak berubah, dilewati, ditolak) + `StatusBadge` keseluruhan, lalu `SyncReportTable`. Status gagal total: banner `pill-negative` berisi pesan error terjemahan, tanpa tabel.
 - **Elemen khas.** `RepoOriginChip` mono; pil status; baris ditolak dapat diperluas untuk issues (pointer mono).
@@ -293,7 +293,7 @@ Tabel pemetaan error -> status/kode (usecase palsu mengembalikan error), memangg
 | `ErrInvalidRepoURL` | 400 | `INVALID_REPO_URL` |
 | `ErrInvalidTargetPrefix` | 400 | `INVALID_ARGUMENT` |
 | `ErrHostNotAllowed` | 422 | `HOST_NOT_ALLOWED` |
-| `CREDENTIAL_MISSING` / `CREDENTIAL_UNREADABLE` | 422 | kode sama; `details.settings_path == "/profile#token-git"` |
+| `CREDENTIAL_MISSING` / `CREDENTIAL_UNREADABLE` | 422 | kode sama; `details.settings_path == "/settings#token-git"` |
 | `GIT_TOKEN_REJECTED`, `GIT_ACCESS_DENIED`, `GIT_TREE_TOO_LARGE`, `SYNC_LIMIT_EXCEEDED` | 422 | kode sama |
 | `GIT_NOT_FOUND` | 404 | `GIT_NOT_FOUND` |
 | `SYNC_IN_PROGRESS` | 409 | kode sama |
@@ -375,7 +375,7 @@ Setup: Postgres uji + migrasi core/project; `httptest.Server` meniru GitHub (`/u
 - `runsync.service.test.ts`: sukses memetakan snake_case; error envelope `CREDENTIAL_MISSING` -> `SyncError{code, settingsPath}`; `RATE_LIMITED` membawa `retryAfter`; CSRF header terkirim; respons tak sesuai skema -> error terkontrol; abort.
 - `runsync.store.test.ts`: transisi `idle -> running -> done|error`; start dobel diabaikan saat running; `canSubmit` false tanpa credential/feature.
 - `components.test.ts`: `StatusBadge` kelas per status; `RepoOriginChip` string benar (dengan dan tanpa folder); `SyncReportTable` merender kolom, alasan ter-i18n, baris ditolak dapat diperluas dan menampilkan pointer, tombol salin menyalin alasan; `ConfigSummary` "Belum pernah sync".
-- `GitSyncDialog.test.ts`: form terisi dari config; field "Simpan di folder" hanya untuk knowledge; tanpa PAT -> Sync nonaktif + tautan `/profile#token-git`; `credential_unreadable` -> teks simpan ulang; klik Sync memanggil `runSync` dengan payload benar (api_spec tanpa `target_prefix`); state running menampilkan teks progres; sukses memanggil `onSynced` sekali; error 422 `GIT_NOT_FOUND` menampilkan pesan ter-i18n di dalam dialog; "Sync ulang" memakai config tersimpan.
+- `GitSyncDialog.test.ts`: form terisi dari config; field "Simpan di folder" hanya untuk knowledge; tanpa PAT -> Sync nonaktif + tautan `/settings#token-git`; `credential_unreadable` -> teks simpan ulang; klik Sync memanggil `runSync` dengan payload benar (api_spec tanpa `target_prefix`); state running menampilkan teks progres; sukses memanggil `onSynced` sekali; error 422 `GIT_NOT_FOUND` menampilkan pesan ter-i18n di dalam dialog; "Sync ulang" memakai config tersimpan.
 - `KnowledgeTab.test.ts`, `ApiSpecsTab.test.ts`: tombol "Sync dari Git" muncul sebagai aksi sekunder; membuka dialog; `onSynced` memuat ulang pohon/daftar.
 - `npm run depcruise`, `npm run test:arch`, `i18n-keys.test.ts` hijau.
 
@@ -535,11 +535,11 @@ Hasil: `config.branch = "feature/x"`, `config.folder = "docs"`.
 ```
 422 CREDENTIAL_MISSING:
 ```json
-{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/profile#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
+{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/settings#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
 ```
 422 CREDENTIAL_UNREADABLE:
 ```json
-{ "error": { "code": "CREDENTIAL_UNREADABLE", "message": "token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token", "details": { "provider": "github", "host": "github.com", "settings_path": "/profile#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
+{ "error": { "code": "CREDENTIAL_UNREADABLE", "message": "token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token", "details": { "provider": "github", "host": "github.com", "settings_path": "/settings#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
 ```
 409 SYNC_IN_PROGRESS:
 ```json

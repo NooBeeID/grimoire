@@ -61,7 +61,7 @@ test.describe('git sync', () => {
       }
     });
 
-    await page.goto('/profile');
+    await page.goto('/settings');
     await expect(page.getByRole('heading', { name: 'Token Git' })).toBeVisible();
     await expect(tokenRow(page)).toContainText('Belum ada');
 
@@ -200,7 +200,7 @@ test.describe('git sync', () => {
 test.describe('git sync: negatif', () => {
   test('1 token tidak sah ditolak, status tetap Belum ada', async ({ browser }) => {
     const { admin, ctx, page } = await setup(browser, { token: false });
-    await page.goto('/profile');
+    await page.goto('/settings');
 
     await tokenRow(page).getByRole('button', { name: 'Simpan token GitHub untuk github.com' }).click();
     const dialog = page.getByRole('dialog');
@@ -222,7 +222,7 @@ test.describe('git sync: negatif', () => {
     const first = await runSyncApi(ctx.request, proj.id, { kind: 'knowledge', url: repoUrl(repo, '/tree/main/docs') });
     expect(first.status, JSON.stringify(first.body)).toBe(200);
 
-    await page.goto('/profile');
+    await page.goto('/settings');
     await expect(tokenRow(page)).toContainText('Tersimpan');
     await tokenRow(page).getByRole('button', { name: 'Hapus token GitHub untuk github.com' }).click();
     const confirm = page.getByRole('dialog');

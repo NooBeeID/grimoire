@@ -210,7 +210,7 @@ Folder `frontend/src/domain/project/git-sync/getconfig/` (mengikuti struktur `do
   - Skema `GitSyncReport`/`GitSyncConfig` didefinisikan di `domain/project/git-sync/shared` (atau `schema.ts` bersama) agar `runsync` memakai ulang; sesuaikan dengan keputusan struktur di `frontend-plan.md` (jangan duplikasi).
 - `service.ts`: `getConfig(projectID, kind): Promise<GetConfigResponse>` memakai klien HTTP bersama (`shared/api`), `GET /projects/${projectID}/git-sync?kind=${kind}`, parse dengan Zod; error 400/404/401 diteruskan sebagai `ApiError` standar.
 - `store.svelte.ts` (atau pola store FE yang ada): state per kunci `${projectID}:${kind}` -> `{status: 'idle'|'loading'|'ready'|'error', data, error}`; `load(projectID, kind)`, `invalidate(projectID, kind)`, `setFromRun(projectID, kind, config)` agar `runsync` dapat memperbarui ringkasan tanpa fetch ulang; `reset()` saat logout/ganti project. Panggilan `load` yang sedang berjalan untuk kunci sama tidak diduplikasi. Tanpa persist ke localStorage.
-- Dipakai `GitSyncDialog` (komposisi di `app/views/...`, bukan di domain getconfig): saat dialog dibuka -> `load`; `config` mengisi URL/Branch/Folder/"Simpan di folder" otomatis; ringkasan "Terakhir: {waktu} oleh {label} · {status} · {angka}" dari `last_result.summary`; tombol **Sync ulang** (memanggil `runsync` dengan nilai config tersimpan; nonaktif bila `!has_credential` atau `!feature_enabled`); bila `config != null && !has_credential` (atau `credential_unreadable`) tampil kotak info "Atur Token Git" -> `/profile#token-git`, tombol Sync nonaktif; `feature_enabled=false` -> teks "Sync Git belum dikonfigurasi oleh admin". Tanpa import silang ke `domain/core/git-credential` (depcruise).
+- Dipakai `GitSyncDialog` (komposisi di `app/views/...`, bukan di domain getconfig): saat dialog dibuka -> `load`; `config` mengisi URL/Branch/Folder/"Simpan di folder" otomatis; ringkasan "Terakhir: {waktu} oleh {label} · {status} · {angka}" dari `last_result.summary`; tombol **Sync ulang** (memanggil `runsync` dengan nilai config tersimpan; nonaktif bila `!has_credential` atau `!feature_enabled`); bila `config != null && !has_credential` (atau `credential_unreadable`) tampil kotak info "Atur Token Git" -> `/settings#token-git`, tombol Sync nonaktif; `feature_enabled=false` -> teks "Sync Git belum dikonfigurasi oleh admin". Tanpa import silang ke `domain/core/git-credential` (depcruise).
 - i18n (`id.json`, `en.json`) kunci `gitSync.config.*`: `lastSync`, `neverSynced`, `statusSuccess|Partial|Failed`, `syncAgain`, `credentialMissing`, `credentialUnreadable`, `featureDisabled`, `loadFailed`. Mengikuti kunci yang didefinisikan `frontend-plan.md` bila sudah ada.
 
 ---
@@ -324,7 +324,7 @@ Positif:
 3. Dua kind terpisah: API Spec dialog tidak menampilkan config knowledge (request `kind=api_spec` -> `config:null`).
 4. Setelah "Sync ulang" sukses, ringkasan memperlihatkan waktu dan status terbaru tanpa reload halaman.
 5. Super_admin non-anggota membuka dialog: 200 dan config terlihat.
-6. Anggota B tanpa PAT: config A terlihat (URL/branch/ringkasan) tetapi `has_credential=false`: kotak "Atur Token Git" tampil dengan tautan ke `/profile#token-git`, tombol Sync dan Sync ulang nonaktif.
+6. Anggota B tanpa PAT: config A terlihat (URL/branch/ringkasan) tetapi `has_credential=false`: kotak "Atur Token Git" tampil dengan tautan ke `/settings#token-git`, tombol Sync dan Sync ulang nonaktif.
 
 Negatif:
 1. Non-anggota memanggil `GET /api/projects/{P}/git-sync?kind=knowledge` -> 404; tanpa login -> 401; `kind=foo` oleh anggota -> 400.

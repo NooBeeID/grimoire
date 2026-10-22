@@ -266,7 +266,7 @@ Helper: buat dua user (A `0192f5a0-aaaa-7aaa-8bbb-00000000000a`, B `0192f5a0-bbb
 Ditulis di `frontend/e2e/git-sync.spec.ts` (milik plan foundation/FE; bagian ini mendaftar skenario yang bergantung pada `deletecredential`). Setup: fake git server dan token sah `ghp_e2eValidToken7Qx2` (overview bagian 11).
 
 Positif:
-1. User login, `/profile#token-git`: baris GitHub "Tersimpan …7Qx2". Klik Hapus -> dialog "Hapus token GitHub? Sync yang memakai token ini akan berhenti bekerja untuk Anda." -> konfirmasi -> baris berubah menjadi "Belum ada" tanpa reload (store `gitCredentials` ter-refresh), toast sukses.
+1. User login, `/settings#token-git`: baris GitHub "Tersimpan …7Qx2". Klik Hapus -> dialog "Hapus token GitHub? Sync yang memakai token ini akan berhenti bekerja untuk Anda." -> konfirmasi -> baris berubah menjadi "Belum ada" tanpa reload (store `gitCredentials` ter-refresh), toast sukses.
 2. Setelah hapus, buka Workspace Knowledge > "Sync dari Git": kotak info "Atur Token Git", tombol Sync nonaktif; panggilan API `runSync` langsung -> 422 `CREDENTIAL_MISSING` (kriteria 2). Konfigurasi sync project tetap tampil (ringkasan terakhir tidak hilang).
 3. Hapus token GitLab `git.noobee.id` (dua baris GitLab ada): hanya baris itu yang hilang; `gitlab.com` tetap.
 4. Hapus token GitLab untuk host yang sudah dikeluarkan dari `GIT_SYNC_ALLOWED_HOSTS` (restart backend dengan allowlist kosong; baris lama masih tampil/ada di DB): `DELETE ...?host=git.lama.id` -> 204 (tidak diperiksa policy).

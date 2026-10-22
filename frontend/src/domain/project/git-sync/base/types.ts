@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const KINDS = ['knowledge', 'api_spec'] as const;
 export type Kind = (typeof KINDS)[number];
-export const SETTINGS_PATH = '/profile#token-git';
+export const SETTINGS_PATH = '/settings#token-git';
 
 export const RUN_STATUSES = ['success', 'partial', 'failed'] as const;
 export const ITEM_STATUSES = ['created', 'updated', 'unchanged', 'skipped', 'rejected'] as const;

@@ -158,13 +158,13 @@ describe('GitSyncDialog', () => {
   it('CREDENTIAL_MISSING from the server shows the notice and link', async () => {
     stub({
       get: () => json(200, cfgResp({ config: null, has_credential: false })),
-      run: () => json(422, errBody('CREDENTIAL_MISSING', { host: 'github.com', settings_path: '/profile#token-git' })),
+      run: () => json(422, errBody('CREDENTIAL_MISSING', { host: 'github.com', settings_path: '/settings#token-git' })),
     });
     render(Dialog, { props: props() });
     await screen.findByText(/Belum pernah sync/);
     await userEvent.type(screen.getByLabelText('URL repo atau folder'), 'https://github.com/noobee/grimoire-docs');
     await userEvent.click(btn('Sync'));
-    expect(await screen.findByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/profile#token-git');
+    expect(await screen.findByRole('link', { name: 'Atur Token Git' })).toHaveAttribute('href', '/settings#token-git');
   });
 
   it('INVALID_REPO_URL field=branch marks the Branch field', async () => {

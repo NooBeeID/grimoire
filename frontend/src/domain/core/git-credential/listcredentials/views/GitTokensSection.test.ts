@@ -43,7 +43,7 @@ describe('GitTokensSection', () => {
     expect((await screen.findByText('GIT_CREDENTIAL_KEY')).tagName).toBe('CODE');
     expect(screen.queryByRole('button', { name: /token/i })).toBeNull();
   });
-  it('add-host link only for allowed hosts without a row', async () => {
+  it('add-host link opens the save dialog for GitLab', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockCredentialList({ items: [mockCredential()] }))));
     const onadd = vi.fn();
     render(Section, { props: { onadd } });
@@ -52,10 +52,11 @@ describe('GitTokensSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tambah host GitLab' }));
     expect(onadd).toHaveBeenCalledWith(expect.objectContaining({ provider: 'gitlab', gitlabHosts: ['git.noobee.id'] }));
   });
-  it('no add-host link when every allowed host is saved', async () => {
+  it('add-host link stays available even when every allowed host is saved (host is typed freely)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockCredentialList({ allowed_gitlab_hosts: ['git.noobee.id'] }))));
     render(Section, { props: { onadd: vi.fn() } });
     await screen.findByText('…7Qx2');
-    expect(screen.queryByRole('button', { name: 'Tambah host GitLab' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tambah host GitLab' })).toBeInTheDocument();
   });
+
 });

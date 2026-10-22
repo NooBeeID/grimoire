@@ -205,7 +205,7 @@ views/GitTokensSection.svelte (+ .test.ts)
 8. **Komposisi `frontend/src/app/views/ProfileView.svelte`**:
    - Bungkus lama (identitas + `ChangePasswordView`) tetap `max-w-sm`; container luar jadi `max-w-2xl` (overview bagian 9) agar tabel muat. Judul `h1` tetap.
    - Tambah `<section id="token-git" aria-labelledby="token-git-title" class="scroll-mt-6">` berisi `<GitTokensSection />` (import dari `../../domain/core/git-credential/listcredentials`).
-   - Anchor: bila `location.hash === '#token-git'`, setelah data siap panggil `document.getElementById('token-git')?.scrollIntoView()` dan beri fokus ke `h2` (`tabindex="-1"`). Tautan `/profile#token-git` dari dialog Sync dan error `CREDENTIAL_MISSING` harus bekerja pada load penuh maupun navigasi in-app.
+   - Anchor: bila `location.hash === '#token-git'`, setelah data siap panggil `document.getElementById('token-git')?.scrollIntoView()` dan beri fokus ke `h2` (`tabindex="-1"`). Tautan `/settings#token-git` dari dialog Sync dan error `CREDENTIAL_MISSING` harus bekerja pada load penuh maupun navigasi in-app.
    - Callback `onsave`/`ondelete`/`onadd` dibiarkan tidak diberikan di plan ini. Plan `savecredential` dan `deletecredential` masing-masing menambah dialog dan satu pasang prop/handler di ProfileView (`gitCredentials.invalidate()` setelah sukses). Sampai itu masuk, tabel hanya-baca (tanpa tombol aksi); ini valid dan teruji.
 9. **i18n** di `frontend/src/shared/i18n/{id,en}.json` (kunci sama di kedua berkas, tes paritas i18n yang ada harus hijau):
 
@@ -347,7 +347,7 @@ Positif:
 1. Login sebagai A, buka `/profile`: seksi "Token Git" tampil dengan baris GitHub "Belum ada" dan baris GitLab `gitlab.com` "Belum ada"; tombol aksi tidak ada (sebelum plan save masuk) atau "Simpan" (setelah).
 2. Setelah A menyimpan token sah (lewat UI/API fixture `ghp_e2eValidToken7Qx2`): muat ulang `/profile`, baris GitHub menampilkan pil "Tersimpan" dan `…7Qx2`; `page.on('response')` pada `/api/me/git-credentials` memastikan body tidak memuat `ghp_e2e` maupun key bernama `token*`; DOM tidak memuat token penuh.
 3. Dua host: A menyimpan GitLab `git.noobee.id` (host ada di `GIT_SYNC_ALLOWED_HOSTS` e2e): daftar menampilkan GitHub, lalu GitLab `git.noobee.id`; urutan stabil setelah reload.
-4. Buka `/profile#token-git` lewat tautan langsung: halaman menggulir ke seksi dan fokus pada judul seksi.
+4. Buka `/settings#token-git` lewat tautan langsung: halaman menggulir ke seksi dan fokus pada judul seksi.
 5. Daftar per user: login sebagai B (tanpa token): `GET /api/me/git-credentials` lewat `request` hanya `items: []` (tidak memuat baris A); UI B menampilkan semua baris "Belum ada".
 
 Negatif:

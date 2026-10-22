@@ -36,7 +36,7 @@ Frontend tidak dipecah per usecase. Plan ini satu-satunya rujukan FE untuk selur
 
 1. **Token Git di Profil.** `/profile` mendapat seksi "Token Git" (`id="token-git"`). Seksi ini berisi tabel status PAT per `(provider, host)`, dialog Simpan/Ganti, dan dialog Hapus. Token hanya hidup di `$state` lokal dialog selama diketik. Token tidak masuk store, `localStorage`, URL, atau DOM teks, dan respons server tidak pernah memuatnya (Zod `.strict()` menolak field asing).
 2. **Sync dari Git.** Tombol sekunder "Sync dari Git" ditambahkan di header Knowledge (sidebar file) dan header API Spec. Tombol membuka satu dialog `GitSyncDialog` (prop `kind`) milik module `project/git-sync`. Saat dibuka, dialog memuat `getconfig` untuk mengisi form dan menampilkan status token/fitur. Ada dua tindakan: **Sync** (dengan nilai form) dan **Sync ulang** (dengan config tersimpan). Hasilnya laporan per file. Setelah sync selesai dengan status selain `failed`, `onsynced` memuat ulang pohon/daftar.
-3. **Batas module.** `git-sync` tidak meng-import `git-credential`. Status token di dialog berasal dari `getconfig` (`has_credential`, `credential_unreadable`, `feature_enabled`) dan dari error `CREDENTIAL_MISSING`/`CREDENTIAL_UNREADABLE`. Tautan ke `/profile#token-git` diambil dari `details.settings_path`, dengan fallback konstanta.
+3. **Batas module.** `git-sync` tidak meng-import `git-credential`. Status token di dialog berasal dari `getconfig` (`has_credential`, `credential_unreadable`, `feature_enabled`) dan dari error `CREDENTIAL_MISSING`/`CREDENTIAL_UNREADABLE`. Tautan ke `/settings#token-git` diambil dari `details.settings_path`, dengan fallback konstanta.
 4. **Visual.** Mengikuti DESIGN.md (framed-sheet). Tidak ada token, warna, radius, atau komponen dekoratif baru. Dua usulan perubahan DESIGN.md dicatat terpisah (bagian 10) dan tidak diterapkan diam-diam.
 
 ---
@@ -186,7 +186,7 @@ Body: GitHub `{ token }`; GitLab `{ host, token }`. Token di-`trim()` sebelum di
 ```ts
 export const KINDS = ['knowledge', 'api_spec'] as const;
 export type Kind = (typeof KINDS)[number];
-export const SETTINGS_PATH = '/profile#token-git';
+export const SETTINGS_PATH = '/settings#token-git';
 export const ITEM_STATUSES = ['created', 'updated', 'unchanged', 'skipped', 'rejected'] as const;
 export const GitSyncIssueSchema = z.object({ code: z.string(), message: z.string(), pointer: z.string(), line: z.number().int() });
 export const GitSyncReportItemSchema = z.object({
@@ -586,7 +586,7 @@ Tidak ada untuk frontend. Migrasi backend (`backend/migrations/core/<VERSION>_cr
 | `DeleteCredentialDialog.test.ts` | teks memuat provider + host; konfirmasi → service, `onclose`, `ondeleted`, toast; 404 → toast "Token sudah tidak ada" + `ondeleted`; 500 → pesan dan trace id, dialog tetap terbuka; Batal tidak memanggil service; tidak bisa ditutup saat submit |
 | `ProfileView.test.ts` | seksi `#token-git` ada dengan `h2#token-git-title`; kontainer `max-w-2xl`; Simpan membuka dialog; setelah `onsaved` → `gitCredentials.invalidate` dipanggil; hash `#token-git` → `scrollIntoView` + fokus h2; tes profil/ganti password lama tetap hijau |
 | `git-sync/base/components.test.ts` | `StatusBadge` 8 status → kelas pil dan teks benar (tidak warna saja); `RepoOriginChip` merender `github.com/noobee/grimoire-docs@main:docs/` dan folder kosong → tanpa `:`; `ReportSummary` menulis `0` untuk nol dan `text-danger` hanya pada ditolak > 0; `ConfigSummary` "Belum pernah sync" / status failed menampilkan pesan error; `SyncReportTable`: urutan rejected dulu; baris rejected dengan issues bisa diperluas (`aria-expanded`) dan memperlihatkan pointer mono; salin alasan memanggil `copyText`; `truncated` menampilkan catatan; `items=[]` menampilkan kalimat kosong di dalam bingkai |
-| `runsync/components.test.ts` | `SyncForm`: URL mengisi Branch/Folder otomatis bila belum disentuh; tidak menimpa field yang sudah disentuh; "Simpan di folder" hanya untuk knowledge; `CredentialNotice` tautan `href=/profile#token-git`; `SyncErrorBlock` per kode di tabel 8.1 |
+| `runsync/components.test.ts` | `SyncForm`: URL mengisi Branch/Folder otomatis bila belum disentuh; tidak menimpa field yang sudah disentuh; "Simpan di folder" hanya untuk knowledge; `CredentialNotice` tautan `href=/settings#token-git`; `SyncErrorBlock` per kode di tabel 8.1 |
 | `GitSyncDialog.test.ts` | buka → `getConfig` dipanggil dengan `kind`; config ada → form terisi + `ConfigSummary`; config null → "Belum pernah sync" dan Sync AKTIF walau `has_credential=false` (F5); config ada + `has_credential=false` + URL sama host → Sync dan Sync ulang nonaktif + `CredentialNotice missing`; `credential_unreadable` → teks simpan ulang; `feature_enabled=false` → form terkunci; URL diganti ke host lain → Sync aktif lagi (F6); Sync → state berjalan (tombol `loading`, teks "Menarik dari GitHub…", field disabled, Esc tidak menutup); 200 partial → tabel hasil, `onsynced` tepat sekali, ringkasan sama dengan jumlah baris; 200 lalu "Sync lagi" → kembali ke form terisi; Sync ulang mengirim nilai config, bukan nilai form yang diedit; `CREDENTIAL_MISSING` → notice + tautan; `INVALID_REPO_URL field=branch` → galat di Branch; `SYNC_IN_PROGRESS` → pesan + Coba lagi; Batal saat berjalan → fetch di-abort, dialog tertutup, toast `cancelledToast`, `onsynced` tidak dipanggil; 404 → `onclose` + tidak crash; DOM tidak memuat kata `token` selain label/tautan |
 | `KnowledgeTab.test.ts` | tombol "Sync dari Git" ada di sidebar dan di empty state; klik → dialog kind knowledge; `onsynced` → `treeRefreshKey` naik (pohon memuat ulang) |
 | `ApiSpecsTab.test.ts` / `ListSpecsView` test | tombol Sync tampil di header daftar dan empty state, tidak tampil di detail spec; `onsynced` → `list.invalidate()`; ListSpecsView tanpa `headeractions` tetap seperti sebelumnya |
@@ -610,7 +610,7 @@ Setup sesuai overview 11. `fake-git-server.ts` (Node `http`) meniru `GET /user`,
 4. **Timpa tanpa hapus.** Buat manual `notes/manual.md` lewat UI. Fixture mengubah isi `docs/auth/login-flow.md`. Sync ulang → `auth/login-flow.md` Diperbarui; `notes/manual.md` masih ada di pohon; membuka `auth/login-flow.md` menampilkan isi baru.
 5. **Sync API spec.** API Spec → Sync dari Git, URL `https://github.com/noobee/grimoire-docs`, Branch `main`, Folder `api/openapi`. Hasil: `billing` Dibuat (14 endpoint), `payments` Ditolak; status "Berhasil sebagian"; perluas baris `payments` → pointer `#/paths/~1charges/get` terlihat; Salin alasan → toast "Alasan disalin". Tutup → daftar spec memuat `billing`.
 6. **Prefix tujuan.** Knowledge → dialog → "Simpan di folder" `guides` → Sync → tujuan `guides/auth/login-flow.md`; pohon memuat folder `guides`.
-7. **Tautan Atur Token Git.** Dari `CredentialNotice` klik "Atur Token Git" → `/profile#token-git`, seksi Token Git di viewport dan judulnya fokus.
+7. **Tautan Atur Token Git.** Dari `CredentialNotice` klik "Atur Token Git" → `/settings#token-git`, seksi Token Git di viewport dan judulnya fokus.
 
 ### Negatif
 
@@ -743,7 +743,7 @@ Request api_spec (tanpa `target_prefix`):
 ```
 Error yang dipetakan (tabel 8.1):
 ```json
-{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/profile#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
+{ "error": { "code": "CREDENTIAL_MISSING", "message": "Anda belum menyimpan token Git untuk github.com", "details": { "provider": "github", "host": "github.com", "settings_path": "/settings#token-git" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }
 ```
 ```json
 { "error": { "code": "INVALID_REPO_URL", "message": "isi Branch", "details": { "field": "branch" } }, "trace_id": "4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33" }

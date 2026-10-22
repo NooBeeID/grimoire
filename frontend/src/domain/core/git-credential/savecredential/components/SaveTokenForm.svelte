@@ -10,6 +10,7 @@
     host = $bindable(''),
     token = $bindable(''),
     providerLocked = false,
+    hostLocked = false,
     gitlabHosts,
     disabled = false,
     errors = {},
@@ -19,6 +20,7 @@
     host?: string;
     token?: string;
     providerLocked?: boolean;
+    hostLocked?: boolean;
     gitlabHosts: string[];
     disabled?: boolean;
     errors?: { token?: string; host?: string };
@@ -29,7 +31,6 @@
     { value: 'github', label: $t('gitCredential.provider.github') },
     { value: 'gitlab', label: $t('gitCredential.provider.gitlab') },
   ]);
-  const hostOptions = $derived(gitlabHosts.map((h) => ({ value: h, label: h })));
 </script>
 
 <form
@@ -42,7 +43,16 @@
 >
   <Select bind:value={provider} label={$t('gitCredential.save.provider')} options={providers} disabled={disabled || providerLocked} />
   {#if provider === 'gitlab'}
-    <Select bind:value={host} label={$t('gitCredential.save.host')} options={hostOptions} {disabled} error={errors.host} />
+    <Input
+      bind:value={host}
+      name="git-host"
+      autocomplete="off"
+      label={$t('gitCredential.save.host')}
+      placeholder={gitlabHosts[0] ?? 'gitlab.com'}
+      hint={$t('gitCredential.save.hostHint')}
+      error={errors.host}
+      disabled={disabled || hostLocked}
+    />
   {/if}
   <Input
     bind:value={token}

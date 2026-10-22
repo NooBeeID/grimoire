@@ -204,7 +204,7 @@ func TestActorMetaErrors(t *testing.T) {
 		t.Fatal()
 	}
 	e := CredentialMissing("github", "github.com")
-	if e.Details.(map[string]any)["settings_path"] != "/profile#token-git" || e.Code != CodeCredentialMissing {
+	if e.Details.(map[string]any)["settings_path"] != "/settings#token-git" || e.Code != CodeCredentialMissing {
 		t.Fatal(e)
 	}
 	if SyncInProgress(KindKnowledge).Details.(map[string]any)["kind"] != "knowledge" {
