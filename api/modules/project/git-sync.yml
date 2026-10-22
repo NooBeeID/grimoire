@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Grimoire Project Git Sync
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /api/projects/{projectID}/git-sync:
     parameters:
@@ -14,7 +14,8 @@ paths:
         Anggota (owner/member) dan super_admin. Mengembalikan config sync terakhir untuk (project, kind)
         beserta laporan terakhir (maksimal 500 item; `truncated` bila dipotong). `has_credential` dan
         `credential_unreadable` menyangkut token milik pemanggil, bukan pembuat config. `config` null
-        bila belum pernah sync. Project yang tidak ada atau bukan milik pemanggil dijawab 404 identik.
+        bila belum pernah sync. `in_progress` true bila sync untuk (project, kind) ini sedang berjalan
+        di server (dibaca dari advisory lock tanpa mengambilnya; gagal baca dianggap false). Project yang tidak ada atau bukan milik pemanggil dijawab 404 identik.
       security: [{ sessionCookie: [] }]
       parameters:
         - $ref: "#/components/parameters/Kind"
@@ -31,6 +32,7 @@ paths:
                     feature_enabled: true
                     has_credential: true
                     credential_unreadable: false
+                    in_progress: false
                     config:
                       provider: github
                       host: github.com
@@ -52,7 +54,7 @@ paths:
                         error_code: ""
                         error_message: ""
                 noConfig:
-                  value: { kind: api_spec, feature_enabled: true, has_credential: false, credential_unreadable: false, config: null }
+                  value: { kind: api_spec, feature_enabled: true, has_credential: false, credential_unreadable: false, in_progress: true, config: null }
         "400":
           description: kind tidak valid (INVALID_ARGUMENT)
           content:
@@ -80,13 +82,26 @@ paths:
         File bernama sama ditimpa; file yang tidak ada di repo tidak dihapus. Satu sync per
         (project, kind) pada satu waktu. Semua file diambil dulu sebelum ada yang ditulis, sehingga
         kegagalan provider tidak meninggalkan project setengah tertimpa. Batas waktu GIT_SYNC_TIMEOUT
-        (default 120 detik). Body maksimal 16 KiB; field tak dikenal ditolak 400. Bila url memuat
+        (default 15 menit). Request ke provider dijeda minimal GIT_SYNC_REQUEST_INTERVAL (default 500ms);
+        bila jatah rate limit provider habis, server menunggu sampai reset (maksimal GIT_SYNC_MAX_WAIT per
+        tunggu dan GIT_SYNC_MAX_TOTAL_WAIT per sync), lewat batas itu dijawab RATE_LIMITED. Sync berjalan
+        di server meski koneksi klien putus.
+
+
+        Negosiasi `Accept`: bila memuat `text/event-stream`, respons 200 berupa stream SSE berisi progress
+        per file; selain itu respons JSON seperti sebelumnya. Error yang terjadi sebelum stream dimulai
+        (400/403/404/409/422/503) selalu respons JSON biasa, juga pada jalur SSE. Body maksimal 16 KiB; field tak dikenal ditolak 400. Bila url memuat
         branch/folder (…/tree/{branch}/{folder}) dan field `branch`/`folder` kosong, nilai dari url
         dipakai. `target_prefix` hanya untuk kind knowledge dan diabaikan untuk api_spec.
         Status laporan: success, partial (ada skipped/rejected), failed.
       security: [{ sessionCookie: [] }]
       parameters:
         - $ref: "#/components/parameters/XRequestedWith"
+        - name: Accept
+          in: header
+          required: false
+          description: Isi `text/event-stream` untuk menerima progress lewat SSE; selain itu respons JSON.
+          schema: { type: string, example: text/event-stream }
       requestBody:
         required: true
         content:
@@ -131,6 +146,39 @@ paths:
                   last_synced_at: "2026-10-22T14:05:00Z"
                   last_synced_by: { id: 0192f5a0-aaaa-7aaa-8bbb-00000000000a, label: Rina }
                   last_result: null
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  Stream SSE. Format tiap event `event: <nama>\ndata: <json satu baris>\n\n`; baris
+                  `: ping` dikirim tiap 15 detik sebagai heartbeat. Urutan: `start`, `progress` (satu per file),
+                  `waiting` (bila menunggu rate limit), `saving`, lalu `done` atau `error` sebagai event terakhir.
+                  Data per event mengikuti skema GitSyncEventStart, GitSyncEventProgress, GitSyncEventWaiting,
+                  GitSyncEventSaving, GitSyncEventDone (RunGitSyncResponse), dan GitSyncEventError. Event tidak
+                  memuat token maupun isi file.
+              example: |
+                event: start
+                data: {"total":3}
+
+                event: progress
+                data: {"done":1,"total":3,"path":"docs/auth/login-flow.md"}
+
+                event: waiting
+                data: {"retry_after_seconds":38,"reason":"rate_limit_exhausted"}
+
+                : ping
+
+                event: progress
+                data: {"done":2,"total":3,"path":"docs/auth/session-cookie.md"}
+
+                event: progress
+                data: {"done":3,"total":3,"path":"docs/onboarding/setup-local.md"}
+
+                event: saving
+                data: {}
+
+                event: done
+                data: {"report":{"status":"success","summary":{"created":3,"updated":0,"unchanged":0,"skipped":0,"rejected":0},"items":[],"truncated":false,"error_code":"","error_message":""},"config":{"provider":"github","host":"github.com","repo_url":"https://github.com/noobee/grimoire-docs","repo_path":"noobee/grimoire-docs","branch":"main","folder":"docs","target_prefix":"","last_status":"success","last_synced_at":"2026-10-22T08:14:03Z","last_synced_by":{"id":"0192f5a0-aaaa-7aaa-8bbb-00000000000a","label":"Rina"},"last_result":null}}
         "400":
           description: >
             INVALID_ARGUMENT (kind, body, atau target_prefix tidak valid) atau INVALID_REPO_URL
@@ -219,7 +267,10 @@ paths:
                       details: { host: git.contoh.com }
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
         "429":
-          description: Provider Git membatasi permintaan (RATE_LIMITED); Retry-After diisi bila diketahui
+          description: >
+            Provider Git membatasi permintaan (RATE_LIMITED) dan batas tunggu server terlewati; hanya jalur JSON
+            (pada jalur SSE menjadi event `error` dengan kode sama). `details.retry_after_seconds` dibulatkan ke atas.
+            Retry-After diisi bila diketahui
           headers:
             Retry-After:
               description: Detik sebelum boleh mencoba lagi
@@ -387,12 +438,13 @@ components:
     GitSyncConfigResponse:
       type: object
       additionalProperties: false
-      required: [kind, feature_enabled, has_credential, credential_unreadable, config]
+      required: [kind, feature_enabled, has_credential, credential_unreadable, config, in_progress]
       properties:
         kind: { $ref: "#/components/schemas/GitSyncKind" }
         feature_enabled: { type: boolean }
         has_credential: { type: boolean, description: Pemanggil punya token untuk host config. }
         credential_unreadable: { type: boolean, description: Token pemanggil tidak dapat didekripsi (kunci server berganti). }
+        in_progress: { type: boolean, description: true bila sync untuk (project, kind) sedang berjalan di server. }
         config:
           oneOf:
             - { $ref: "#/components/schemas/GitSyncConfig" }
@@ -414,3 +466,37 @@ components:
       properties:
         report: { $ref: "#/components/schemas/GitSyncReport" }
         config: { $ref: "#/components/schemas/GitSyncConfig" }
+    GitSyncEventStart:
+      type: object
+      additionalProperties: false
+      required: [total]
+      properties:
+        total: { type: integer, example: 42 }
+    GitSyncEventProgress:
+      type: object
+      additionalProperties: false
+      required: [done, total, path]
+      properties:
+        done: { type: integer, example: 7 }
+        total: { type: integer, example: 42 }
+        path: { type: string, example: docs/auth/login-flow.md }
+    GitSyncEventWaiting:
+      type: object
+      additionalProperties: false
+      required: [retry_after_seconds, reason]
+      properties:
+        retry_after_seconds: { type: integer, example: 38 }
+        reason: { type: string, enum: [rate_limit_exhausted, rate_limited] }
+    GitSyncEventSaving:
+      type: object
+      additionalProperties: false
+    GitSyncEventDone:
+      $ref: "#/components/schemas/RunGitSyncResponse"
+    GitSyncEventError:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code: { type: string, example: RATE_LIMITED }
+        message: { type: string, example: "provider Git membatasi permintaan; coba lagi nanti" }
+        details: { type: [object, "null"], example: { retry_after_seconds: 1712 } }
