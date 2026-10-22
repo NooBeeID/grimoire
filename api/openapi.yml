@@ -2707,6 +2707,615 @@ paths:
           $ref: '#/components/responses/SpecNotFound'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/me/git-credentials:
+    get:
+      operationId: listcredentials
+      tags:
+        - core-git-credentials
+      summary: Daftar token Git milik sendiri
+      description: |
+        Status Personal Access Token (PAT) milik pemanggil saja. Hanya `last4` yang dikembalikan; token tidak pernah dikembalikan. `enabled=false` bila server belum mengisi GIT_CREDENTIAL_KEY (items kosong). `allowed_gitlab_hosts` berisi host GitLab yang boleh dipakai (gitlab.com ditambah GIT_SYNC_ALLOWED_HOSTS). Respons memakai Cache-Control no-store.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Daftar token (items selalu array)
+          headers:
+            Cache-Control:
+              description: Selalu no-store
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitCredentialList'
+              examples:
+                enabled:
+                  value:
+                    enabled: true
+                    allowed_gitlab_hosts:
+                      - gitlab.com
+                      - git.noobee.id
+                    items:
+                      - provider: github
+                        host: github.com
+                        last4: a9F3
+                        created_at: '2026-10-22T07:00:00Z'
+                        updated_at: '2026-10-22T07:00:00Z'
+                      - provider: gitlab
+                        host: git.noobee.id
+                        last4: 7Qx2
+                        created_at: '2026-10-22T07:05:00Z'
+                        updated_at: '2026-10-22T07:10:00Z'
+                disabled:
+                  value:
+                    enabled: false
+                    allowed_gitlab_hosts:
+                      - gitlab.com
+                    items: []
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/me/git-credentials/{provider}:
+    parameters:
+      - $ref: '#/components/parameters/Provider'
+    put:
+      operationId: savecredential
+      tags:
+        - core-git-credentials
+      summary: Simpan atau ganti token Git
+      description: |
+        Menyimpan PAT milik pemanggil untuk (provider, host). Token diverifikasi ke provider sebelum disimpan, lalu dienkripsi AES-256-GCM. Token tidak pernah dikembalikan; hanya `last4`. Untuk github, host dipaksa github.com (host lain 422 HOST_NOT_ALLOWED). Untuk gitlab, host default gitlab.com dan harus ada di daftar yang diizinkan. Token 8-512 karakter ASCII tanpa spasi. Body maksimal 8 KiB; field tak dikenal ditolak 400. Dibatasi 10 permintaan/menit per user. Respons memakai Cache-Control no-store.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveGitCredentialRequest'
+            examples:
+              gitlab:
+                value:
+                  host: git.noobee.id
+                  token: glpat-xxxxxxxxxxxxxxxx7Qx2
+              github:
+                value:
+                  token: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxa9F3
+      responses:
+        '200':
+          description: Token tersimpan atau diganti
+          headers:
+            Cache-Control:
+              description: Selalu no-store
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveGitCredentialResponse'
+              example:
+                provider: gitlab
+                host: git.noobee.id
+                last4: 7Qx2
+                updated_at: '2026-10-22T07:10:00Z'
+                replaced: true
+        '400':
+          description: Provider, host, atau token tidak valid (INVALID_ARGUMENT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: permintaan tidak valid
+                  details:
+                    fields:
+                      token: token wajib 8-512 karakter ASCII tanpa spasi
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: CSRF_REQUIRED
+                  message: header X-Requested-With wajib untuk request mutasi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: |
+            TOKEN_INVALID (provider menolak token atau token tanpa akses) atau HOST_NOT_ALLOWED (host di luar daftar yang diizinkan).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                tokenInvalid:
+                  value:
+                    error:
+                      code: TOKEN_INVALID
+                      message: token tidak valid atau tidak punya akses
+                      details:
+                        provider: gitlab
+                        host: git.noobee.id
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                hostNotAllowed:
+                  value:
+                    error:
+                      code: HOST_NOT_ALLOWED
+                      message: host Git tidak diizinkan; minta admin menambahkannya ke GIT_SYNC_ALLOWED_HOSTS
+                      details:
+                        host: git.contoh.com
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '429':
+          description: |
+            Batas permintaan per user terlampaui atau provider Git membatasi permintaan (RATE_LIMITED). Header Retry-After diisi bila diketahui.
+          headers:
+            Retry-After:
+              description: Detik sebelum boleh mencoba lagi
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: provider Git membatasi permintaan; coba lagi nanti
+                  details:
+                    retry_after_seconds: 60
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '500':
+          $ref: '#/components/responses/Internal'
+        '502':
+          description: Provider Git tidak dapat dihubungi (GIT_UPSTREAM_ERROR)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: GIT_UPSTREAM_ERROR
+                  message: provider Git tidak dapat dihubungi, coba lagi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '503':
+          description: GIT_CREDENTIAL_KEY belum diisi admin (GIT_FEATURE_DISABLED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: GIT_FEATURE_DISABLED
+                  message: sync Git belum dikonfigurasi oleh admin
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    delete:
+      operationId: deletecredential
+      tags:
+        - core-git-credentials
+      summary: Hapus token Git
+      description: |
+        Menghapus token milik pemanggil untuk (provider, host). Query `host` opsional: github dipaksa github.com, gitlab default gitlab.com. Token yang tidak ada dijawab 404.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
+        - name: host
+          in: query
+          required: false
+          description: Host Git (mis. git.noobee.id). Default sesuai provider.
+          schema:
+            type: string
+            maxLength: 253
+            example: git.noobee.id
+      responses:
+        '204':
+          description: Token dihapus (tanpa body)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: CSRF_REQUIRED
+                  message: header X-Requested-With wajib untuk request mutasi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '404':
+          description: Token tidak ditemukan (NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: token tidak ditemukan
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/projects/{projectID}/git-sync:
+    parameters:
+      - $ref: '#/components/parameters/ProjectID'
+    get:
+      operationId: getconfig
+      tags:
+        - project-git-sync
+      summary: Config sync Git terakhir
+      description: |
+        Anggota (owner/member) dan super_admin. Mengembalikan config sync terakhir untuk (project, kind) beserta laporan terakhir (maksimal 500 item; `truncated` bila dipotong). `has_credential` dan `credential_unreadable` menyangkut token milik pemanggil, bukan pembuat config. `config` null bila belum pernah sync. Project yang tidak ada atau bukan milik pemanggil dijawab 404 identik.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Kind'
+      responses:
+        '200':
+          description: Config (atau null bila belum ada)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitSyncConfigResponse'
+              examples:
+                withConfig:
+                  value:
+                    kind: knowledge
+                    feature_enabled: true
+                    has_credential: true
+                    credential_unreadable: false
+                    config:
+                      provider: github
+                      host: github.com
+                      repo_url: https://github.com/noobee/grimoire-docs/tree/main/docs
+                      repo_path: noobee/grimoire-docs
+                      branch: main
+                      folder: docs
+                      target_prefix: ''
+                      last_status: partial
+                      last_synced_at: '2026-10-22T14:05:00Z'
+                      last_synced_by:
+                        id: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                        label: Rina
+                      last_result:
+                        status: partial
+                        summary:
+                          created: 2
+                          updated: 0
+                          unchanged: 0
+                          skipped: 1
+                          rejected: 1
+                        items:
+                          - repo_path: docs/api/rate-limit.md
+                            target: api/rate-limit.md
+                            status: created
+                            reason_code: ''
+                            reason: ''
+                            issues: []
+                          - repo_path: docs/img/diagram.png
+                            target: ''
+                            status: skipped
+                            reason_code: unsupported_type
+                            reason: ''
+                            issues: []
+                        truncated: false
+                        error_code: ''
+                        error_message: ''
+                noConfig:
+                  value:
+                    kind: api_spec
+                    feature_enabled: true
+                    has_credential: false
+                    credential_unreadable: false
+                    config: null
+        '400':
+          description: kind tidak valid (INVALID_ARGUMENT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: permintaan tidak valid
+                  details:
+                    fields:
+                      kind: kind harus knowledge atau api_spec
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/responses-ProjectNotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/projects/{projectID}/git-sync/run:
+    parameters:
+      - $ref: '#/components/parameters/ProjectID'
+    post:
+      operationId: runsync
+      tags:
+        - project-git-sync
+      summary: Sync file dari repo Git
+      description: |
+        Anggota (owner/member) dan super_admin. Menarik file dari repo GitHub/GitLab memakai token milik pemanggil, lalu menulisnya ke knowledge atau API spec lewat jalur upload yang sama. File bernama sama ditimpa; file yang tidak ada di repo tidak dihapus. Satu sync per (project, kind) pada satu waktu. Semua file diambil dulu sebelum ada yang ditulis, sehingga kegagalan provider tidak meninggalkan project setengah tertimpa. Batas waktu GIT_SYNC_TIMEOUT (default 120 detik). Body maksimal 16 KiB; field tak dikenal ditolak 400. Bila url memuat branch/folder (…/tree/{branch}/{folder}) dan field `branch`/`folder` kosong, nilai dari url dipakai. `target_prefix` hanya untuk kind knowledge dan diabaikan untuk api_spec. Status laporan: success, partial (ada skipped/rejected), failed.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunGitSyncRequest'
+            examples:
+              knowledge:
+                value:
+                  kind: knowledge
+                  url: https://github.com/noobee/grimoire-docs/tree/main/docs
+                  branch: ''
+                  folder: ''
+                  target_prefix: ''
+              apiSpec:
+                value:
+                  kind: api_spec
+                  url: https://github.com/noobee/grimoire-docs
+                  branch: main
+                  folder: api/openapi
+      responses:
+        '200':
+          description: Sync selesai (success atau partial). Detail per file ada di report.items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunGitSyncResponse'
+              example:
+                report:
+                  status: partial
+                  summary:
+                    created: 1
+                    updated: 0
+                    unchanged: 0
+                    skipped: 0
+                    rejected: 1
+                  items:
+                    - repo_path: api/openapi/billing.yaml
+                      target: billing
+                      status: created
+                      reason_code: ''
+                      reason: ''
+                      issues: []
+                      openapi_version: 3.0.3
+                      title: Billing API
+                      endpoint_count: 14
+                    - repo_path: api/openapi/payments.json
+                      target: payments
+                      status: rejected
+                      reason_code: INVALID_SPEC
+                      reason: $ref eksternal tidak didukung
+                      issues:
+                        - code: EXTERNAL_REF
+                          message: $ref eksternal tidak didukung
+                          pointer: '#/paths/~1charges/get'
+                          line: 0
+                  truncated: false
+                  error_code: ''
+                  error_message: ''
+                config:
+                  provider: github
+                  host: github.com
+                  repo_url: https://github.com/noobee/grimoire-docs/tree/main/api/openapi
+                  repo_path: noobee/grimoire-docs
+                  branch: main
+                  folder: api/openapi
+                  target_prefix: ''
+                  last_status: partial
+                  last_synced_at: '2026-10-22T14:05:00Z'
+                  last_synced_by:
+                    id: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                    label: Rina
+                  last_result: null
+        '400':
+          description: |
+            INVALID_ARGUMENT (kind, body, atau target_prefix tidak valid) atau INVALID_REPO_URL (url/branch/folder tidak valid; details.field menyebut field).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidRepoUrl:
+                  value:
+                    error:
+                      code: INVALID_REPO_URL
+                      message: isi Branch
+                      details:
+                        field: branch
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: CSRF_REQUIRED
+                  message: header X-Requested-With wajib untuk request mutasi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '404':
+          description: |
+            NOT_FOUND (project tidak ditemukan atau bukan milik pemanggil) atau GIT_NOT_FOUND (repo/branch/folder tidak ditemukan atau token tanpa akses; details.what = repo atau folder).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                projectNotFound:
+                  value:
+                    error:
+                      code: NOT_FOUND
+                      message: project tidak ditemukan
+                      details: null
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                gitNotFoundRepo:
+                  value:
+                    error:
+                      code: GIT_NOT_FOUND
+                      message: repo/branch tidak ditemukan atau token tidak punya akses
+                      details:
+                        what: repo
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                gitNotFoundFolder:
+                  value:
+                    error:
+                      code: GIT_NOT_FOUND
+                      message: folder tidak ditemukan di branch ini
+                      details:
+                        what: folder
+                        folder: tidak-ada
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '409':
+          description: Sync lain untuk project dan kind ini sedang berjalan (SYNC_IN_PROGRESS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: SYNC_IN_PROGRESS
+                  message: sync lain untuk project dan jenis ini sedang berjalan
+                  details:
+                    kind: knowledge
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: |
+            Salah satu dari HOST_NOT_ALLOWED, CREDENTIAL_MISSING, CREDENTIAL_UNREADABLE (details memuat settings_path /profile#token-git), GIT_TOKEN_REJECTED, GIT_ACCESS_DENIED, SYNC_LIMIT_EXCEEDED (details: files, max_files, known_bytes, max_total_bytes), GIT_TREE_TOO_LARGE.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                credentialMissing:
+                  value:
+                    error:
+                      code: CREDENTIAL_MISSING
+                      message: Anda belum menyimpan token Git untuk github.com
+                      details:
+                        provider: github
+                        host: github.com
+                        settings_path: /profile#token-git
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                credentialUnreadable:
+                  value:
+                    error:
+                      code: CREDENTIAL_UNREADABLE
+                      message: token Git Anda tidak dapat dibaca (kunci server berganti); simpan ulang token
+                      details:
+                        provider: github
+                        host: github.com
+                        settings_path: /profile#token-git
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                syncLimitExceeded:
+                  value:
+                    error:
+                      code: SYNC_LIMIT_EXCEEDED
+                      message: folder berisi 742 file, melebihi batas 500 file per sync; persempit folder
+                      details:
+                        files: 742
+                        max_files: 500
+                        known_bytes: 3145728
+                        max_total_bytes: 52428800
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+                hostNotAllowed:
+                  value:
+                    error:
+                      code: HOST_NOT_ALLOWED
+                      message: host Git tidak diizinkan; minta admin menambahkannya ke GIT_SYNC_ALLOWED_HOSTS
+                      details:
+                        host: git.contoh.com
+                    trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '429':
+          description: Provider Git membatasi permintaan (RATE_LIMITED); Retry-After diisi bila diketahui
+          headers:
+            Retry-After:
+              description: Detik sebelum boleh mencoba lagi
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: provider Git membatasi permintaan; coba lagi nanti
+                  details:
+                    retry_after_seconds: 60
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '500':
+          $ref: '#/components/responses/Internal'
+        '502':
+          description: Provider Git tidak dapat dihubungi (GIT_UPSTREAM_ERROR)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: GIT_UPSTREAM_ERROR
+                  message: provider Git tidak dapat dihubungi, coba lagi
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '503':
+          description: Fitur Git belum dikonfigurasi admin (GIT_FEATURE_DISABLED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: GIT_FEATURE_DISABLED
+                  message: sync Git belum dikonfigurasi oleh admin
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '504':
+          description: Sync melebihi batas waktu (TIMEOUT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: TIMEOUT
+                  message: sync melebihi batas waktu
+                  details: null
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
 components:
   schemas:
     Error:
@@ -3756,6 +4365,300 @@ components:
               type: integer
             rejected:
               type: integer
+    GitCredential:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - host
+        - last4
+        - created_at
+        - updated_at
+      properties:
+        provider:
+          $ref: '#/components/schemas/GitProvider'
+        host:
+          type: string
+          example: git.noobee.id
+        last4:
+          type: string
+          description: Empat karakter terakhir token (token tidak pernah dikembalikan).
+          example: 7Qx2
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    GitCredentialList:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - allowed_gitlab_hosts
+        - items
+      properties:
+        enabled:
+          type: boolean
+          description: false bila GIT_CREDENTIAL_KEY kosong.
+        allowed_gitlab_hosts:
+          type: array
+          items:
+            type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitCredential'
+    SaveGitCredentialRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+      properties:
+        host:
+          type:
+            - string
+            - 'null'
+          description: Opsional. github selalu github.com; gitlab default gitlab.com.
+          example: git.noobee.id
+        token:
+          type: string
+          minLength: 8
+          maxLength: 512
+          description: PAT ASCII tanpa spasi. github scope repo (read); gitlab read_api dan read_repository.
+          writeOnly: true
+    SaveGitCredentialResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - host
+        - last4
+        - updated_at
+        - replaced
+      properties:
+        provider:
+          $ref: '#/components/schemas/GitProvider'
+        host:
+          type: string
+        last4:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        replaced:
+          type: boolean
+          description: true bila menimpa token yang sudah ada.
+    GitSyncIssue:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - pointer
+        - line
+      properties:
+        code:
+          type: string
+          example: EXTERNAL_REF
+        message:
+          type: string
+        pointer:
+          type: string
+          example: '#/paths/~1charges/get'
+        line:
+          type: integer
+    GitSyncReportItem:
+      type: object
+      additionalProperties: false
+      required:
+        - repo_path
+        - target
+        - status
+        - reason_code
+        - reason
+        - issues
+      properties:
+        repo_path:
+          type: string
+          example: docs/auth/login-flow.md
+        target:
+          type: string
+          description: Path tujuan di knowledge atau nama spec; kosong bila tidak terbentuk.
+        status:
+          $ref: '#/components/schemas/GitSyncItemStatus'
+        reason_code:
+          type: string
+          description: Kode alasan modul tujuan (knowledge huruf kecil, mis. unsupported_type; api_spec huruf besar, mis. INVALID_SPEC). Kosong bila tidak ada.
+        reason:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitSyncIssue'
+        openapi_version:
+          type: string
+          description: Hanya untuk kind api_spec.
+        title:
+          type: string
+          description: Hanya untuk kind api_spec.
+        endpoint_count:
+          type: integer
+          description: Hanya untuk kind api_spec.
+    GitSyncSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - created
+        - updated
+        - unchanged
+        - skipped
+        - rejected
+      properties:
+        created:
+          type: integer
+        updated:
+          type: integer
+        unchanged:
+          type: integer
+        skipped:
+          type: integer
+        rejected:
+          type: integer
+    GitSyncReport:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - summary
+        - items
+        - truncated
+        - error_code
+        - error_message
+      properties:
+        status:
+          $ref: '#/components/schemas/GitSyncStatus'
+        summary:
+          $ref: '#/components/schemas/GitSyncSummary'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitSyncReportItem'
+        truncated:
+          type: boolean
+          description: true bila items dipotong (maksimal 500 tersimpan).
+        error_code:
+          type: string
+        error_message:
+          type: string
+    GitSyncConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - host
+        - repo_url
+        - repo_path
+        - branch
+        - folder
+        - target_prefix
+        - last_status
+        - last_synced_at
+        - last_synced_by
+        - last_result
+      properties:
+        provider:
+          type: string
+          enum:
+            - github
+            - gitlab
+        host:
+          type: string
+        repo_url:
+          type: string
+        repo_path:
+          type: string
+          example: noobee/grimoire-docs
+        branch:
+          type: string
+        folder:
+          type: string
+        target_prefix:
+          type: string
+        last_status:
+          oneOf:
+            - $ref: '#/components/schemas/GitSyncStatus'
+            - type: 'null'
+        last_synced_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        last_synced_by:
+          oneOf:
+            - $ref: '#/components/schemas/GitSyncUser'
+            - type: 'null'
+        last_result:
+          description: Selalu null pada respons run (isinya sama dengan report).
+          oneOf:
+            - $ref: '#/components/schemas/GitSyncReport'
+            - type: 'null'
+    GitSyncConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - feature_enabled
+        - has_credential
+        - credential_unreadable
+        - config
+      properties:
+        kind:
+          $ref: '#/components/schemas/GitSyncKind'
+        feature_enabled:
+          type: boolean
+        has_credential:
+          type: boolean
+          description: Pemanggil punya token untuk host config.
+        credential_unreadable:
+          type: boolean
+          description: Token pemanggil tidak dapat didekripsi (kunci server berganti).
+        config:
+          oneOf:
+            - $ref: '#/components/schemas/GitSyncConfig'
+            - type: 'null'
+    RunGitSyncRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - url
+      properties:
+        kind:
+          $ref: '#/components/schemas/GitSyncKind'
+        url:
+          type: string
+          example: https://github.com/noobee/grimoire-docs/tree/main/docs
+        branch:
+          type: string
+          description: Wajib bila url tidak memuat branch.
+        folder:
+          type: string
+          description: Folder di repo; kosong = root.
+        target_prefix:
+          type: string
+          description: Folder tujuan di knowledge. Hanya kind knowledge.
+    RunGitSyncResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - report
+        - config
+      properties:
+        report:
+          $ref: '#/components/schemas/GitSyncReport'
+        config:
+          $ref: '#/components/schemas/GitSyncConfig'
     HealthStatus:
       type: object
       required:
@@ -4190,6 +5093,42 @@ components:
           format: date-time
         credentials:
           $ref: '#/components/schemas/InvitationCredentials'
+    GitProvider:
+      type: string
+      enum:
+        - github
+        - gitlab
+    GitSyncKind:
+      type: string
+      enum:
+        - knowledge
+        - api_spec
+    GitSyncStatus:
+      type: string
+      enum:
+        - success
+        - partial
+        - failed
+    GitSyncUser:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+    GitSyncItemStatus:
+      type: string
+      enum:
+        - created
+        - updated
+        - unchanged
+        - skipped
+        - rejected
   responses:
     BadRequest:
       description: Permintaan tidak valid (INVALID_ARGUMENT)
@@ -4541,6 +5480,18 @@ components:
       schema:
         type: string
         pattern: ^[a-z0-9._-]{1,80}$
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/GitProvider'
+    Kind:
+      name: kind
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/GitSyncKind'
   examples:
     KnowledgeFileExample:
       value:

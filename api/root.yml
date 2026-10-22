@@ -77,6 +77,14 @@ paths:
     $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1{name}
   /api/projects/{projectID}/api-specs/{name}/raw:
     $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1{name}~1raw
+  /api/me/git-credentials:
+    $ref: ./modules/core/git-credential.yml#/paths/~1api~1me~1git-credentials
+  /api/me/git-credentials/{provider}:
+    $ref: ./modules/core/git-credential.yml#/paths/~1api~1me~1git-credentials~1{provider}
+  /api/projects/{projectID}/git-sync:
+    $ref: ./modules/project/git-sync.yml#/paths/~1api~1projects~1{projectID}~1git-sync
+  /api/projects/{projectID}/git-sync/run:
+    $ref: ./modules/project/git-sync.yml#/paths/~1api~1projects~1{projectID}~1git-sync~1run
 components:
   schemas:
     Error:
@@ -171,6 +179,30 @@ components:
       $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecUploadResult
     ApiSpecValidateResult:
       $ref: ./modules/project/api-spec.yml#/components/schemas/ApiSpecValidateResult
+    GitCredential:
+      $ref: ./modules/core/git-credential.yml#/components/schemas/GitCredential
+    GitCredentialList:
+      $ref: ./modules/core/git-credential.yml#/components/schemas/GitCredentialList
+    SaveGitCredentialRequest:
+      $ref: ./modules/core/git-credential.yml#/components/schemas/SaveGitCredentialRequest
+    SaveGitCredentialResponse:
+      $ref: ./modules/core/git-credential.yml#/components/schemas/SaveGitCredentialResponse
+    GitSyncIssue:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncIssue
+    GitSyncReportItem:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncReportItem
+    GitSyncSummary:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncSummary
+    GitSyncReport:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncReport
+    GitSyncConfig:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncConfig
+    GitSyncConfigResponse:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/GitSyncConfigResponse
+    RunGitSyncRequest:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/RunGitSyncRequest
+    RunGitSyncResponse:
+      $ref: ./modules/project/git-sync.yml#/components/schemas/RunGitSyncResponse
   responses:
     BadRequest:
       $ref: ./modules/infra/foundation.yml#/components/responses/BadRequest
