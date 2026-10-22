@@ -96,6 +96,7 @@
     open={drawerOpen}
     onupload={() => (dialog = { kind: 'upload', dir: contextDir })}
     onnewfile={() => go({ mode: 'new', dir: contextDir })}
+    onsync={() => (dialog = { kind: 'gitSync' })}
     onsearch={(q) => go({ ...url, q, mode: 'view' }, true)}
     onscopechange={(scope) => go({ q: url.q, scope, path: url.path, dir: url.dir }, true)}
     onopenfile={(path) => go({ path })}
@@ -130,6 +131,10 @@
   {dialog}
   onclose={() => (dialog = null)}
   onuploaded={refresh}
+  onsynced={() => {
+    refresh();
+    viewerReloadKey++;
+  }}
   onmoved={(path) => {
     dialog = null;
     refreshAndGo({ path });

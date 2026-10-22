@@ -93,10 +93,10 @@ backend/
 │   ├── domain/
 │   │   ├── core/
 │   │   │   ├── base.go             # wiring domain
-│   │   │   └── internal/{auth,auditlog}/
-│   │   ├── project/internal/{management,apikey,knowledge,apispec}/
+│   │   │   └── internal/{auth,auditlog,gitcredential}/
+│   │   ├── project/internal/{management,apikey,knowledge,apispec,gitsync}/
 │   │   └── discovery/internal/{mcpgateway,knowledgetools,apispectools}/
-│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app,mailer}/  # app: hanya struct Deps; mailer: pengirim email generik
+│   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app,mailer,crypto,safehttp,gitprovider}/  # app: hanya struct Deps; mailer: pengirim email generik; crypto/secretbox: AES-256-GCM; safehttp: http.Client anti-SSRF; gitprovider: klien REST GitHub/GitLab
 │   ├── archtest/                   # tes arsitektur (tanpa kode produksi)
 │   └── eventregistry/              # hanya bila ada event bernama
 ├── lib/{common,constants,contracts,util}/
@@ -179,6 +179,9 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.management.count-memberships` | Call (baca-saja) | T12 | T12 (auth `purgeinvitations`) |
 | `core.audit.scan-entries` | Call (baca-saja) | T02 (feature `scanentries`, ditambah T11) | T11 |
 | `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli`, T15 (`core/auditlog` summary) |
+| `core.gitcredential.get-token` | Call | T14 | T14 (gitsync `runsync`, `getconfig`) |
+| `project.knowledge.upsert-files` | Call | T14 | T14 (gitsync `runsync`) |
+| `project.apispec.upsert-specs` | Call | T14 | T14 (gitsync `runsync`) |
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
@@ -197,6 +200,8 @@ TODO (ditambah T01): `core.auth.create-admin` (Call, provider T01, consumer `cmd
 (`register-tool` bukan endpoint runtime; `toolkit.Result.Structured` (opsional, JSON object) diteruskan gateway sebagai `structuredContent`, dipakai T08; mekanisme pendaftaran tool dijelaskan di T07.)
 
 Kontrak T12: `lib/contracts/core/auth/{invitation,inviteuser,resendinvitation}` (konstanta `BUS_CORE_AUTH_INVITE_USER`, `BUS_CORE_AUTH_RESEND_INVITATION`) dan `lib/contracts/project/management/countmemberships` (`BUS_PROJECT_MANAGEMENT_COUNT_MEMBERSHIPS`). `Credentials` pada respons tidak boleh di-log, diaudit, atau di-Publish. Perubahan aditif: `core.auth.get-user` menerima `Request.Email` (dipakai bila `UserID` kosong) dan mengembalikan `Response.Invitation` (nil bila tidak ada undangan menunggu), konsumen bertambah management `inviteuser`/`listinvitations`; `core.auth.find-developers` mengembalikan `Developer.InvitationPending`. Kode error bersama baru `ALREADY_REGISTERED` (409) di `lib/common/errs`. Infra generik baru `infra/mailer` (`app.Deps.Mailer`; driver `smtp`, `log`, noop).
+
+Kontrak T14: `lib/contracts/core/gitcredential/gettoken` (`BUS_CORE_GITCREDENTIAL_GET_TOKEN`), `lib/contracts/project/knowledge/upsertfiles` (`BUS_PROJECT_KNOWLEDGE_UPSERT_FILES`), `lib/contracts/project/apispec/upsertspecs` (`BUS_PROJECT_APISPEC_UPSERT_SPECS`). `get-token` mengembalikan `Token secret.String` (tipe tersamar di `lib/common/secret`): token tidak boleh di-log, diaudit, di-Publish, atau dikirim ke klien; pemanggil wajib mengisi `UserID` dari identity request. Dua handler upsert menulis tanpa cek keanggotaan: consumer wajib `check-access` lebih dulu; query selalu dibatasi `ProjectID` request. Orkestrasi tulis upload dipakai bersama lewat `knowledge/base/ingest` dan `apispec/base/ingest`. Kode error bersama baru di `lib/common/errs`: `HOST_NOT_ALLOWED` (422), `GIT_UPSTREAM_ERROR` (502), `GIT_FEATURE_DISABLED` (503). Env baru: `GIT_CREDENTIAL_KEY`, `GIT_SYNC_ALLOWED_HOSTS`, `GIT_SYNC_TIMEOUT`, `GIT_SYNC_INSECURE_TEST_HOSTS`, `GIT_SYNC_GITHUB_API_BASE` (lihat `docs/configuration.md`).
 
 ### Pola fail-open penulisan audit
 
@@ -225,6 +230,7 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`, `project.member.invited`, `project.invitation.revoked` (T12).
 - Key: `apikey.created`, `apikey.revoked`.
 - Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
+- Git (T14): `git_credential.saved`, `git_credential.deleted`, `git_sync.run`.
 
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)
 

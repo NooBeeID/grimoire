@@ -8,6 +8,7 @@
   import { FileEditorView } from '../../../../domain/project/knowledge/updatefile';
   import type { KnowledgeUrlState } from '../../../workspace/knowledgeUrl';
   import type { DialogState } from './KnowledgeDialogs.svelte';
+  import GitBranchIcon from '../GitBranchIcon.svelte';
   import FolderPane from './FolderPane.svelte';
 
   let {
@@ -87,9 +88,13 @@
   {:else if isEmpty}
     <EmptyState title={$t('knowledge.empty.title')} description={$t('knowledge.empty.hint')}>
       {#snippet action()}
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-center gap-2">
           <Button onclick={() => opendialog({ kind: 'upload', dir: '' })}>{$t('knowledge.actions.upload')}</Button>
           <Button variant="secondary" onclick={() => go({ mode: 'new' })}>{$t('knowledge.actions.newFile')}</Button>
+          <Button variant="secondary" onclick={() => opendialog({ kind: 'gitSync' })}>
+            <GitBranchIcon />
+            {$t('gitSync.button')}
+          </Button>
         </div>
       {/snippet}
     </EmptyState>

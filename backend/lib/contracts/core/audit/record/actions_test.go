@@ -23,12 +23,13 @@ var catalog = []string{
 	"knowledge.file.created", "knowledge.file.updated", "knowledge.file.deleted", "knowledge.file.moved",
 	"knowledge.folder.deleted", "knowledge.upload.completed",
 	"apispec.uploaded", "apispec.updated", "apispec.deleted",
+	"git_credential.saved", "git_credential.deleted", "git_sync.run",
 }
 
 func TestActions_UniqueAndWellFormed(t *testing.T) {
 	got := Actions()
-	if len(got) != 43 {
-		t.Fatalf("want 43 actions, got %d", len(got))
+	if len(got) != 46 {
+		t.Fatalf("want 46 actions, got %d", len(got))
 	}
 	seen := map[string]bool{}
 	for _, a := range got {

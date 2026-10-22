@@ -5,6 +5,7 @@ import (
 	"grimoire/internal/domain/project/internal/knowledge/buslistfiles"
 	"grimoire/internal/domain/project/internal/knowledge/busreadfile"
 	"grimoire/internal/domain/project/internal/knowledge/bussearch"
+	"grimoire/internal/domain/project/internal/knowledge/busupsertfiles"
 	"grimoire/internal/domain/project/internal/knowledge/countfiles"
 	"grimoire/internal/domain/project/internal/knowledge/createfile"
 	"grimoire/internal/domain/project/internal/knowledge/deletefile"
@@ -25,6 +26,7 @@ func Register(d app.Deps) {
 	buslistfiles.Init(d)
 	busreadfile.Init(d)
 	bussearch.Init(d)
+	busupsertfiles.Init(d)
 
 	// Route REST /api/projects/{projectID}/knowledge/...
 	uploadfiles.Init(d)

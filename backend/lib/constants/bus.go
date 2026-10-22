@@ -70,3 +70,15 @@ const BUS_CORE_AUTH_RESEND_INVITATION = "core.auth.resend-invitation"
 // Provider: T12 project/management (feature countmemberships). Consumer: core/auth purgeinvitations.
 // Kontrak: lib/contracts/project/management/countmemberships. Baca-saja.
 const BUS_PROJECT_MANAGEMENT_COUNT_MEMBERSHIPS = "project.management.count-memberships"
+
+// Provider: T14 core/gitcredential (feature bustoken). Consumer: project/gitsync runsync, getconfig.
+// Kontrak: lib/contracts/core/gitcredential/gettoken. Token tidak boleh di-log/diaudit/di-Publish/dikirim ke klien.
+const BUS_CORE_GITCREDENTIAL_GET_TOKEN = "core.gitcredential.get-token"
+
+// Provider: T14 project/knowledge (feature busupsertfiles). Consumer: project/gitsync runsync.
+// Kontrak: lib/contracts/project/knowledge/upsertfiles. Menulis; tanpa cek keanggotaan (consumer wajib check-access).
+const BUS_PROJECT_KNOWLEDGE_UPSERT_FILES = "project.knowledge.upsert-files"
+
+// Provider: T14 project/apispec (feature busupsertspecs). Consumer: project/gitsync runsync.
+// Kontrak: lib/contracts/project/apispec/upsertspecs. Menulis; tanpa cek keanggotaan (consumer wajib check-access).
+const BUS_PROJECT_APISPEC_UPSERT_SPECS = "project.apispec.upsert-specs"

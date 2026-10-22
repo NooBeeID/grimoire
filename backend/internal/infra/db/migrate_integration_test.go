@@ -304,7 +304,7 @@ func TestMigrate_ConnectionReturnedClean(t *testing.T) {
 func TestUp_EmbeddedFS(t *testing.T) {
 	d := TestDB(t)
 	res, err := Up(context.Background(), d, nil)
-	wantApplied := []string{"core/20261021090000000_create_audit_log.sql", "core/20261021100000000_create_auth_tables.sql", "core/20261021233706157_create_user_invitations.sql", "project/20261022090000000_create_projects.sql", "project/20261022095716034_create_api_keys.sql", "project/20261022105258455_create_api_specs.sql", "project/20261022105305340_create_knowledge_files.sql", "project/20261022160000000_api_keys_owner_scope.sql"}
+	wantApplied := []string{"core/20261021090000000_create_audit_log.sql", "core/20261021100000000_create_auth_tables.sql", "core/20261021233706157_create_user_invitations.sql", "project/20261022090000000_create_projects.sql", "project/20261022095716034_create_api_keys.sql", "project/20261022105258455_create_api_specs.sql", "project/20261022105305340_create_knowledge_files.sql", "project/20261022160000000_api_keys_owner_scope.sql", "core/20261022163418271_create_git_credentials.sql", "project/20261022163418846_create_git_sync_configs.sql"}
 	if err != nil || !reflect.DeepEqual(res.Applied, wantApplied) {
 		t.Fatalf("run 1: res=%v err=%v, want %v", res, err, wantApplied)
 	}

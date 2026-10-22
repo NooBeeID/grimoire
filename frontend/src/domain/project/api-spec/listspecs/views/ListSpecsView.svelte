@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import EmptyState from '../../../../../shared/components/EmptyState.svelte';
   import ErrorState from '../../../../../shared/components/ErrorState.svelte';
@@ -15,11 +15,14 @@
     store,
     onupload,
     onprojectgone,
+    headeractions,
   }: {
     projectId: string;
     store: SpecListStore;
     onupload: () => void;
     onprojectgone: () => void;
+    // Slot aksi tambahan sebelum tombol Upload (diisi komposer app/; domain ini tidak tahu isinya).
+    headeractions?: Snippet;
   } = $props();
 
   let ver = $state(0);
@@ -72,14 +75,22 @@
       <p class="mt-1 max-w-prose text-sm text-muted">{$t('apispec.intro')}</p>
       {#if quota && quota.limit > 0}<div class="mt-1"><SpecQuota total={quota.total} limit={quota.limit} /></div>{/if}
     </div>
-    <Button onclick={onupload}>{$t('apispec.upload.open')}</Button>
+    <div class="flex flex-wrap gap-2">
+      {@render headeractions?.()}
+      <Button onclick={onupload}>{$t('apispec.upload.open')}</Button>
+    </div>
   </header>
 
   {#if $store.status === 'error'}
     <ErrorState error={$store.error} onretry={() => store.invalidate()} />
   {:else if $store.status === 'ready' && rows.length === 0}
     <EmptyState title={$t('apispec.list.empty')} description={$t('apispec.list.emptyHint')}>
-      {#snippet action()}<Button onclick={onupload}>{$t('apispec.upload.open')}</Button>{/snippet}
+      {#snippet action()}
+        <div class="flex flex-wrap justify-center gap-2">
+          {@render headeractions?.()}
+          <Button onclick={onupload}>{$t('apispec.upload.open')}</Button>
+        </div>
+      {/snippet}
     </EmptyState>
   {:else if $store.status === 'notFound'}
     <div></div>

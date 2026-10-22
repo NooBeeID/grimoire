@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/svelte';
+import { createRawSnippet } from 'svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
@@ -53,5 +54,24 @@ describe('ListSpecsView', () => {
     await screen.findByRole('link', { name: 'auth' });
     p.store.invalidate();
     await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(2));
+  });
+
+  const extra = createRawSnippet(() => ({ render: () => '<button type="button">Aksi tambahan</button>' }));
+  it('headeractions renders in the header and the empty state', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockSpecList())));
+    const { unmount } = render(View, { ...props(), headeractions: extra });
+    await screen.findByRole('link', { name: 'auth' });
+    expect(screen.getByRole('button', { name: 'Aksi tambahan' })).toBeInTheDocument();
+    unmount();
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockSpecList([]))));
+    render(View, { ...props(), headeractions: extra });
+    await screen.findByText('Belum ada API spec');
+    expect(screen.getAllByRole('button', { name: 'Aksi tambahan' })).toHaveLength(2);
+  });
+  it('without headeractions nothing extra is rendered', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockSpecList())));
+    render(View, props());
+    await screen.findByRole('link', { name: 'auth' });
+    expect(screen.queryByRole('button', { name: 'Aksi tambahan' })).toBeNull();
   });
 });

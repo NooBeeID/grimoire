@@ -58,6 +58,11 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `MCP_MAX_REQUEST_BYTES` | int | `65536` | tidak | >= 1024 | Batas ukuran body request `POST /mcp` (byte). |
 | `MCP_TOOL_TIMEOUT` | duration | `10s` | tidak | durasi > 0 dan <= 60s | Batas waktu eksekusi satu tool MCP. |
 | `MCP_ALLOWED_ORIGINS` | list | - | tidak | dipisah koma; tiap entri `scheme://host[:port]` (http/https) | Origin browser yang diizinkan memanggil `/mcp`; klien tanpa header Origin selalu lolos. |
+| `GIT_CREDENTIAL_KEY` | string | - | tidak | kosong, atau base64 (std) dari tepat 32 byte | Kunci AES-256-GCM untuk PAT Git. Kosong = fitur Sync Git nonaktif. Tidak pernah di-log. |
+| `GIT_SYNC_ALLOWED_HOSTS` | list | - | tidak | dipisah koma; tiap entri `host[:port]` tanpa skema/path/userinfo; `github.com`/`gitlab.com` diabaikan (sudah implisit) | Host GitLab self-hosted yang boleh dipakai (token dan sync). |
+| `GIT_SYNC_TIMEOUT` | duration | `2m` | tidak | durasi > `HTTP_DEFAULT_TIMEOUT` | Batas waktu satu request sync Git. |
+| `GIT_SYNC_INSECURE_TEST_HOSTS` | list | - | tidak | dipisah koma; tiap entri `host:port`; ditolak saat `APP_ENV=production` | HANYA test/e2e: host:port yang boleh http dan loopback. |
+| `GIT_SYNC_GITHUB_API_BASE` | string | - | tidak | `http(s)://host:port` yang ada di `GIT_SYNC_INSECURE_TEST_HOSTS`; ditolak saat `APP_ENV=production` | HANYA test/e2e: mengganti `https://api.github.com`. |
 
 ## Email undangan (T12)
 
@@ -65,6 +70,14 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 - Contoh penyedia umum: STARTTLS `SMTP_PORT=587 SMTP_TLS=starttls`; TLS implisit `SMTP_PORT=465 SMTP_TLS=tls`.
 - `PUBLIC_URL` wajib bila `MAIL_DRIVER=smtp`; URL login di email = `<PUBLIC_URL>/login`.
 - `MAIL_DRIVER=log` ditolak di produksi karena mencetak password sementara ke log.
+
+## Sync Git (T14)
+
+- Pengguna menyimpan Personal Access Token (PAT) per `(provider, host)`; token dienkripsi AES-256-GCM dengan `GIT_CREDENTIAL_KEY` dan tidak pernah dikembalikan ke klien. Buat kunci: `openssl rand -base64 32`.
+- Kunci hilang atau berganti: semua PAT tersimpan tidak terbaca dan setiap user diminta menyimpan ulang tokennya. Kunci kosong menonaktifkan fitur (halaman Profil dan dialog Sync menampilkan pesan bahwa admin belum mengonfigurasinya).
+- Host yang diizinkan: `github.com` dan `gitlab.com` selalu; GitLab self-hosted harus didaftarkan di `GIT_SYNC_ALLOWED_HOSTS`.
+- Koneksi keluar memakai klien anti-SSRF (hanya https, IP privat/loopback/link-local ditolak saat dial, redirect hanya ke host yang sama). `GIT_SYNC_INSECURE_TEST_HOSTS` dan `GIT_SYNC_GITHUB_API_BASE` hanya untuk test/e2e dan ditolak di produksi.
+- Batas sync memakai env yang sudah ada: `MAX_FILE_BYTES`, `MAX_UPLOAD_FILES`, `MAX_UPLOAD_BYTES`, `MAX_PROJECT_FILES`, `APISPEC_MAX_FILE_BYTES`, `APISPEC_MAX_SPECS`.
 
 ## Env di luar Config
 

@@ -26,6 +26,8 @@ type Event struct {
 	Target    string         // nama spec (setelah aksi; rename: nama baru)
 	Args      map[string]any // TANPA isi spec
 	Meta      base.RequestMeta
+	// Actor (opsional) menggantikan identitas dari ctx; dipakai handler bus yang tidak membawa sesi pemanggil.
+	Actor *base.Actor
 }
 
 type BusRecorder struct {
@@ -48,7 +50,13 @@ func New(b *bus.Registry, log *slog.Logger, now base.Clock) *BusRecorder {
 
 // Record mengirim audit; semua kegagalan hanya di-log (Args tidak pernah di-log).
 func (r *BusRecorder) Record(ctx context.Context, ev Event) {
-	actor, ok := base.ActorFrom(reqctx.IdentityFrom(ctx))
+	var actor base.Actor
+	ok := true
+	if ev.Actor != nil && ev.Actor.ID != "" {
+		actor = *ev.Actor
+	} else {
+		actor, ok = base.ActorFrom(reqctx.IdentityFrom(ctx))
+	}
 	if !ok {
 		r.log.ErrorContext(ctx, "audit record dilewati: identitas tidak ada", "action", ev.Action, "project_id", ev.ProjectID)
 		return

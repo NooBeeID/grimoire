@@ -1,6 +1,7 @@
 <script lang="ts">
   import Button from '../../../../shared/components/Button.svelte';
   import { t } from '../../../../shared/stores/i18n';
+  import GitBranchIcon from '../GitBranchIcon.svelte';
   import { KnowledgeTreeView, type TreeAction, type TreeNodeRef } from '../../../../domain/project/knowledge/listtree';
   import { KnowledgeSearchView, SearchBox } from '../../../../domain/project/knowledge/search';
   import type { KnowledgeUrlState } from '../../../workspace/knowledgeUrl';
@@ -14,6 +15,7 @@
     open,
     onupload,
     onnewfile,
+    onsync,
     onsearch,
     onscopechange,
     onopenfile,
@@ -31,6 +33,7 @@
     open: boolean;
     onupload: () => void;
     onnewfile: () => void;
+    onsync: () => void;
     onsearch: (q: string) => void;
     onscopechange: (scope: string) => void;
     onopenfile: (path: string) => void;
@@ -44,9 +47,13 @@
 </script>
 
 <aside class="flex flex-col gap-3 {open ? '' : 'max-lg:hidden'}" aria-label={$t('knowledge.panel.files')}>
-  <div class="flex gap-2">
+  <div class="flex flex-wrap gap-2">
     <Button size="sm" onclick={onupload}>{$t('knowledge.actions.upload')}</Button>
     <Button size="sm" variant="secondary" onclick={onnewfile}>{$t('knowledge.actions.newFile')}</Button>
+    <Button size="sm" variant="secondary" onclick={onsync}>
+      <GitBranchIcon />
+      {$t('gitSync.button')}
+    </Button>
   </div>
   <SearchBox value={url.q} onchange={onsearch} />
   {#if searching}

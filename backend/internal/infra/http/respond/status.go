@@ -29,6 +29,10 @@ var (
 
 		errs.CodePasswordChangeRequired: http.StatusForbidden,
 		errs.CodeAlreadyRegistered:      http.StatusConflict,
+
+		errs.CodeHostNotAllowed:     http.StatusUnprocessableEntity,
+		errs.CodeGitUpstream:        http.StatusBadGateway,
+		errs.CodeGitFeatureDisabled: http.StatusServiceUnavailable,
 	}
 )
 

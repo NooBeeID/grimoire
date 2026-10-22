@@ -169,4 +169,51 @@ describe('KnowledgeTab composition', () => {
     await userEvent.upload(input, new File(['openapi: 3.0.0'], 'api.yaml', { type: 'text/yaml' }));
     expect(await screen.findByText(/1 file ke Cari knowledge/)).toBeInTheDocument();
   });
+
+  const gitCfg = { kind: 'knowledge', feature_enabled: true, has_credential: true, credential_unreadable: false, config: null };
+
+  it('Sync dari Git button in the sidebar opens the knowledge dialog', async () => {
+    stubFetch((url) => (url.pathname.endsWith('/git-sync') ? json(200, gitCfg) : undefined));
+    at('');
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Sync dari Git' }));
+    expect(await screen.findByRole('heading', { name: 'Sync knowledge dari Git' })).toBeInTheDocument();
+    expect(calls.some((c) => c.includes('/git-sync?kind=knowledge'))).toBe(true);
+  });
+
+  it('empty state also offers Sync dari Git', async () => {
+    stubFetch(() => undefined, empty);
+    at('');
+    mount();
+    await screen.findByText('Belum ada knowledge di project ini');
+    expect(screen.getAllByRole('button', { name: 'Sync dari Git' })).toHaveLength(2);
+  });
+
+  it('a finished sync reloads the tree', async () => {
+    const report = {
+      status: 'success',
+      summary: { created: 1, updated: 0, unchanged: 0, skipped: 0, rejected: 0 },
+      items: [{ repo_path: 'docs/a.md', target: 'a.md', status: 'created', reason_code: '', reason: '', issues: [] }],
+      truncated: false,
+      error_code: '',
+      error_message: '',
+    };
+    const config = {
+      provider: 'github', host: 'github.com', repo_url: 'https://github.com/o/r', repo_path: 'o/r', branch: 'main', folder: 'docs', target_prefix: '',
+      last_status: 'success', last_synced_at: T, last_synced_by: { id: 'u1', label: 'Rina' }, last_result: null,
+    };
+    stubFetch((url) => {
+      if (url.pathname.endsWith('/git-sync/run')) return json(200, { report, config });
+      if (url.pathname.endsWith('/git-sync')) return json(200, gitCfg);
+      return undefined;
+    });
+    at('');
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Sync dari Git' }));
+    await userEvent.type(await screen.findByLabelText('URL repo atau folder'), 'https://github.com/o/r');
+    const before = calls.filter((c) => c.includes('/knowledge/tree')).length;
+    await userEvent.click(screen.getByRole('button', { name: 'Sync' }));
+    await screen.findByText('docs/a.md');
+    await vi.waitFor(() => expect(calls.filter((c) => c.includes('/knowledge/tree')).length).toBeGreaterThan(before));
+  });
 });

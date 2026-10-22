@@ -3,6 +3,7 @@
   import { DeleteFolderDialog } from '../../../../domain/project/knowledge/deletefolder';
   import { MoveFileDialog } from '../../../../domain/project/knowledge/movefile';
   import { UploadDialogView } from '../../../../domain/project/knowledge/uploadfiles';
+  import { GitSyncDialog } from '../../../../domain/project/git-sync/runsync';
   import { extraUploadTargets } from '../../../workspace/uploadTargets';
 
   export type DialogState =
@@ -10,6 +11,7 @@
     | { kind: 'move'; from: string }
     | { kind: 'deleteFile'; path: string }
     | { kind: 'deleteFolder'; path: string; count: number }
+    | { kind: 'gitSync' }
     | null;
 
   let {
@@ -17,6 +19,7 @@
     dialog,
     onclose,
     onuploaded,
+    onsynced,
     onmoved,
     ondeletedfile,
     ondeletedfolder,
@@ -27,6 +30,7 @@
     dialog: DialogState;
     onclose: () => void;
     onuploaded: () => void;
+    onsynced: () => void;
     onmoved: (path: string) => void;
     ondeletedfile: (path: string) => void;
     ondeletedfolder: (path: string) => void;
@@ -70,3 +74,4 @@
   {onclose}
   ondeleted={(p) => ondeletedfolder(p)}
 />
+<GitSyncDialog open={dialog?.kind === 'gitSync'} {projectId} kind="knowledge" {onclose} {onsynced} {onprojectgone} />

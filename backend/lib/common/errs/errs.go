@@ -33,6 +33,11 @@ const (
 
 	CodePasswordChangeRequired Code = "PASSWORD_CHANGE_REQUIRED" // 403
 	CodeAlreadyRegistered      Code = "ALREADY_REGISTERED"       // 409
+
+	// Kode bersama gitcredential dan gitsync (T14).
+	CodeHostNotAllowed     Code = "HOST_NOT_ALLOWED"     // 422
+	CodeGitUpstream        Code = "GIT_UPSTREAM_ERROR"   // 502
+	CodeGitFeatureDisabled Code = "GIT_FEATURE_DISABLED" // 503
 )
 
 // Error adalah error terstruktur. Err tidak pernah dikirim ke klien.

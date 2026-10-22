@@ -2,6 +2,7 @@
 package apispec
 
 import (
+	"grimoire/internal/domain/project/internal/apispec/busupsertspecs"
 	"grimoire/internal/domain/project/internal/apispec/countspecs"
 	"grimoire/internal/domain/project/internal/apispec/deletespec"
 	"grimoire/internal/domain/project/internal/apispec/downloadspec"
@@ -23,6 +24,7 @@ func Register(d app.Deps) {
 	listspecsbus.Init(d)
 	listendpoints.Init(d)
 	getendpoint.Init(d)
+	busupsertspecs.Init(d)
 
 	// Route REST /api/projects/{projectID}/api-specs...
 	uploadspecs.Init(d)

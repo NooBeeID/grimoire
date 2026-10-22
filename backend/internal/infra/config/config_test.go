@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -45,6 +46,7 @@ func TestLoad_Defaults(t *testing.T) {
 		SMTPPort: 587, SMTPTLS: "starttls", MailTimeout: 10 * time.Second,
 		InvitationTTL: 168 * time.Hour, InvitationMaxPerHour: 20, InvitationResendMaxPerHour: 3,
 		InvitationPurgeAfter: 720 * time.Hour,
+		GitSyncTimeout:       120 * time.Second,
 	}
 	if !reflect.DeepEqual(c, want) {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -414,5 +416,69 @@ func TestConfig_SMTPPasswordMasked(t *testing.T) {
 	_, err = Load(env(base(map[string]string{"MAIL_DRIVER": "smtp", "SMTP_PASSWORD": pw, "SMTP_PORT": "0"})))
 	if err == nil || strings.Contains(err.Error(), pw) {
 		t.Fatalf("error bocor/ nil: %v", err)
+	}
+}
+
+func TestLoad_GitConfig(t *testing.T) {
+	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	c, err := Load(env(base(map[string]string{
+		"GIT_CREDENTIAL_KEY": key, "GIT_SYNC_ALLOWED_HOSTS": " Git.Noobee.ID , github.com,gitlab.com,x.y:8443",
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.GitFeatureEnabled() || len(c.GitCredentialKey) != 32 {
+		t.Fatal("feature must be enabled")
+	}
+	if !reflect.DeepEqual(c.GitSyncAllowedHosts, []string{"git.noobee.id", "x.y:8443"}) {
+		t.Fatalf("hosts: %v", c.GitSyncAllowedHosts)
+	}
+	if c.GitSyncTimeout != 120*time.Second {
+		t.Fatal(c.GitSyncTimeout)
+	}
+	d, _ := Load(env(base(nil)))
+	if d.GitFeatureEnabled() {
+		t.Fatal("kosong = nonaktif")
+	}
+	var sb strings.Builder
+	slog.New(slog.NewJSONHandler(&sb, nil)).Info("cfg", "config", c)
+	out := fmt.Sprintf("%v %+v %#v", c, c, c) + sb.String()
+	if strings.Contains(out, key) || strings.Contains(out, "AAAAAAAA") {
+		t.Fatalf("kunci bocor: %s", out)
+	}
+}
+
+func TestLoad_GitConfigInvalid(t *testing.T) {
+	good := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	short := base64.StdEncoding.EncodeToString(make([]byte, 31))
+	cases := map[string]map[string]string{
+		"31 byte":        {"GIT_CREDENTIAL_KEY": short},
+		"bukan base64":   {"GIT_CREDENTIAL_KEY": "!!!notbase64!!!"},
+		"host skema":     {"GIT_SYNC_ALLOWED_HOSTS": "https://x.y"},
+		"host path":      {"GIT_SYNC_ALLOWED_HOSTS": "x.y/a"},
+		"host userinfo":  {"GIT_SYNC_ALLOWED_HOSTS": "u@x.y"},
+		"timeout kecil":  {"GIT_SYNC_TIMEOUT": "30s"},
+		"insecure prod":  {"GIT_SYNC_INSECURE_TEST_HOSTS": "127.0.0.1:9000"},
+		"insecure noprt": {"APP_ENV": "development", "GIT_SYNC_INSECURE_TEST_HOSTS": "127.0.0.1"},
+		"base prod":      {"GIT_SYNC_GITHUB_API_BASE": "http://127.0.0.1:9000"},
+		"base unlisted":  {"APP_ENV": "development", "GIT_SYNC_GITHUB_API_BASE": "http://127.0.0.1:9000"},
+	}
+	_ = good
+	for name, extra := range cases {
+		_, err := Load(env(base(extra)))
+		if err == nil {
+			t.Errorf("%s: want error", name)
+			continue
+		}
+		for _, v := range extra {
+			if strings.Contains(v, "notbase64") && strings.Contains(err.Error(), v) {
+				t.Errorf("%s: pesan memuat nilai", name)
+			}
+		}
+	}
+	if _, err := Load(env(base(map[string]string{
+		"APP_ENV": "development", "GIT_SYNC_INSECURE_TEST_HOSTS": "127.0.0.1:9000", "GIT_SYNC_GITHUB_API_BASE": "http://127.0.0.1:9000",
+	}))); err != nil {
+		t.Errorf("dev insecure valid: %v", err)
 	}
 }

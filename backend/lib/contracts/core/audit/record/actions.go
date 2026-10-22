@@ -51,6 +51,10 @@ const (
 	ActionAPISpecUploaded          = "apispec.uploaded"
 	ActionAPISpecUpdated           = "apispec.updated"
 	ActionAPISpecDeleted           = "apispec.deleted"
+
+	ActionGitCredentialSaved   = "git_credential.saved"
+	ActionGitCredentialDeleted = "git_credential.deleted"
+	ActionGitSyncRun           = "git_sync.run"
 )
 
 // Actions mengembalikan salinan daftar katalog (dipakai tes dan sumber daftar UI).
@@ -71,5 +75,6 @@ func Actions() []string {
 		ActionKnowledgeFileCreated, ActionKnowledgeFileUpdated, ActionKnowledgeFileDeleted,
 		ActionKnowledgeFileMoved, ActionKnowledgeFolderDeleted, ActionKnowledgeUploadCompleted,
 		ActionAPISpecUploaded, ActionAPISpecUpdated, ActionAPISpecDeleted,
+		ActionGitCredentialSaved, ActionGitCredentialDeleted, ActionGitSyncRun,
 	}
 }

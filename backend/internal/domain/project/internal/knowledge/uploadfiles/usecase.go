@@ -7,6 +7,7 @@ import (
 	"grimoire/internal/domain/project/internal/knowledge/base"
 	"grimoire/internal/domain/project/internal/knowledge/base/access"
 	"grimoire/internal/domain/project/internal/knowledge/base/audit"
+	"grimoire/internal/domain/project/internal/knowledge/base/ingest"
 	"grimoire/lib/contracts/core/audit/record"
 )
 
@@ -77,53 +78,9 @@ func (u *Usecase) Execute(ctx context.Context, actor base.Actor, in Input) (base
 	if len(incoming) > 0 {
 		var planned []base.Decision
 		err := u.repo.InTx(ctx, func(tx repository) error {
-			if err := tx.LockProject(ctx, in.ProjectID); err != nil {
-				return fmt.Errorf("lock project: %w", err)
-			}
-			count, err := tx.CountFiles(ctx, in.ProjectID)
-			if err != nil {
-				return fmt.Errorf("count files: %w", err)
-			}
-			paths := make([]string, 0, len(incoming))
-			for _, f := range incoming {
-				paths = append(paths, f.Path)
-			}
-			existing, err := tx.ExistingHashes(ctx, in.ProjectID, paths)
-			if err != nil {
-				return fmt.Errorf("existing hashes: %w", err)
-			}
-			planned = base.PlanUpload(incoming, existing, count, u.limits.MaxProjectFiles)
-
-			byIndex := make(map[int]base.Incoming, len(incoming))
-			for _, f := range incoming {
-				byIndex[f.Index] = f
-			}
-			var created, updated []base.File
-			bytesWritten = 0
-			for _, d := range planned {
-				f := byIndex[d.Index]
-				switch d.Status {
-				case base.StatusCreated:
-					nf := base.NewFile(in.ProjectID, f.Path, f.Content, actor)
-					created = append(created, nf)
-					bytesWritten += nf.SizeBytes
-				case base.StatusUpdated:
-					nf := base.NewFile(in.ProjectID, f.Path, f.Content, actor)
-					updated = append(updated, nf)
-					bytesWritten += nf.SizeBytes
-				}
-			}
-			if len(created) > 0 {
-				if err := tx.InsertFiles(ctx, created); err != nil {
-					return fmt.Errorf("insert files: %w", err)
-				}
-			}
-			if len(updated) > 0 {
-				if err := tx.UpdateFiles(ctx, updated); err != nil {
-					return fmt.Errorf("update files: %w", err)
-				}
-			}
-			return nil
+			var err error
+			planned, bytesWritten, err = ingest.Apply(ctx, tx, in.ProjectID, actor, incoming, u.limits.MaxProjectFiles)
+			return err
 		})
 		if err != nil {
 			return base.UploadResultDTO{}, fmt.Errorf("uploadfiles: batch: %w", err)

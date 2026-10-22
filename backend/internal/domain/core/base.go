@@ -3,6 +3,7 @@ package core
 import (
 	"grimoire/internal/domain/core/internal/auditlog"
 	"grimoire/internal/domain/core/internal/auth"
+	"grimoire/internal/domain/core/internal/gitcredential"
 	"grimoire/internal/infra/app"
 )
 
@@ -10,4 +11,5 @@ import (
 func Register(d app.Deps) {
 	auditlog.Register(d)
 	auth.Register(d)
+	gitcredential.Register(d)
 }

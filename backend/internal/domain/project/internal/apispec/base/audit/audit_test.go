@@ -86,3 +86,27 @@ func TestRecord_NoIdentityNotSent(t *testing.T) {
 		t.Fatalf("called=%v log=%s", called, buf.String())
 	}
 }
+
+func TestRecord_ExplicitActorOverridesContext(t *testing.T) {
+	var got record.Request
+	rec, _ := setup(func(ctx context.Context, req any) (any, error) {
+		got = req.(record.Request)
+		return record.Response{Recorded: true}, nil
+	})
+	// ctx tanpa identitas (handler bus): Actor eksplisit dipakai.
+	rec.Record(context.Background(), Event{Action: record.ActionAPISpecUploaded, ProjectID: "p1", Target: "a",
+		Actor: &base.Actor{ID: "u9", Label: "Rina"}})
+	if got.ActorID != "u9" || got.ActorLabel != "Rina" || got.ActorType != record.ActorUser {
+		t.Fatalf("%+v", got)
+	}
+	// Actor eksplisit menang atas identitas ctx.
+	rec.Record(userCtx("Budi"), Event{Action: record.ActionAPISpecUploaded, ProjectID: "p1", Actor: &base.Actor{ID: "u9", Label: "Rina"}})
+	if got.ActorID != "u9" {
+		t.Fatalf("%+v", got)
+	}
+	// Tanpa Actor: perilaku lama (dari ctx).
+	rec.Record(userCtx("Budi"), Event{Action: record.ActionAPISpecUploaded, ProjectID: "p1"})
+	if got.ActorID != "u1" || got.ActorLabel != "Budi" {
+		t.Fatalf("%+v", got)
+	}
+}

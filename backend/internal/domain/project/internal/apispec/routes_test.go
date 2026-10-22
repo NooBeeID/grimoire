@@ -26,6 +26,7 @@ import (
 	"grimoire/lib/contracts/project/apispec/getendpoint"
 	"grimoire/lib/contracts/project/apispec/listendpoints"
 	"grimoire/lib/contracts/project/apispec/listspecs"
+	"grimoire/lib/contracts/project/apispec/upsertspecs"
 	"grimoire/lib/contracts/project/management/checkaccess"
 	"grimoire/lib/contracts/project/management/contentcount"
 )
@@ -121,6 +122,7 @@ func TestRoutesRegistered(t *testing.T) {
 		constants.BUS_PROJECT_APISPEC_LIST_SPECS:     listspecs.Request{ProjectID: routeProject},
 		constants.BUS_PROJECT_APISPEC_LIST_ENDPOINTS: listendpoints.Request{ProjectID: routeProject},
 		constants.BUS_PROJECT_APISPEC_GET_ENDPOINT:   getendpoint.Request{ProjectID: routeProject, Spec: "x", Method: "GET", Path: "/p"},
+		constants.BUS_PROJECT_APISPEC_UPSERT_SPECS:   upsertspecs.Request{},
 	}
 	for ep, req := range calls {
 		if _, err := reg.Call(ctx, ep, req); errors.Is(err, bus.ErrNotRegistered) {
@@ -166,4 +168,27 @@ func TestRoutesRegistered_StaticSegmentsFallThroughToGetSpec(t *testing.T) {
 			t.Fatalf("%s upload: tidak boleh 405", m)
 		}
 	}
+}
+
+// Registrasi bus ganda pada registry yang sama harus panic (handler terdaftar sekali).
+func TestRegister_DoubleBusRegistrationPanics(t *testing.T) {
+	api, reg, _ := newRoutesEnv(t)
+	_ = api
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Register kedua pada registry yang sama harus panic")
+		}
+	}()
+	raw, err := sql.Open("apispec-empty", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	Register(app.Deps{
+		Config: config.Config{MaxUploadBytes: 1 << 20, MaxUploadFiles: 10, APISpecMaxFileBytes: 1 << 20, APISpecMaxSpecs: 10},
+		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DB:     &db.DB{DB: sqlx.NewDb(raw, "pgx")},
+		Bus:    reg,
+		API:    chi.NewRouter(),
+	})
 }

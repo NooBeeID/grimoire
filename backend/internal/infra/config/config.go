@@ -75,7 +75,17 @@ type Config struct {
 	InvitationMaxPerHour       int           `env:"INVITATION_MAX_PER_HOUR"`
 	InvitationResendMaxPerHour int           `env:"INVITATION_RESEND_MAX_PER_HOUR"`
 	InvitationPurgeAfter       time.Duration `env:"INVITATION_PURGE_AFTER"`
+
+	// Sync Git (T14). GitCredentialKey tidak pernah di-log.
+	GitCredentialKey         []byte        `env:"GIT_CREDENTIAL_KEY"`
+	GitSyncAllowedHosts      []string      `env:"GIT_SYNC_ALLOWED_HOSTS"`
+	GitSyncTimeout           time.Duration `env:"GIT_SYNC_TIMEOUT"`
+	GitSyncInsecureTestHosts []string      `env:"GIT_SYNC_INSECURE_TEST_HOSTS"`
+	GitSyncGitHubAPIBase     string        `env:"GIT_SYNC_GITHUB_API_BASE"`
 }
+
+// GitFeatureEnabled true bila GIT_CREDENTIAL_KEY terisi (32 byte tervalidasi saat Load).
+func (c Config) GitFeatureEnabled() bool { return len(c.GitCredentialKey) == 32 }
 
 // ValidationError mengumpulkan semua masalah konfigurasi sekaligus.
 type ValidationError struct {
@@ -366,6 +376,8 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	l.loadGit(&c, appEnv)
+
 	// DEV_VITE_URL
 	if v, ok := l.raw("DEV_VITE_URL"); ok {
 		u, err := url.Parse(v)
@@ -410,6 +422,9 @@ func (c Config) masked() Config {
 	}
 	if c.SMTPPassword != "" {
 		c.SMTPPassword = "***"
+	}
+	if len(c.GitCredentialKey) > 0 {
+		c.GitCredentialKey = []byte("***")
 	}
 	return c
 }
@@ -480,5 +495,10 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("invitation_max_per_hour", m.InvitationMaxPerHour),
 		slog.Int("invitation_resend_max_per_hour", m.InvitationResendMaxPerHour),
 		slog.Duration("invitation_purge_after", m.InvitationPurgeAfter),
+		slog.String("git_credential_key", gitKeyState(c)),
+		slog.Any("git_sync_allowed_hosts", m.GitSyncAllowedHosts),
+		slog.Duration("git_sync_timeout", m.GitSyncTimeout),
+		slog.Any("git_sync_insecure_test_hosts", m.GitSyncInsecureTestHosts),
+		slog.String("git_sync_github_api_base", m.GitSyncGitHubAPIBase),
 	)
 }

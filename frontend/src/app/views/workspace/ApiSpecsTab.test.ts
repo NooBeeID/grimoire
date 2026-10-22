@@ -73,4 +73,22 @@ describe('ApiSpecsTab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     await vi.waitFor(() => expect(window.location.pathname + window.location.search).toBe(`/projects/${PID}/api-specs/billing?op=GET%20%2Fpayments`));
   });
+
+  it('list view shows Sync dari Git and opens the api_spec dialog', async () => {
+    const f = vi.fn(async (u: string) =>
+      u.includes('/git-sync') ? json(200, { kind: 'api_spec', feature_enabled: true, has_credential: false, credential_unreadable: false, config: null }) : json(200, mockSpecList()),
+    );
+    vi.stubGlobal('fetch', f);
+    render(Tab, props());
+    await userEvent.click(await screen.findByRole('button', { name: 'Sync dari Git' }));
+    expect(await screen.findByRole('heading', { name: 'Sync API spec dari Git' })).toBeInTheDocument();
+    expect(f.mock.calls.some((c) => String(c[0]).includes('/git-sync?kind=api_spec'))).toBe(true);
+  });
+  it('detail view has no Sync dari Git button', async () => {
+    history.replaceState({}, '', `/projects/${PID}/api-specs/payment`);
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockDetail())));
+    render(Tab, props({ item: 'payment' }));
+    await screen.findByRole('button', { name: 'Unduh' });
+    expect(screen.queryByRole('button', { name: 'Sync dari Git' })).toBeNull();
+  });
 });
