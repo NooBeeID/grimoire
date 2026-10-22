@@ -22,6 +22,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai (`b1b54f0`) |
 | [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
 | [T14](T14-project-git-sync.md) | core + project | git-credential (PAT per user), git-sync (sync knowledge & API spec dari git) | L | T01, T02, T03, T05, T06 | Plan siap |
+| [T15](T15-core-audit-log-summary.md) | core | audit-log (ringkasan metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Belum |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
@@ -38,8 +39,10 @@ T00 foundation (ROOT)
 │       │   └── T07 discovery/mcp-gateway  + butuh T02
 │       │       ├── T08 discovery/knowledge-tools   + butuh T05
 │       │       │   └── T11 discovery/search-quality    + butuh T02, T05
+│       │       │       └── T15 core/audit-log summary   + butuh T02
 │       │       └── T09 discovery/api-spec-tools    + butuh T06
 │       ├── T05 project/knowledge
+│       │   └── T14 git-sync (PAT + sync knowledge/api-spec)   + butuh T06
 │       ├── T12 mailer + auth + management (undangan email)   + butuh T02
 │       └── T06 project/api-spec
 │           └── T10 project/api-spec Swagger 2.0   + butuh T09
@@ -57,7 +60,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 5 | T07 |
 | 6 | T08, T09 |
 | 7 | T10, T11, T12 |
-| 8 | T13 |
+| 8 | T13, T14, T15 |
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
 
@@ -175,7 +178,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `core.auth.resend-invitation` | Call | T12 | T12 (management `inviteuser`, `resendinvitation`) |
 | `project.management.count-memberships` | Call (baca-saja) | T12 | T12 (auth `purgeinvitations`) |
 | `core.audit.scan-entries` | Call (baca-saja) | T02 (feature `scanentries`, ditambah T11) | T11 |
-| `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli` |
+| `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli`, T15 (`core/auditlog` summary) |
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
