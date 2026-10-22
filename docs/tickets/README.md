@@ -5,25 +5,27 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 
 ## Daftar tiket
 
-| ID | Domain | Module | Ukuran | Bergantung pada | Status |
-|---|---|---|---|---|---|
-| [T00](T00-foundation.md) | infra | foundation (bus, db, http, static, CLI) | L | – | Selesai (`45a7ad5`) |
-| [T01](T01-core-auth.md) | core | auth | L | T00 | Selesai (`329d71d`) |
-| [T02](T02-core-audit-log.md) | core | audit-log | M | T00 | Selesai (`d0a7c19`; e2e terautentikasi aktif, 1 skenario menunggu T04/T07) |
-| [T03](T03-project-management.md) | project | management (project + anggota) | M | T01, T02 | Selesai (`1b25823`) |
-| [T04](T04-project-api-key.md) | project | api-key | M | T03 | Selesai (`d4265df`) |
-| [T05](T05-project-knowledge.md) | project | knowledge | L | T03 | Selesai (`3221efc`) |
-| [T06](T06-project-api-spec.md) | project | api-spec | L | T03 | Selesai (0a26586) |
-| [T07](T07-discovery-mcp-gateway.md) | discovery | mcp-gateway | M | T02, T04 | Selesai (`35c4fa4`) |
-| [T08](T08-discovery-knowledge-tools.md) | discovery | knowledge-tools | S | T05, T07 | Selesai (`b8699f4`) |
-| [T09](T09-discovery-api-spec-tools.md) | discovery | api-spec-tools | S | T06, T07 | Selesai (`741a85c`) |
-| [T10](T10-project-api-spec-swagger2.md) | project | api-spec (dukungan Swagger 2.0) | L | T06, T09 | Selesai (`f44ab86`) |
-| [T11](T11-discovery-search-quality.md) | discovery | knowledge-tools (pengukuran kualitas pencarian) | M | T02, T05, T08 | Selesai (`f266cf8`) |
-| [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai (`b1b54f0`) |
-| [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
-| [T14](T14-project-git-sync.md) | core + project | git-credential (PAT per user), git-sync (sync knowledge & API spec dari git) | L | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`) |
-| [T15](T15-core-audit-log-summary.md) | core | audit-log (ringkasan metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Selesai |
-| [T16](T16-project-notification.md) | project | notification (siaran email manual ke anggota project) | M | T01, T02, T03, T12 | Tiket baru |
+
+| ID                                      | Domain                 | Module                                                                           | Ukuran | **Bergantung pada**     | Status                                                                     |
+| --------------------------------------- | ---------------------- | -------------------------------------------------------------------------------- | ------ | ----------------------- | -------------------------------------------------------------------------- |
+| [T00](T00-foundation.md)                | infra                  | foundation (bus, db, http, static, CLI)                                          | L      | –                       | Selesai (`45a7ad5`)                                                        |
+| [T01](T01-core-auth.md)                 | core                   | auth                                                                             | L      | T00                     | Selesai (`329d71d`)                                                        |
+| [T02](T02-core-audit-log.md)            | core                   | audit-log                                                                        | M      | T00                     | Selesai (`d0a7c19`; e2e terautentikasi aktif, 1 skenario menunggu T04/T07) |
+| [T03](T03-project-management.md)        | project                | management (project + anggota)                                                   | M      | T01, T02                | Selesai (`1b25823`)                                                        |
+| [T04](T04-project-api-key.md)           | project                | api-key                                                                          | M      | T03                     | Selesai (`d4265df`)                                                        |
+| [T05](T05-project-knowledge.md)         | project                | knowledge                                                                        | L      | T03                     | Selesai (`3221efc`)                                                        |
+| [T06](T06-project-api-spec.md)          | project                | api-spec                                                                         | L      | T03                     | Selesai (0a26586)                                                          |
+| [T07](T07-discovery-mcp-gateway.md)     | discovery              | mcp-gateway                                                                      | M      | T02, T04                | Selesai (`35c4fa4`)                                                        |
+| [T08](T08-discovery-knowledge-tools.md) | discovery              | knowledge-tools                                                                  | S      | T05, T07                | Selesai (`b8699f4`)                                                        |
+| [T09](T09-discovery-api-spec-tools.md)  | discovery              | api-spec-tools                                                                   | S      | T06, T07                | Selesai (`741a85c`)                                                        |
+| [T10](T10-project-api-spec-swagger2.md) | project                | api-spec (dukungan Swagger 2.0)                                                  | L      | T06, T09                | Selesai (`f44ab86`)                                                        |
+| [T11](T11-discovery-search-quality.md)  | discovery              | knowledge-tools (pengukuran kualitas pencarian)                                  | M      | T02, T05, T08           | Selesai (`f266cf8`)                                                        |
+| [T12](T12-core-invitation-email.md)     | infra + core + project | mailer, auth, management (undangan anggota lewat email)                          | L      | T01, T02, T03           | Selesai (`b1b54f0`)                                                        |
+| [T13](T13-project-api-key-per-user.md)  | project                | api-key (kepemilikan key per user per project)                                   | M      | T03, T04                | Selesai (`3263fa5`)                                                        |
+| [T14](T14-project-git-sync.md)          | core + project         | git-credential (PAT per user), git-sync (sync knowledge &amp; API spec dari git) | L      | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`)                                                        |
+| [T15](T15-core-audit-log-summary.md)    | core                   | audit-log (ringkasan metrik MCP + baris tabel bisa diklik)                       | L      | T02, T07, T11           | Selesai (`0ccf83f`)                                                        |
+| [T16](T16-project-notification.md)      | project                | notification (siaran email manual ke anggota project)                            | M      | T01, T02, T03, T12      | Tiket baru                                                                 |
+
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
@@ -53,16 +55,18 @@ T00 foundation (ROOT)
 
 Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 
-| Gelombang | Tiket |
-|---|---|
-| 1 | T00 |
-| 2 | T01, T02 |
-| 3 | T03 |
-| 4 | T04, T05, T06 |
-| 5 | T07 |
-| 6 | T08, T09 |
-| 7 | T10, T11, T12 |
-| 8 | T13, T14, T15, T16 |
+
+| Gelombang | Tiket              |
+| --------- | ------------------ |
+| 1         | T00                |
+| 2         | T01, T02           |
+| 3         | T03                |
+| 4         | T04, T05, T06      |
+| 5         | T07                |
+| 6         | T08, T09           |
+| 7         | T10, T11, T12      |
+| 8         | T13, T14, T15, T16 |
+
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
 
@@ -76,11 +80,11 @@ Ini keputusan saya, bukan keputusan yang sudah kamu setujui.
 2. **Domain `discovery` dipecah menjadi `mcp-gateway`, `knowledge-tools`, `api-spec-tools`.** Gateway mengurus transport, auth key, rate limit, dan audit. Tool-nya dipisah per sumber data.
 3. **Tabel `files` di desain dipecah menjadi `knowledge_files` dan `api_specs`.** Dua module tidak boleh berbagi satu tabel. Desain perlu diperbarui agar sesuai.
 4. **Aturan arsitektur lamamu yang sengaja TIDAK dipakai**, karena bertentangan dengan desain yang sudah disetujui:
-   - SCD2 / effective-dated data: tidak dipakai. Desain memutuskan tanpa riwayat versi dan hapus permanen.
-   - Soft delete (`deleted_at`): tidak dipakai. Desain memutuskan hard delete.
-   - Multi-tenant dan override per-client: tidak dipakai (tim internal).
-   - RabbitMQ, Redis, cmd/worker, cmd/cron: tidak dipakai. Satu binary dan satu Postgres. Job terjadwal berjalan di dalam binary.
-   - RBAC action catalog: tidak dipakai. Hanya 2 role user (`super_admin`, `developer`) plus API key.
+  - SCD2 / effective-dated data: tidak dipakai. Desain memutuskan tanpa riwayat versi dan hapus permanen.
+  - Soft delete (`deleted_at`): tidak dipakai. Desain memutuskan hard delete.
+  - Multi-tenant dan override per-client: tidak dipakai (tim internal).
+  - RabbitMQ, Redis, cmd/worker, cmd/cron: tidak dipakai. Satu binary dan satu Postgres. Job terjadwal berjalan di dalam binary.
+  - RBAC action catalog: tidak dipakai. Hanya 2 role user (`super_admin`, `developer`) plus API key.
 
 **Catatan revisi T15 (dashboard metrik MCP):**
 
@@ -124,6 +128,7 @@ Di dalam module:
 ```
 
 Aturan:
+
 - Domain dan module tidak boleh saling meng-import (ditegakkan `internal/` Go). Interaksi antar module dan antar domain **hanya lewat `infra/bus`**.
 - Konstanta endpoint bus di `lib/constants/bus.go`. Tipe request/response/error di `lib/contracts/<domain>/<module>/<nama>/` (package netral).
 - `bus.Call` untuk lookup/validasi sinkron. `bus.Publish` untuk efek samping fire-and-forget. Handler yang sama terdaftar sekali; registrasi ganda = panic.
@@ -157,47 +162,50 @@ Spesifikasi OpenAPI REST tiap module ada di `api/modules/<domain>/<module>.yml`,
 ### Penegakan otomatis
 
 Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
+
 - Backend: `backend/internal/archtest` memindai seluruh import repo (termasuk `_test.go` dan tag `integration`) terhadap `rules.txt` bagian 4. Tanpa allowlist.
 - Frontend: `frontend/.dependency-cruiser.cjs` (`npm run depcruise`) dan `npm run test:arch`/`node scripts/test-arch.mjs` yang membuktikan aturan benar-benar aktif lewat fixture.
 - CI `.github/workflows/ci.yml`: job `lint`, `test`, `test-integration`, `api-check`, `depcruise`, `build`, `e2e`. Pelanggaran = build gagal.
 
 ## Katalog endpoint bus
 
-| Endpoint | Mode | Provider | Consumer |
-|---|---|---|---|
-| `core.auth.resolve-session` | Call | T01 | T00 (middleware) |
-| `core.auth.create-admin` | Call | T01 | `cmd/cli` |
-| `core.auth.get-user` | Call | T01 | T03, T06 |
-| `core.auth.find-developers` | Call | T01 | T03 |
-| `core.audit.record` | Call / Publish (satu handler untuk keduanya) | T02 | T01, T03, T04, T05, T06, T07 |
-| `project.management.check-access` | Call | T03 | T04, T05, T06 |
-| `project.management.get-project` | Call | T03 | T07 |
-| `project.knowledge.count-files` | Call | T05 | T03 |
-| `project.apispec.count-specs` | Call | T06 | T03 |
-| `project.apikey.count-keys` | Call | T04 | T03 |
-| `project.apikey.verify` | Call | T04 | T07 |
-| `project.apikey.touch` | Publish | T04 | T07 |
-| `project.knowledge.list-files` | Call | T05 | T08 |
-| `project.knowledge.read-file` | Call | T05 | T08 |
-| `project.knowledge.search` | Call | T05 | T08 |
-| `project.apispec.list-specs` | Call | T06 | T09 |
-| `project.apispec.list-endpoints` | Call | T06 | T09 |
-| `project.apispec.get-endpoint` | Call | T06 | T09 |
-| `discovery.mcpgateway.register-tool` | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07 | T08, T09 |
-| `core.auth.invite-user` | Call | T12 | T12 (management `inviteuser`) |
-| `core.auth.resend-invitation` | Call | T12 | T12 (management `inviteuser`, `resendinvitation`) |
-| `project.management.count-memberships` | Call (baca-saja) | T12 | T12 (auth `purgeinvitations`) |
-| `core.audit.scan-entries` | Call (baca-saja) | T02 (feature `scanentries`, ditambah T11) | T11 |
-| `discovery.knowledgetools.search-quality-report` | Call (baca-saja) | T11 | `cmd/cli`, T15 (`core/auditlog` summary) |
-| `core.gitcredential.get-token` | Call | T14 | T14 (gitsync `runsync`, `getconfig`) |
-| `project.knowledge.upsert-files` | Call | T14 | T14 (gitsync `runsync`) |
-| `project.apispec.upsert-specs` | Call | T14 | T14 (gitsync `runsync`) |
-| `project.management.list-member-ids` | Call (baca-saja) | T16 | T16 (notification `sendbroadcast`) |
-| `core.auth.get-contacts` | Call (baca-saja) | T16 | T16 (notification `sendbroadcast`) |
+
+| Endpoint                                         | Mode                                                                                        | Provider                                  | Consumer                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------- |
+| `core.auth.resolve-session`                      | Call                                                                                        | T01                                       | T00 (middleware)                                  |
+| `core.auth.create-admin`                         | Call                                                                                        | T01                                       | `cmd/cli`                                         |
+| `core.auth.get-user`                             | Call                                                                                        | T01                                       | T03, T06                                          |
+| `core.auth.find-developers`                      | Call                                                                                        | T01                                       | T03                                               |
+| `core.audit.record`                              | Call / Publish (satu handler untuk keduanya)                                                | T02                                       | T01, T03, T04, T05, T06, T07                      |
+| `project.management.check-access`                | Call                                                                                        | T03                                       | T04, T05, T06                                     |
+| `project.management.get-project`                 | Call                                                                                        | T03                                       | T07                                               |
+| `project.knowledge.count-files`                  | Call                                                                                        | T05                                       | T03                                               |
+| `project.apispec.count-specs`                    | Call                                                                                        | T06                                       | T03                                               |
+| `project.apikey.count-keys`                      | Call                                                                                        | T04                                       | T03                                               |
+| `project.apikey.verify`                          | Call                                                                                        | T04                                       | T07                                               |
+| `project.apikey.touch`                           | Publish                                                                                     | T04                                       | T07                                               |
+| `project.knowledge.list-files`                   | Call                                                                                        | T05                                       | T08                                               |
+| `project.knowledge.read-file`                    | Call                                                                                        | T05                                       | T08                                               |
+| `project.knowledge.search`                       | Call                                                                                        | T05                                       | T08                                               |
+| `project.apispec.list-specs`                     | Call                                                                                        | T06                                       | T09                                               |
+| `project.apispec.list-endpoints`                 | Call                                                                                        | T06                                       | T09                                               |
+| `project.apispec.get-endpoint`                   | Call                                                                                        | T06                                       | T09                                               |
+| `discovery.mcpgateway.register-tool`             | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07                                       | T08, T09                                          |
+| `core.auth.invite-user`                          | Call                                                                                        | T12                                       | T12 (management `inviteuser`)                     |
+| `core.auth.resend-invitation`                    | Call                                                                                        | T12                                       | T12 (management `inviteuser`, `resendinvitation`) |
+| `project.management.count-memberships`           | Call (baca-saja)                                                                            | T12                                       | T12 (auth `purgeinvitations`)                     |
+| `core.audit.scan-entries`                        | Call (baca-saja)                                                                            | T02 (feature `scanentries`, ditambah T11) | T11                                               |
+| `discovery.knowledgetools.search-quality-report` | Call (baca-saja)                                                                            | T11                                       | `cmd/cli`, T15 (`core/auditlog` summary)          |
+| `core.gitcredential.get-token`                   | Call                                                                                        | T14                                       | T14 (gitsync `runsync`, `getconfig`)              |
+| `project.knowledge.upsert-files`                 | Call                                                                                        | T14                                       | T14 (gitsync `runsync`)                           |
+| `project.apispec.upsert-specs`                   | Call                                                                                        | T14                                       | T14 (gitsync `runsync`)                           |
+| `project.management.list-member-ids`             | Call (baca-saja)                                                                            | T16                                       | T16 (notification `sendbroadcast`)                |
+| `core.auth.get-contacts`                         | Call (baca-saja)                                                                            | T16                                       | T16 (notification `sendbroadcast`)                |
+
 
 Kontrak T05 ada di `lib/contracts/project/knowledge/{listfiles,readfile,search}`; `count-files` memakai `lib/contracts/project/management/contentcount`. `list-files` mengembalikan juga `Folders` (subfolder langsung bila `!Recursive`). `read-file`: `Offset/Limit` dalam byte, dipotong pada batas UTF-8. Provider T05 tidak menulis audit (gateway T07 yang mengaudit).
 
-Kontrak `project.apikey.verify` dan `project.apikey.touch` ada di `lib/contracts/project/apikey/{verify,touch}` (konstanta `BUS_PROJECT_APIKEY_VERIFY`, `BUS_PROJECT_APIKEY_TOUCH`). Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -> `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
+Kontrak `project.apikey.verify` dan `project.apikey.touch` ada di `lib/contracts/project/apikey/{verify,touch}` (konstanta `BUS_PROJECT_APIKEY_VERIFY`, `BUS_PROJECT_APIKEY_TOUCH`). Kontrak `project.management.check-access` dan `get-project` ada di `lib/contracts/project/management/{checkaccess,getproject}`; pola consumer ada di doc comment `checkaccess`. Hitungan isi (`count-files`, `count-specs`, `count-keys`) memakai kontrak netral `lib/contracts/project/management/contentcount` (`Request{ProjectIDs}` -&gt; `Response{Counts}`); T03 memanggilnya fail-soft (hitungan `null` bila provider belum ada). T03 memakai `core.audit.record` lewat Call.
 
 Kontrak `project.apispec.list-specs`, `list-endpoints`, `get-endpoint` ada di `lib/contracts/project/apispec/{listspecs,listendpoints,getendpoint}` (konstanta `BUS_PROJECT_APISPEC_LIST_SPECS`, `BUS_PROJECT_APISPEC_LIST_ENDPOINTS`, `BUS_PROJECT_APISPEC_GET_ENDPOINT`); handler bus T06 tidak memeriksa akses user tetapi selalu membatasi query pada `ProjectID` request. `project.apispec.count-specs` memakai kontrak `contentcount`. Respons `get-endpoint` membawa penanda versi aditif `OpenAPIVersion` ("2.0" hanya untuk Swagger 2.0, "" untuk OpenAPI 3.x) beserta `Consumes`/`Produces` (array JSON, nil untuk 3.x).
 
@@ -249,3 +257,4 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 1. ~~**Kegagalan audit untuk panggilan agent**~~ **Diputuskan: fail-open.** Jika menulis audit gagal, panggilan MCP tetap dilayani dan error hanya di-log. Lihat T02 dan T07.
 2. ~~**Basic Auth untuk agent:**~~ **Diputuskan: tidak didukung (hanya Bearer dan `X-API-Key`).** kamu awalnya menyebut "basic Auth atau apiKey". Rekomendasi saya hanya `Authorization: Bearer <key>` dan `X-API-Key`. Basic Auth dikecualikan kecuali klien MCP yang kamu pakai membutuhkannya. Lihat T07.
 3. **Kedaluwarsa API key:** apakah key perlu tanggal kedaluwarsa opsional? Saya anggap tidak untuk versi pertama. Lihat T04.
+
