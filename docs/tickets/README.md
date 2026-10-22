@@ -20,7 +20,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T10](T10-project-api-spec-swagger2.md) | project | api-spec (dukungan Swagger 2.0) | L | T06, T09 | Selesai (`f44ab86`) |
 | [T11](T11-discovery-search-quality.md) | discovery | knowledge-tools (pengukuran kualitas pencarian) | M | T02, T05, T08 | Selesai (`f266cf8`) |
 | [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai (`b1b54f0`) |
-| [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Plan siap |
+| [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
