@@ -39,6 +39,8 @@ Follow-up rate hanyalah perkiraan: agent bisa membuka file karena alasan lain, a
 
 Retensi audit adalah 90 hari. Untuk tren jangka panjang, simpan keluaran `--json` tiap minggu dengan nama berstempel tanggal, mis. `search-quality-2026-10-21.json`.
 
+Metrik produksi yang sama juga tampil di halaman Dashboard (`/dashboard`, khusus Super Admin) untuk project terpilih, lewat `GET /api/audit-log/summary?project_id=...` (T15). Dashboard memakai rentang preset 24 jam, 7 hari, atau 30 hari dengan jendela follow-up default 120 detik, sama dengan CLI. CLI `search-quality report` tetap ada. Catatan snapshot: laporan ini dihitung T11 lewat koneksi sendiri, sehingga bisa berbeda sedikit dari agregat tool di halaman yang sama bila ada entri audit yang masuk bersamaan. Bila laporan gagal dimuat, Dashboard menampilkan blok kualitas pencarian tidak tersedia dengan tombol coba lagi, sementara chart lain tetap tampil.
+
 ## 6. Menjalankan golden set
 
 ```

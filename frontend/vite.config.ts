@@ -6,6 +6,6 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [svelte(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  build: { outDir: 'dist', assetsDir: 'assets', emptyOutDir: true, sourcemap: false },
+  build: { outDir: 'dist', assetsDir: 'assets', emptyOutDir: true, sourcemap: false, manifest: true },
   server: { port: 5173, strictPort: true },
 });

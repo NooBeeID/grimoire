@@ -129,6 +129,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: make build
+      - run: npm run check:chunks
+        working-directory: frontend
       - run: ./bin/grimoire version
       - uses: actions/upload-artifact@v4
         with:

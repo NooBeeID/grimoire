@@ -1,0 +1,4 @@
+{
+  "index.html": { "file": "assets/index.js", "src": "index.html", "isEntry": true, "imports": ["node_modules/chart.js/auto"] },
+  "node_modules/chart.js/auto": { "file": "assets/chart.js", "src": "node_modules/chart.js/auto" }
+}

@@ -9,6 +9,8 @@ import { setLocale } from '../../shared/stores/i18n';
 import PendingView from './PendingView.svelte';
 import Thrower from './Thrower.svelte';
 
+vi.mock('chart.js', async () => (await import('../../test-stubs/chartjs')).chartJsMock());
+
 const DEV = { userId: '1', email: 'a@b.c', name: 'Budi', role: 'developer', mustChangePassword: false } as const;
 const testRoutes: RouteDef[] = [
   ...routes,
@@ -138,6 +140,37 @@ describe('App', () => {
     boot('/');
     expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+
+  it('Dashboard nav item: super_admin only, before Users and Audit Log, no aria-current off /dashboard', () => {
+    setIdentity(DEV);
+    boot('/');
+    expect(screen.queryByRole('link', { name: 'Dashboard' })).toBeNull();
+    stop();
+    document.body.innerHTML = '';
+    setIdentity({ ...DEV, role: 'super_admin' });
+    boot('/');
+    const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+    const names = [...nav.querySelectorAll('a')].map((a) => a.textContent?.trim());
+    expect(names.indexOf('Dashboard')).toBeGreaterThan(-1);
+    expect(names.indexOf('Dashboard')).toBeLessThan(names.indexOf('Users'));
+    expect(names.indexOf('Dashboard')).toBeLessThan(names.indexOf('Audit Log'));
+    expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('super_admin on /dashboard: Dashboard link is aria-current=page', async () => {
+    setIdentity({ ...DEV, role: 'super_admin' });
+    boot('/dashboard');
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByTestId('dashboard-title')).toBeInTheDocument();
+  });
+
+  it('developer on /dashboard gets not found and never fetches the summary', async () => {
+    setIdentity(DEV);
+    boot('/dashboard');
+    expect(await screen.findByTestId('notfound-title')).toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-title')).toBeNull();
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/audit-log/summary'))).toBe(false);
   });
 
   it('shows session error with retry when bootstrap failed, not login', async () => {

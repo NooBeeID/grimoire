@@ -214,6 +214,39 @@ test.describe('audit-log sebagai super admin', () => {
     await expect(page.getByRole('img', { name: 'API key (agent)' })).toHaveCount(2);
   });
 
+  test('6. klik baris membuka detail, fokus kembali ke tombol waktu (AC14)', async ({ page }) => {
+    const {
+      ids: [id],
+      tag,
+    } = await seedAuditEntries(1);
+    await loginAs(page, 'super_admin');
+    await page.goto(`/audit-log?actor_label=${encodeURIComponent(tag)}`);
+    const row = page.getByRole('row').filter({ hasText: tag });
+    await row.getByRole('cell').nth(3).click(); // sel Aksi
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page).toHaveURL(/entry=/);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const timeBtn = page.locator(`[data-entry-id="${id}"]`);
+    await expect(timeBtn).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
+  test('14. drag-select teks di baris tidak membuka detail (AC14)', async ({ page }) => {
+    const { tag } = await seedAuditEntries(1);
+    await loginAs(page, 'super_admin');
+    await page.goto(`/audit-log?actor_label=${encodeURIComponent(tag)}`);
+    const cell = page.getByRole('row').filter({ hasText: tag }).getByRole('cell').nth(1);
+    const box = (await cell.boundingBox())!;
+    await page.mouse.move(box.x + 4, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect(page).not.toHaveURL(/entry=/);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
   test('negatif 3. parameter tidak valid -> 400 INVALID_ARGUMENT dengan details.field', async ({ page }) => {
     await loginAs(page, 'super_admin');
     for (const q of ['limit=500', 'action=BAD', 'status=x', 'from=2026-02-01T00:00:00Z&to=2026-01-01T00:00:00Z', 'actor_id=abc', 'cursor=rusak']) {

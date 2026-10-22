@@ -70,6 +70,10 @@ Hasil sukses: `{"content":[{"type":"text","text":"..."}],"isError":false}`. Kega
 
 `endpoint` menulis `mcp.initialize` (status `ok`, atau `error` bila versi tidak didukung) dan `mcp.tools_list`. Setiap `tools/call` menghasilkan tepat satu entri `mcp.<tool>` atau `mcp.unknown_tool` (ditulis `callaudit`). `ping`, `-32601`, notification, params tidak valid, dan penolakan transport tidak diaudit di sini. Penolakan auth menjadi `mcp.auth.rejected`, rate limit menjadi `mcp.rate_limited`. Audit fail-open dan tidak pernah memuat isi file.
 
+### Dashboard pemakaian tool
+
+Ringkasan pemakaian tool MCP tampil di halaman Dashboard (`/dashboard`, khusus Super Admin; data dari `GET /api/audit-log/summary`, T15). Yang dihitung sebagai panggilan tool adalah aksi `mcp.*` dikurangi lima aksi gateway (`mcp.initialize`, `mcp.tools_list`, `mcp.auth.rejected`, `mcp.rate_limited`, `mcp.unknown_tool`). Latensi p50/p95 diambil dari `result.duration_ms`; entri tanpa angka itu diabaikan (tool tanpa data latensi tampil `null`). Membuka Dashboard tidak menulis entri audit.
+
 ### Ringkasan audit `search_knowledge`
 
 Entri `mcp.search_knowledge` membawa `result` berikut (selain `bytes`, `original_bytes`, `truncated`, `duration_ms`, dan `error_code` dari gateway):

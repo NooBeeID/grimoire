@@ -22,7 +22,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai (`b1b54f0`) |
 | [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
 | [T14](T14-project-git-sync.md) | core + project | git-credential (PAT per user), git-sync (sync knowledge & API spec dari git) | L | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`) |
-| [T15](T15-core-audit-log-summary.md) | core | audit-log (dashboard metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Plan siap |
+| [T15](T15-core-audit-log-summary.md) | core | audit-log (ringkasan metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Selesai |
 | [T16](T16-project-notification.md) | project | notification (siaran email manual ke anggota project) | M | T01, T02, T03, T12 | Tiket baru |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -81,6 +81,14 @@ Ini keputusan saya, bukan keputusan yang sudah kamu setujui.
    - Multi-tenant dan override per-client: tidak dipakai (tim internal).
    - RabbitMQ, Redis, cmd/worker, cmd/cron: tidak dipakai. Satu binary dan satu Postgres. Job terjadwal berjalan di dalam binary.
    - RBAC action catalog: tidak dipakai. Hanya 2 role user (`super_admin`, `developer`) plus API key.
+
+**Catatan revisi T15 (dashboard metrik MCP):**
+
+1. `mcp.auth_rejected` di tiket dibaca sebagai konstanta sebenarnya `mcp.auth.rejected`.
+2. `search_quality` yang gagal dimuat bernilai `{available:false, error_code:"UNAVAILABLE"}`, bukan `null`; `null` hanya bila `project_id` kosong.
+3. Field aditif pada respons: `total_errors`, `error_rate`, `project_id`.
+4. Label project berasal dari label terbaru di `audit_log`, tanpa penanda "dihapus".
+5. Penempatan UI berubah dari tab Audit Log menjadi halaman `/dashboard` khusus Super Admin; endpoint tetap di module audit-log.
 
 ## Konvensi arsitektur (berlaku untuk semua tiket)
 

@@ -12,6 +12,7 @@ import { LoginView } from '../../domain/core/auth/login';
 import ChangePasswordRouteView from '../views/ChangePasswordRouteView.svelte';
 import HomeView from '../views/HomeView.svelte';
 import AuditLogView from '../views/AuditLogView.svelte';
+import DashboardView from '../views/DashboardView.svelte';
 import NotFoundView from '../views/NotFoundView.svelte';
 import ProfileView from '../views/ProfileView.svelte';
 import SettingsView from '../views/SettingsView.svelte';
@@ -49,6 +50,11 @@ export const routes: RouteDef[] = [
     path: '/audit-log',
     view: AuditLogView,
     meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'auditLog.title' },
+  },
+  {
+    path: '/dashboard',
+    view: DashboardView,
+    meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' },
   },
 ];
 

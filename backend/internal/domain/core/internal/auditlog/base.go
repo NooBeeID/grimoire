@@ -9,6 +9,7 @@ import (
 	"grimoire/internal/domain/core/internal/auditlog/purgeexpired"
 	"grimoire/internal/domain/core/internal/auditlog/record"
 	"grimoire/internal/domain/core/internal/auditlog/scanentries"
+	"grimoire/internal/domain/core/internal/auditlog/summary"
 	"grimoire/internal/infra/app"
 	"grimoire/internal/infra/middleware"
 	"grimoire/lib/contracts/core/auth/resolvesession"
@@ -16,6 +17,7 @@ import (
 
 // Register merakit module audit-log. Hanya super_admin yang boleh membaca log.
 // Juga mendaftarkan endpoint bus baca-saja core.audit.scan-entries untuk consumer lintas module (T11).
+// T15: GET /audit-log/summary; consumer bus discovery.knowledgetools.search-quality-report.
 func Register(d app.Deps) {
 	record.Init(d)
 	scanentries.Init(d)
@@ -23,6 +25,7 @@ func Register(d app.Deps) {
 		r.Use(middleware.RequireRole(resolvesession.RoleSuperAdmin))
 		listentries.Init(d, r)
 		getentry.Init(d, r)
+		summary.Init(d, r)
 	})
 	purgeexpired.Init(d)
 }

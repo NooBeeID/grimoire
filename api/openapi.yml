@@ -162,6 +162,92 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/audit-log/summary:
+    get:
+      operationId: getAuditSummary
+      tags:
+        - audit-log
+      summary: Ringkasan pemakaian tool MCP (agregat)
+      description: |
+        Khusus super_admin. Rentang [from, to) mundur dari waktu request; bucket trafik dalam UTC (24h per jam, 7d/30d per hari). Tool MCP = aksi mcp.* kecuali aksi gateway (initialize, tools_list, auth.rejected, rate_limited, unknown_tool). search_quality null bila project_id tidak diisi; bila diisi dan kontrak pencarian (T11) gagal, nilainya available=false dengan respons tetap 200. Tidak memuat args, result, query, atau path. Pemanggilan tidak dicatat ke audit.
+      parameters:
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum:
+              - 24h
+              - 7d
+              - 30d
+            default: 7d
+        - name: project_id
+          in: query
+          description: Kosong berarti semua project.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ringkasan dalam satu respons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditSummary'
+              example:
+                range: 7d
+                from: '2026-10-15T10:30:15Z'
+                to: '2026-10-22T10:30:15Z'
+                bucket: day
+                project_id: null
+                total_calls: 1234
+                total_errors: 31
+                error_rate: 0.0251
+                top_projects:
+                  - project_id: 0192f5a0-1111-7aaa-8bbb-000000000001
+                    project_label: Payments
+                    calls: 420
+                tool_usage:
+                  - tool: read_file
+                    calls: 600
+                tool_metrics:
+                  - tool: read_file
+                    calls: 600
+                    ok: 590
+                    error: 10
+                    error_rate: 0.0167
+                    p50_ms: 8
+                    p95_ms: 40
+                  - tool: get_api_endpoint
+                    calls: 82
+                    ok: 77
+                    error: 5
+                    error_rate: 0.061
+                    p50_ms: null
+                    p95_ms: null
+                traffic:
+                  - at: '2026-10-15T00:00:00Z'
+                    calls: 90
+                    errors: 2
+                search_quality: null
+        '400':
+          description: range atau project_id tidak valid (INVALID_ARGUMENT, details.field berisi nama parameter)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_ARGUMENT
+                  message: range tidak valid
+                  details:
+                    field: range
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/audit-log/{id}:
     get:
       operationId: getAuditEntry
@@ -3438,6 +3524,79 @@ components:
               type:
                 - string
                 - 'null'
+    AuditSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - range
+        - from
+        - to
+        - bucket
+        - project_id
+        - total_calls
+        - total_errors
+        - error_rate
+        - top_projects
+        - tool_usage
+        - tool_metrics
+        - traffic
+        - search_quality
+      properties:
+        range:
+          type: string
+          enum:
+            - 24h
+            - 7d
+            - 30d
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+          description: Eksklusif.
+        bucket:
+          type: string
+          enum:
+            - hour
+            - day
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        total_calls:
+          type: integer
+          minimum: 0
+        total_errors:
+          type: integer
+          minimum: 0
+        error_rate:
+          type:
+            - number
+            - 'null'
+          description: Null bila total_calls 0.
+        top_projects:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/AuditSummaryTopProject'
+        tool_usage:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditSummaryToolUsage'
+        tool_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditSummaryToolMetric'
+        traffic:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditSummaryTrafficPoint'
+        search_quality:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/AuditSummarySearchQuality'
     Me:
       type: object
       required:
@@ -4682,6 +4841,167 @@ components:
         - ok
         - error
         - denied
+    AuditSummaryTopProject:
+      type: object
+      additionalProperties: false
+      required:
+        - project_id
+        - project_label
+        - calls
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        project_label:
+          type: string
+          description: Label audit terbaru; fallback project_id.
+        calls:
+          type: integer
+          minimum: 0
+    AuditSummaryToolUsage:
+      type: object
+      additionalProperties: false
+      required:
+        - tool
+        - calls
+      properties:
+        tool:
+          type: string
+          example: read_file
+        calls:
+          type: integer
+          minimum: 0
+    AuditSummaryToolMetric:
+      type: object
+      additionalProperties: false
+      required:
+        - tool
+        - calls
+        - ok
+        - error
+        - error_rate
+        - p50_ms
+        - p95_ms
+      properties:
+        tool:
+          type: string
+          example: read_file
+        calls:
+          type: integer
+          minimum: 1
+        ok:
+          type: integer
+          minimum: 0
+        error:
+          type: integer
+          minimum: 0
+        error_rate:
+          type: number
+        p50_ms:
+          type:
+            - number
+            - 'null'
+          description: Null bila tanpa data latensi.
+        p95_ms:
+          type:
+            - number
+            - 'null'
+    AuditSummaryTrafficPoint:
+      type: object
+      additionalProperties: false
+      required:
+        - at
+        - calls
+        - errors
+      properties:
+        at:
+          type: string
+          format: date-time
+          description: Awal bucket (UTC).
+        calls:
+          type: integer
+          minimum: 0
+        errors:
+          type: integer
+          minimum: 0
+    SearchQualityMetric:
+      type: object
+      additionalProperties: false
+      required:
+        - count
+        - denominator
+        - rate
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        denominator:
+          type: integer
+          minimum: 0
+        rate:
+          type: number
+    SearchQualityRankBucket:
+      type: object
+      additionalProperties: false
+      required:
+        - label
+        - count
+      properties:
+        label:
+          type: string
+          description: 1..10 atau not_in_results.
+        count:
+          type: integer
+          minimum: 0
+    AuditSummarySearchQuality:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - available
+            - searches
+            - window_seconds
+            - zero_result
+            - follow_up
+            - reformulation
+            - rank_opened
+            - legacy_searches
+          properties:
+            available:
+              type: boolean
+              const: true
+            searches:
+              type: integer
+              minimum: 0
+            window_seconds:
+              type: integer
+              minimum: 0
+            zero_result:
+              $ref: '#/components/schemas/SearchQualityMetric'
+            follow_up:
+              $ref: '#/components/schemas/SearchQualityMetric'
+            reformulation:
+              $ref: '#/components/schemas/SearchQualityMetric'
+            rank_opened:
+              type: array
+              items:
+                $ref: '#/components/schemas/SearchQualityRankBucket'
+            legacy_searches:
+              type: integer
+              minimum: 0
+        - type: object
+          additionalProperties: false
+          required:
+            - available
+            - error_code
+          properties:
+            available:
+              type: boolean
+              const: false
+            error_code:
+              type: string
+              enum:
+                - UNAVAILABLE
     LoginRequest:
       type: object
       additionalProperties: false

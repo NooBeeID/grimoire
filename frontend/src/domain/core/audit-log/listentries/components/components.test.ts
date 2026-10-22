@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../../../shared/services/http';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { mockSummary } from '../mocks/entries';
@@ -47,6 +47,47 @@ describe('AuditTable', () => {
     const { container } = render(AuditTable, { ...baseProps(), rows: [mockSummary(1, { actor_label: x })] });
     expect(container.querySelector('img')).toBeNull();
     expect(container.textContent).toContain(x);
+  });
+  describe('row click (AC14)', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it('clicking the actor cell calls onselect exactly once with the id', async () => {
+      const onselect = vi.fn();
+      const p = baseProps();
+      const { container } = render(AuditTable, { ...p, onselect });
+      const cell = container.querySelectorAll('tbody tr')[0]!.querySelectorAll('td')[1]!;
+      await userEvent.click(cell);
+      expect(onselect).toHaveBeenCalledTimes(1);
+      expect(onselect).toHaveBeenCalledWith(p.rows[0]!.id);
+    });
+    it('clicking the time button calls once, not twice', async () => {
+      const onselect = vi.fn();
+      const { container } = render(AuditTable, { ...baseProps(), onselect });
+      await userEvent.click(container.querySelector<HTMLButtonElement>('button[data-entry-id]')!);
+      expect(onselect).toHaveBeenCalledTimes(1);
+    });
+    it('an active text selection inside the row suppresses the click', async () => {
+      const onselect = vi.fn();
+      const { container } = render(AuditTable, { ...baseProps(), onselect });
+      const tr = container.querySelectorAll('tbody tr')[0]!;
+      vi.spyOn(window, 'getSelection').mockReturnValue({ isCollapsed: false, anchorNode: tr.querySelectorAll('td')[3]!.firstChild } as unknown as Selection);
+      await userEvent.click(tr.querySelectorAll('td')[1]!);
+      expect(onselect).not.toHaveBeenCalled();
+    });
+    it('rows have no role or tabindex; the time button stays focusable and Enter selects', async () => {
+      const onselect = vi.fn();
+      const p = baseProps();
+      const { container } = render(AuditTable, { ...p, onselect });
+      for (const tr of container.querySelectorAll('tbody tr')) {
+        expect(tr).not.toHaveAttribute('role');
+        expect(tr).not.toHaveAttribute('tabindex');
+      }
+      const btn = container.querySelector<HTMLButtonElement>('button[data-entry-id]')!;
+      btn.focus();
+      expect(btn).toHaveFocus();
+      await userEvent.keyboard('{Enter}');
+      expect(onselect).toHaveBeenCalledTimes(1);
+      expect(onselect).toHaveBeenCalledWith(p.rows[0]!.id);
+    });
   });
   it('click and Enter on time button call onselect; selected gets aria-current', async () => {
     const onselect = vi.fn();

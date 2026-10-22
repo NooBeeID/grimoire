@@ -8,6 +8,7 @@
   import type { AuditSummary } from '../types';
   import ActorIcon from './ActorIcon.svelte';
   import { formatDateTime } from './format';
+  import { shouldOpenFromRowClick } from './rowClick';
   import StatusBadge from './StatusBadge.svelte';
 
   let {
@@ -94,7 +95,8 @@
       {:else}
         {#each rows as r (r.id)}
           <tr
-            class="h-12 border-t border-rule {selectedId === r.id ? 'bg-active' : 'transition-colors hover:bg-raised/60'}"
+            onclick={(e) => shouldOpenFromRowClick(e) && onselect(r.id)}
+            class="h-12 cursor-pointer border-t border-rule {selectedId === r.id ? 'bg-active' : 'transition-colors hover:bg-raised/60'}"
             aria-current={selectedId === r.id ? 'true' : undefined}
           >
             <td class="px-4 py-2">

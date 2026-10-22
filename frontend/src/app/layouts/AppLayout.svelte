@@ -27,6 +27,7 @@
     { href: '/settings', label: $t('nav.settings'), icon: 'settings' },
     ...($session.identity?.role === 'super_admin'
       ? [
+          { href: '/dashboard', label: $t('dashboard.menu'), icon: 'chart' },
           { href: '/admin/users', label: $t('nav.users'), icon: 'users' },
           { href: '/audit-log', label: $t('auditLog.menu'), icon: 'list' },
         ]
@@ -92,6 +93,8 @@
               <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
             {:else if l.icon === 'users'}
               <circle cx="9" cy="8.5" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.8a3 3 0 0 1 0 5.4M17.5 14.3A5.5 5.5 0 0 1 20.5 19" />
+            {:else if l.icon === 'chart'}
+              <path d="M5 19v-6M12 19V5M19 19v-9" />
             {:else if l.icon === 'settings'}
               <circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M4.2 7.5l2.2 1.3M17.6 15.2l2.2 1.3M4.2 16.5l2.2-1.3M17.6 8.8l2.2-1.3" />
             {:else}
