@@ -7,5 +7,6 @@ export const GetConfigResponseSchema = z.object({
   has_credential: z.boolean(),
   credential_unreadable: z.boolean(),
   config: GitSyncConfigSchema.nullable(),
+  in_progress: z.boolean().default(false),
 });
 export type GetConfigResponse = z.infer<typeof GetConfigResponseSchema>;

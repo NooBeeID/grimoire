@@ -87,6 +87,24 @@ describe('Dialog', () => {
     expect(onclose).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Tutup', { selector: 'button' })).toBeDisabled();
   });
+  it('onrequestclose: Esc and cross call it and the dialog stays open', async () => {
+    const onrequestclose = vi.fn();
+    const onclose = vi.fn();
+    render(Dialog, { open: true, title: 'J', dismissible: false, onrequestclose, onclose, children: text('isi') });
+    const dlg = document.querySelector('dialog')!;
+    const cross = screen.getByLabelText('Tutup', { selector: 'button' });
+    expect(cross).toBeEnabled();
+    await fireEvent.click(cross);
+    expect(onrequestclose).toHaveBeenCalledTimes(1);
+    await fireEvent.click(dlg);
+    expect(onrequestclose).toHaveBeenCalledTimes(2);
+    const cancel = new Event('cancel', { cancelable: true });
+    dlg.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(onrequestclose).toHaveBeenCalledTimes(3);
+    expect(onclose).not.toHaveBeenCalled();
+    expect(dlg).toHaveAttribute('open');
+  });
   it('size lg widens the dialog', () => {
     render(Dialog, { open: true, title: 'J', size: 'lg', children: text('isi') });
     expect(document.querySelector('dialog')!.className).toContain('max-w-2xl');

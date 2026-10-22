@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +21,8 @@ const (
 	maxTreeBody  = 16 << 20
 	maxErrDrain  = 64 << 10
 	defaultGHAPI = "https://api.github.com"
+	// maxRequestTimeout membatasi satu request ke provider (bukan total sync).
+	maxRequestTimeout = 2 * time.Minute
 )
 
 // Options mengonfigurasi Client.
@@ -30,6 +31,8 @@ type Options struct {
 	GitHubAPIBase string
 	// InsecureHosts: host:port GitLab yang dijangkau lewat http (test/e2e).
 	InsecureHosts []string
+	// Pace mengatur pacing Session (sync). Client biasa tidak terkena pacing.
+	Pace PaceOptions
 }
 
 // Client memanggil REST GitHub/GitLab.
@@ -38,6 +41,9 @@ type Client struct {
 	policy   HostPolicy
 	ghBase   string
 	insecure []string
+	pace     PaceOptions
+	now      func() time.Time
+	sleep    func(ctx context.Context, d time.Duration) error
 }
 
 // New membuat Client dari http.Client (wajib safehttp di produksi).
@@ -46,18 +52,26 @@ func New(httpClient *http.Client, policy HostPolicy, o Options) *Client {
 	if base == "" {
 		base = defaultGHAPI
 	}
-	return &Client{http: httpClient, policy: policy, ghBase: base, insecure: o.InsecureHosts}
+	return &Client{
+		http: httpClient, policy: policy, ghBase: base, insecure: o.InsecureHosts,
+		pace: o.Pace.withDefaults(), now: time.Now, sleep: sleepCtx,
+	}
 }
 
 // NewFromConfig membangun Client dari config (safehttp, policy, override test).
 func NewFromConfig(cfg config.Config) *Client {
 	hc := safehttp.New(safehttp.Options{
-		Timeout:            cfg.GitSyncTimeout,
+		Timeout:            min(cfg.GitSyncTimeout, maxRequestTimeout),
 		InsecureAllowHosts: cfg.GitSyncInsecureTestHosts,
 	})
 	return New(hc, HostPolicy{AllowedGitLabHosts: cfg.GitSyncAllowedHosts}, Options{
 		GitHubAPIBase: cfg.GitSyncGitHubAPIBase,
 		InsecureHosts: cfg.GitSyncInsecureTestHosts,
+		Pace: PaceOptions{
+			Interval:     cfg.GitSyncRequestInterval,
+			MaxWait:      cfg.GitSyncMaxWait,
+			MaxTotalWait: cfg.GitSyncMaxTotalWait,
+		},
 	})
 }
 
@@ -94,21 +108,29 @@ func (c *Client) VerifyToken(ctx context.Context, provider Provider, host string
 
 // ListTree mengembalikan blob di bawah folder ("" = semua).
 func (c *Client) ListTree(ctx context.Context, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
+	return c.listTree(ctx, c.get, repo, folder, token)
+}
+
+func (c *Client) listTree(ctx context.Context, get getFn, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
 	if !c.policy.Allowed(repo.Provider, repo.Host) {
 		return nil, ErrHostNotAllowed
 	}
 	folder = strings.Trim(folder, "/")
 	switch repo.Provider {
 	case GitHub:
-		return c.githubTree(ctx, repo, folder, token)
+		return c.githubTree(ctx, get, repo, folder, token)
 	case GitLab:
-		return c.gitlabTree(ctx, repo, folder, token)
+		return c.gitlabTree(ctx, get, repo, folder, token)
 	}
 	return nil, ErrHostNotAllowed
 }
 
 // FetchBlob mengambil isi blob; tooLarge true bila melebihi maxBytes.
 func (c *Client) FetchBlob(ctx context.Context, repo Repo, sha string, maxBytes int64, token secret.String) ([]byte, bool, error) {
+	return c.fetchBlob(ctx, c.get, repo, sha, maxBytes, token)
+}
+
+func (c *Client) fetchBlob(ctx context.Context, get getFn, repo Repo, sha string, maxBytes int64, token secret.String) ([]byte, bool, error) {
 	if !c.policy.Allowed(repo.Provider, repo.Host) {
 		return nil, false, ErrHostNotAllowed
 	}
@@ -122,7 +144,7 @@ func (c *Client) FetchBlob(ctx context.Context, repo Repo, sha string, maxBytes 
 	default:
 		return nil, false, ErrHostNotAllowed
 	}
-	resp, err := c.get(ctx, repo.Provider, u, token, accept)
+	resp, err := get(ctx, repo.Provider, u, token, accept)
 	if err != nil {
 		return nil, false, err
 	}
@@ -137,8 +159,24 @@ func (c *Client) FetchBlob(ctx context.Context, repo Repo, sha string, maxBytes 
 	return body, tooLarge, nil
 }
 
+// getFn adalah signature GET yang dipakai jalur tree/blob (Client.get atau Session.get).
+type getFn func(ctx context.Context, p Provider, u string, token secret.String, accept string) (*http.Response, error)
+
 // get mengirim GET dan memetakan status non-2xx ke error sentinel (body dibuang).
 func (c *Client) get(ctx context.Context, p Provider, u string, token secret.String, accept string) (*http.Response, error) {
+	resp, err := c.send(ctx, p, u, token, accept)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return resp, nil
+	}
+	defer drain(resp)
+	return nil, mapStatus(resp)
+}
+
+// send mengirim GET dan mengembalikan respons apa pun statusnya (caller menutup body).
+func (c *Client) send(ctx context.Context, p Provider, u string, token secret.String, accept string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%w: bad request", ErrUpstream)
@@ -164,11 +202,7 @@ func (c *Client) get(ctx context.Context, p Provider, u string, token secret.Str
 		}
 		return nil, fmt.Errorf("%w: %w", ErrUpstream, scrub(err))
 	}
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return resp, nil
-	}
-	defer drain(resp)
-	return nil, mapStatus(resp)
+	return resp, nil
 }
 
 // scrub membuang detail URL dari error transport; hanya sentinel yang dipertahankan.
@@ -194,27 +228,11 @@ func mapStatus(resp *http.Response) error {
 	case resp.StatusCode == http.StatusTooManyRequests,
 		resp.StatusCode == http.StatusForbidden && h.Get("X-RateLimit-Remaining") == "0",
 		resp.StatusCode == http.StatusForbidden && h.Get("Retry-After") != "":
-		return &RateLimitedError{RetryAfter: retryAfter(h)}
+		return &RateLimitedError{RetryAfter: rateRetryAfter(h, time.Now())}
 	case resp.StatusCode == http.StatusForbidden:
 		return ErrForbidden
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrNotFound
 	}
 	return fmt.Errorf("%w: status %d", ErrUpstream, resp.StatusCode)
-}
-
-func retryAfter(h http.Header) time.Duration {
-	if v := h.Get("Retry-After"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			return time.Duration(n) * time.Second
-		}
-	}
-	if v := h.Get("X-RateLimit-Reset"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			if d := time.Until(time.Unix(n, 0)); d > 0 {
-				return d
-			}
-		}
-	}
-	return 0
 }

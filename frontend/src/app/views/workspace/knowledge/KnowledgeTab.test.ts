@@ -203,7 +203,7 @@ describe('KnowledgeTab composition', () => {
       last_status: 'success', last_synced_at: T, last_synced_by: { id: 'u1', label: 'Rina' }, last_result: null,
     };
     stubFetch((url) => {
-      if (url.pathname.endsWith('/git-sync/run')) return json(200, { report, config });
+      if (url.pathname.endsWith('/git-sync/run')) return new Response(JSON.stringify({ report, config }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       if (url.pathname.endsWith('/git-sync')) return json(200, gitCfg);
       return undefined;
     });

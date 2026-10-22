@@ -1,5 +1,5 @@
 // Data mock sesuai skema api/modules/project/git-sync.yml.
-import type { GitSyncConfig, GitSyncReport, GitSyncReportItem } from './types';
+import type { GitSyncConfig, GitSyncReport, GitSyncReportItem, Kind } from './types';
 
 const item = (over: Partial<GitSyncReportItem>): GitSyncReportItem => ({
   repo_path: '',
@@ -60,3 +60,24 @@ export const mockConfig = (over: Partial<GitSyncConfig> = {}): GitSyncConfig => 
   last_result: mockKnowledgeReport(),
   ...over,
 });
+
+// Respons GET /git-sync (api/modules/project/git-sync.yml 0.2.0).
+export const mockGetConfigResponse = (
+  over: Partial<{ kind: Kind; feature_enabled: boolean; has_credential: boolean; credential_unreadable: boolean; in_progress: boolean; config: GitSyncConfig | null }> = {},
+) => ({
+  kind: 'knowledge' as Kind,
+  feature_enabled: true,
+  has_credential: true,
+  credential_unreadable: false,
+  in_progress: false,
+  config: mockConfig() as GitSyncConfig | null,
+  ...over,
+});
+
+// Event SSE mentah (nama, data) untuk mock stream.
+export const mockSyncStream = (total = 3): [string, unknown][] => [
+  ['start', { total }],
+  ...Array.from({ length: total }, (_, i): [string, unknown] => ['progress', { done: i + 1, total, path: `docs/auth/file-${i + 1}.md` }]),
+  ['saving', {}],
+  ['done', { report: mockKnowledgeReport(), config: mockConfig({ last_result: null }) }],
+];

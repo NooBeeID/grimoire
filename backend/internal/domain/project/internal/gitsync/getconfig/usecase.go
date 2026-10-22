@@ -14,6 +14,7 @@ import (
 
 type ConfigReader interface {
 	Get(ctx context.Context, projectID string, kind base.Kind) (*base.Config, error)
+	InProgress(ctx context.Context, projectID string, kind base.Kind) (bool, error)
 }
 
 // CredentialStatus adalah status PAT; sengaja tanpa field token.
@@ -30,6 +31,7 @@ type GetResponse struct {
 	HasCredential        bool            `json:"has_credential"`
 	CredentialUnreadable bool            `json:"credential_unreadable"`
 	FeatureEnabled       bool            `json:"feature_enabled"`
+	InProgress           bool            `json:"in_progress"`
 }
 
 type Usecase struct {
@@ -61,6 +63,7 @@ func (u *Usecase) Execute(ctx context.Context, in params) (GetResponse, error) {
 		return GetResponse{}, fmt.Errorf("getconfig: %w", err)
 	}
 	resp := GetResponse{Kind: string(kind), FeatureEnabled: u.enabled}
+	resp.InProgress = u.inProgress(ctx, in.ProjectID, kind)
 	if cfg == nil {
 		return resp, nil
 	}
@@ -84,6 +87,16 @@ func (u *Usecase) Execute(ctx context.Context, in params) (GetResponse, error) {
 		}
 	}
 	return resp, nil
+}
+
+// inProgress fail-soft: error cek lock -> false + log warn.
+func (u *Usecase) inProgress(ctx context.Context, projectID string, kind base.Kind) bool {
+	ok, err := u.repo.InProgress(ctx, projectID, kind)
+	if err != nil {
+		u.log.WarnContext(ctx, "gitsync getconfig: cek lock sync gagal", "project_id", projectID, "kind", string(kind), "error", err)
+		return false
+	}
+	return ok
 }
 
 // busCredentials memanggil core.gitcredential.get-token; Token dibuang.

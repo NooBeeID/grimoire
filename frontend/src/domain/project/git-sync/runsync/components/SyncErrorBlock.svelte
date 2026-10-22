@@ -5,16 +5,31 @@
   import type { SyncError } from '../types';
   import CredentialNotice from './CredentialNotice.svelte';
 
-  let { error, seconds, onretry }: { error: SyncError; seconds?: number; onretry?: () => void } = $props();
+  let {
+    error,
+    seconds,
+    lost = false,
+    onretry,
+    onreloadstatus,
+  }: { error: SyncError; seconds?: number; lost?: boolean; onretry?: () => void; onreloadstatus?: () => void } = $props();
 
   const notice = $derived(
     error.code === 'CREDENTIAL_MISSING' ? 'missing' : error.code === 'CREDENTIAL_UNREADABLE' ? 'unreadable' : error.code === 'GIT_FEATURE_DISABLED' ? 'disabled' : null,
   );
-  const retryable = $derived(['SYNC_IN_PROGRESS', 'GIT_UPSTREAM_ERROR'].includes(error.code));
+  const retryable = $derived(['SYNC_IN_PROGRESS', 'GIT_UPSTREAM_ERROR', 'RATE_LIMITED'].includes(error.code));
 </script>
 
 <div role="alert" class="flex flex-col gap-2" data-testid="sync-error" data-code={error.code}>
-  {#if notice}
+  {#if lost}
+    <p class="flex items-start gap-2 text-sm text-warning" data-testid="sync-lost">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" class="mt-0.5 shrink-0">
+        <circle cx="8" cy="8" r="6" />
+        <path d="M8 7.5v3.5M8 5.25v.01" />
+      </svg>
+      <span>{$t('gitSync.progress.lost')}</span>
+    </p>
+    {#if onreloadstatus}<div><Button variant="secondary" size="sm" onclick={onreloadstatus}>{$t('gitSync.progress.reloadStatus')}</Button></div>{/if}
+  {:else if notice}
     <CredentialNotice state={notice} host={error.host ?? ''} settingsPath={error.settingsPath} />
   {:else}
     <p class="text-sm text-danger">{syncErrorMessage($t, error, seconds)}</p>
@@ -23,5 +38,5 @@
     {/if}
   {/if}
   {#if error.traceId}<p class="text-xs text-muted">{$t('error.trace_id', { id: error.traceId })}</p>{/if}
-  {#if onretry && retryable}<div><Button variant="secondary" size="sm" onclick={onretry}>{$t('common.retry')}</Button></div>{/if}
+  {#if !lost && onretry && retryable}<div><Button variant="secondary" size="sm" disabled={error.code === 'RATE_LIMITED' && (seconds ?? 0) > 0} onclick={onretry}>{$t('common.retry')}</Button></div>{/if}
 </div>

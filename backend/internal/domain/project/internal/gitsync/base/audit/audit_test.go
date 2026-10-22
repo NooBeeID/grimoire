@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"grimoire/internal/domain/project/internal/gitsync/base"
 	"grimoire/internal/infra/bus"
@@ -35,6 +36,9 @@ func TestRecord(t *testing.T) {
 	if got.Action != "git_sync.run" || got.TargetType != "git_sync" || got.Target != "api_spec" || got.ProjectLabel != "Proyek A" || got.Status != record.StatusOK {
 		t.Fatalf("%+v", got)
 	}
+	if got.Result["wait_count"] != 0 || got.Result["wait_total_seconds"] != 0 {
+		t.Fatalf("tanpa tunggu: %v", got.Result)
+	}
 	if got.Result["rejected"] != 1 || got.Result["status"] != "partial" || got.Args["repo_path"] != "noobee/docs" {
 		t.Fatalf("%v %v", got.Args, got.Result)
 	}
@@ -55,5 +59,19 @@ func TestRecordFailedAndFailOpen(t *testing.T) {
 	New(newReg(), nil).Record(context.Background(), Event{}) // audit tidak terdaftar: tidak panik
 	if strings.Contains(fmt.Sprintf("%v", got.Args), "http") {
 		t.Fatal("tidak boleh ada URL")
+	}
+}
+
+func TestRecordWaitInfo(t *testing.T) {
+	b := newReg()
+	var got record.Request
+	b.Register(constants.BUS_CORE_AUDIT_RECORD, func(_ context.Context, r any) (any, error) {
+		got = r.(record.Request)
+		return record.Response{}, nil
+	})
+	New(b, nil).Record(context.Background(), Event{Kind: base.KindKnowledge, Status: base.StatusSuccess,
+		WaitCount: 2, WaitTotal: 1500 * time.Millisecond})
+	if got.Result["wait_count"] != 2 || got.Result["wait_total_seconds"] != 2 {
+		t.Fatalf("%v", got.Result)
 	}
 }

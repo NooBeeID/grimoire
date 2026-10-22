@@ -6,7 +6,11 @@
 //
 //	d.API.With(middleware.RequireAuth()).Get("/projects/{projectID}/git-sync", ...)
 //	d.API.With(middleware.RequireAuth(), middleware.BodyLimit(16<<10),
-//	    middleware.ExtendTimeout(cfg.GitSyncTimeout)).Post("/projects/{projectID}/git-sync/run", ...)
+//	    middleware.ExtendTimeout(cfg.GitSyncTimeout+30*time.Second)).Post("/projects/{projectID}/git-sync/run", ...)
+//
+// ExtendTimeout dipasang di runsync/init.go. Route run melayani JSON atau SSE (Accept:
+// text/event-stream); git.Client tetap *gitprovider.Client (pacing dari config lewat
+// NewFromConfig), runsync membungkusnya dengan adapter Session.
 package gitsync
 
 import (

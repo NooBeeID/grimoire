@@ -100,9 +100,23 @@ Lainnya: `api/modules/project/git-sync.yml`, `api/openapi.yml`, `docs/tickets/RE
 - **Provider memberi `Retry-After`/reset sangat jauh**: tidak boleh dipatuhi mentah (K2), jatuh ke error `RATE_LIMITED`.
 - **Pacing menyembunyikan masalah repo terlalu besar**: sync jadi berjam-jam. Mitigasi: batas total tunggu dan batas file T14.
 
-## Pertanyaan terbuka
+## Keputusan plan
 
-- Batas tunggu: berapa nilai default per tunggu dan total, dan perlu env terpisah atau cukup memperpanjang `GIT_SYNC_TIMEOUT`?
-- Opsi endpoint K4: `Accept` header (satu pintu) atau endpoint `/stream` terpisah?
-- Perlu tombol **Batalkan** sekarang, atau cukup di tiket lanjutan?
-- Perlu menampilkan sisa jatah rate limit provider ke user (mis. "tersisa 12 request"), atau hanya saat menunggu?
+Plan: `docs/superpowers/plans/project-git-sync-progress/overview.md`. Pertanyaan terbuka dijawab sebagai berikut (ID mengacu ke bagian 4 overview plan).
+
+| Pertanyaan | Keputusan |
+|---|---|
+| Batas tunggu: nilai default dan env | **D3**: env terpisah `GIT_SYNC_MAX_WAIT` 120 dtk (satu tunggu) dan `GIT_SYNC_MAX_TOTAL_WAIT` 5 mnt (total tunggu per sync); retry 429/403 rate limit = konstanta 3 kali (bukan env); header provider di-clamp ke `[0, 24h]` sebelum dibandingkan. **D1**: ditambah jeda antar request `GIT_SYNC_REQUEST_INTERVAL` default 500ms (0..10 dtk), tidak dilaporkan sebagai `waiting` dan tidak dihitung ke total tunggu. **D4**: `GIT_SYNC_TIMEOUT` dinaikkan dari 2 mnt ke 15 mnt (500 file x 500ms ~ 250 dtk + total tunggu 5 mnt + fase tulis); validasi `> HTTP_DEFAULT_TIMEOUT` dan `> GIT_SYNC_MAX_TOTAL_WAIT`. |
+| Opsi endpoint K4 | **D5**: satu pintu (opsi b). `Accept` memuat `text/event-stream` -> SSE; selain itu respons JSON seperti T14. |
+| Tombol Batalkan | **D11**: di luar scope, jadi tiket lanjutan. Graceful shutdown tidak menunggu sync yang sudah lepas dari koneksi. |
+| Sisa jatah rate limit ke user | **D11**: hanya ditampilkan saat menunggu (event `waiting`), tidak ada indikator permanen. |
+
+## Perubahan terhadap T14
+
+Isi tiket T14 tidak diubah; perubahan dicatat di sini.
+
+- Default `GIT_SYNC_TIMEOUT` naik dari 2 mnt (T14 K4) menjadi 15 mnt, dengan validasi tambahan terhadap `GIT_SYNC_MAX_TOTAL_WAIT` (D4).
+- Usecase `runsync` dipecah menjadi `Start` / `Run.Execute` / `Run.Abort` (D6). Error `Start` (400/403/404/409/422/503) selalu respons JSON biasa, juga di jalur SSE. Execute selalu memakai context lepas dari request (D7).
+- `getconfig` menambah field `in_progress` (boolean, required) yang dibaca dari `pg_locks`, fail-soft ke `false` (D9). OpenAPI `git-sync.yml` naik ke 0.2.0.
+- Audit `git_sync.run` menambah `wait_count` dan `wait_total_seconds` (K9).
+- Tidak ada migrasi dan tidak ada kontrak bus baru (D10).

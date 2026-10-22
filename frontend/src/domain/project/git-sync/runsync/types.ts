@@ -13,6 +13,12 @@ export interface RunSyncInput {
 export const RunSyncResponseSchema = z.object({ report: GitSyncReportSchema, config: GitSyncConfigSchema });
 export type RunSyncResponse = z.infer<typeof RunSyncResponseSchema>;
 
+export const SyncStartEventSchema = z.object({ total: z.number().int().min(0) });
+export const SyncProgressEventSchema = z.object({ done: z.number().int().min(0), total: z.number().int().min(0), path: z.string() });
+export const SyncWaitingEventSchema = z.object({ retry_after_seconds: z.number().int().min(0), reason: z.string() });
+export const SyncSavingEventSchema = z.object({}).passthrough();
+export const SyncErrorEventSchema = z.object({ code: z.string(), message: z.string(), details: z.unknown().optional().nullable() });
+
 export type SyncField = 'url' | 'branch' | 'folder' | 'target_prefix';
 const FIELDS: readonly string[] = ['url', 'branch', 'folder', 'target_prefix'];
 
@@ -80,4 +86,57 @@ export interface FormValues {
 export interface FormTouched {
   branch: boolean;
   folder: boolean;
+}
+
+export type SyncEvent =
+  | { type: 'start'; total: number }
+  | { type: 'progress'; done: number; total: number; path: string }
+  | { type: 'waiting'; retryAfter: number; reason: string }
+  | { type: 'saving' }
+  | { type: 'done'; result: RunSyncResponse }
+  | { type: 'error'; error: SyncError };
+
+export function toSyncErrorFromEvent(e: z.infer<typeof SyncErrorEventSchema>): SyncError {
+  return toSyncError(new ApiError({ status: 200, code: e.code, message: e.message, details: e.details ?? null }));
+}
+
+// Nama tak dikenal, JSON rusak, atau skema gagal -> null (event dibuang).
+export function parseSyncEvent(name: string, data: string): SyncEvent | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  switch (name) {
+    case 'start': {
+      const r = SyncStartEventSchema.safeParse(json);
+      return r.success ? { type: 'start', total: r.data.total } : null;
+    }
+    case 'progress': {
+      const r = SyncProgressEventSchema.safeParse(json);
+      return r.success ? { type: 'progress', ...r.data } : null;
+    }
+    case 'waiting': {
+      const r = SyncWaitingEventSchema.safeParse(json);
+      return r.success ? { type: 'waiting', retryAfter: r.data.retry_after_seconds, reason: r.data.reason } : null;
+    }
+    case 'saving':
+      return SyncSavingEventSchema.safeParse(json).success ? { type: 'saving' } : null;
+    case 'done': {
+      const r = RunSyncResponseSchema.safeParse(json);
+      return r.success ? { type: 'done', result: r.data } : null;
+    }
+    case 'error': {
+      const r = SyncErrorEventSchema.safeParse(json);
+      return r.success ? { type: 'error', error: toSyncErrorFromEvent(r.data) } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+// Koneksi putus atau idle timeout: hasil sync di server belum diketahui.
+export function isStreamLost(e: SyncError): boolean {
+  return (e.code === 'NETWORK' || e.code === 'TIMEOUT') && e.status === 0;
 }

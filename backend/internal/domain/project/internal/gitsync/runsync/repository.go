@@ -44,8 +44,6 @@ var _ Repository = (*Repo)(nil)
 
 func newRepo(d *db.DB, s *store.Store) *Repo { return &Repo{db: d, s: s} }
 
-const lockKeySQL = "hashtext('grimoire.gitsync.' || $1::text || '.' || $2::text)"
-
 // TryLock mengambil advisory lock sesi pada satu koneksi yang dipin sampai unlock.
 func (r *Repo) TryLock(ctx context.Context, projectID string, kind base.Kind) (func(context.Context) error, bool, error) {
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -55,7 +53,7 @@ func (r *Repo) TryLock(ctx context.Context, projectID string, kind base.Kind) (f
 		return nil, false, err
 	}
 	var got bool
-	if err := conn.GetContext(cctx, &got, "SELECT pg_try_advisory_lock("+lockKeySQL+")", projectID, string(kind)); err != nil {
+	if err := conn.GetContext(cctx, &got, "SELECT pg_try_advisory_lock("+store.LockKeySQL+")", projectID, string(kind)); err != nil {
 		discard(conn)
 		return nil, false, err
 	}
@@ -65,7 +63,7 @@ func (r *Repo) TryLock(ctx context.Context, projectID string, kind base.Kind) (f
 	}
 	return func(uctx context.Context) error {
 		var released bool
-		err := conn.GetContext(uctx, &released, "SELECT pg_advisory_unlock("+lockKeySQL+")", projectID, string(kind))
+		err := conn.GetContext(uctx, &released, "SELECT pg_advisory_unlock("+store.LockKeySQL+")", projectID, string(kind))
 		if err != nil || !released {
 			discard(conn)
 			if err == nil {

@@ -60,7 +60,10 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `MCP_ALLOWED_ORIGINS` | list | - | tidak | dipisah koma; tiap entri `scheme://host[:port]` (http/https) | Origin browser yang diizinkan memanggil `/mcp`; klien tanpa header Origin selalu lolos. |
 | `GIT_CREDENTIAL_KEY` | string | - | tidak | kosong, atau base64 (std) dari tepat 32 byte | Kunci AES-256-GCM untuk PAT Git. Kosong = fitur Sync Git nonaktif. Tidak pernah di-log. |
 | `GIT_SYNC_ALLOWED_HOSTS` | list | - | tidak | dipisah koma; tiap entri `host[:port]` tanpa skema/path/userinfo; `github.com`/`gitlab.com` diabaikan (sudah implisit) | Host GitLab self-hosted yang boleh dipakai (token dan sync). |
-| `GIT_SYNC_TIMEOUT` | duration | `2m` | tidak | durasi > `HTTP_DEFAULT_TIMEOUT` | Batas waktu satu request sync Git. |
+| `GIT_SYNC_TIMEOUT` | duration | `15m` | tidak | durasi > `HTTP_DEFAULT_TIMEOUT` dan > `GIT_SYNC_MAX_TOTAL_WAIT` | Batas waktu satu proses sync Git (keseluruhan, bukan per request). |
+| `GIT_SYNC_REQUEST_INTERVAL` | duration | `500ms` | tidak | `0` sampai `10s` (`0` = tanpa jeda) | Jeda antar awal request ke provider Git dalam satu sync (pacing). |
+| `GIT_SYNC_MAX_WAIT` | duration | `2m` | tidak | `1s` sampai `GIT_SYNC_MAX_TOTAL_WAIT` | Batas satu kali tunggu rate limit provider; lebih dari ini sync gagal `RATE_LIMITED`. |
+| `GIT_SYNC_MAX_TOTAL_WAIT` | duration | `5m` | tidak | durasi > 0 dan < `GIT_SYNC_TIMEOUT` | Total tunggu rate limit per sync. |
 | `GIT_SYNC_INSECURE_TEST_HOSTS` | list | - | tidak | dipisah koma; tiap entri `host:port`; ditolak saat `APP_ENV=production` | HANYA test/e2e: host:port yang boleh http dan loopback. |
 | `GIT_SYNC_GITHUB_API_BASE` | string | - | tidak | `http(s)://host:port` yang ada di `GIT_SYNC_INSECURE_TEST_HOSTS`; ditolak saat `APP_ENV=production` | HANYA test/e2e: mengganti `https://api.github.com`. |
 

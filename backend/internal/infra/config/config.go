@@ -80,6 +80,9 @@ type Config struct {
 	GitCredentialKey         []byte        `env:"GIT_CREDENTIAL_KEY"`
 	GitSyncAllowedHosts      []string      `env:"GIT_SYNC_ALLOWED_HOSTS"`
 	GitSyncTimeout           time.Duration `env:"GIT_SYNC_TIMEOUT"`
+	GitSyncRequestInterval   time.Duration `env:"GIT_SYNC_REQUEST_INTERVAL"`
+	GitSyncMaxWait           time.Duration `env:"GIT_SYNC_MAX_WAIT"`
+	GitSyncMaxTotalWait      time.Duration `env:"GIT_SYNC_MAX_TOTAL_WAIT"`
 	GitSyncInsecureTestHosts []string      `env:"GIT_SYNC_INSECURE_TEST_HOSTS"`
 	GitSyncGitHubAPIBase     string        `env:"GIT_SYNC_GITHUB_API_BASE"`
 }
@@ -195,6 +198,24 @@ func (l *loader) dur(env string, def time.Duration) time.Duration {
 	}
 	if d <= 0 {
 		l.fail(env, "harus lebih dari 0 (sekarang %s)", v)
+		return def
+	}
+	return d
+}
+
+// durBetween membaca durasi dengan batas bawah dan atas inklusif (min boleh 0).
+func (l *loader) durBetween(env string, def, min, max time.Duration) time.Duration {
+	v, ok := l.raw(env)
+	if !ok {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		l.fail(env, "nilai %q bukan durasi valid", v)
+		return def
+	}
+	if d < min || d > max {
+		l.fail(env, "harus di antara %s dan %s (sekarang %s)", min, max, d)
 		return def
 	}
 	return d
@@ -498,6 +519,9 @@ func (c Config) LogValue() slog.Value {
 		slog.String("git_credential_key", gitKeyState(c)),
 		slog.Any("git_sync_allowed_hosts", m.GitSyncAllowedHosts),
 		slog.Duration("git_sync_timeout", m.GitSyncTimeout),
+		slog.Duration("git_sync_request_interval", m.GitSyncRequestInterval),
+		slog.Duration("git_sync_max_wait", m.GitSyncMaxWait),
+		slog.Duration("git_sync_max_total_wait", m.GitSyncMaxTotalWait),
 		slog.Any("git_sync_insecure_test_hosts", m.GitSyncInsecureTestHosts),
 		slog.String("git_sync_github_api_base", m.GitSyncGitHubAPIBase),
 	)

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -45,5 +46,19 @@ func TestMarshalResultCaps(t *testing.T) {
 func TestValidUUID(t *testing.T) {
 	if !ValidUUID("0192f5a0-aaaa-7aaa-8bbb-00000000000a") || ValidUUID("x") {
 		t.Fatal()
+	}
+}
+
+func TestIsLockedInvalidUUIDNoQuery(t *testing.T) {
+	// Querier nil: query apa pun akan panik, jadi lolos berarti tanpa query.
+	got, err := New(nil).IsLocked(context.Background(), "bukan-uuid", base.KindKnowledge)
+	if err != nil || got {
+		t.Fatalf("got %v %v", got, err)
+	}
+}
+
+func TestLockKeySQLShared(t *testing.T) {
+	if !strings.Contains(isLockedSQL, LockKeySQL) {
+		t.Fatal("IsLocked harus memakai LockKeySQL")
 	}
 }

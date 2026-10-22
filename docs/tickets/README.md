@@ -25,7 +25,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T14](T14-project-git-sync.md)          | core + project         | git-credential (PAT per user), git-sync (sync knowledge &amp; API spec dari git) | L      | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`)                                                        |
 | [T15](T15-core-audit-log-summary.md)    | core                   | audit-log (ringkasan metrik MCP + baris tabel bisa diklik)                       | L      | T02, T07, T11           | Selesai (`0ccf83f`)                                                        |
 | [T16](T16-project-notification.md)      | project                | notification (siaran email manual ke anggota project)                            | M      | T01, T02, T03, T12      | Tiket baru                                                                 |
-| [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Plan siap                                                                  |
+| [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Implementasi selesai, menunggu merge                                       |
 
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -253,7 +253,7 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`, `project.member.invited`, `project.invitation.revoked` (T12).
 - Key: `apikey.created`, `apikey.revoked`.
 - Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
-- Git (T14): `git_credential.saved`, `git_credential.deleted`, `git_sync.run`.
+- Git (T14): `git_credential.saved`, `git_credential.deleted`, `git_sync.run` (T17: `result` plus `wait_count` dan `wait_total_seconds`, ringkasan pacing rate limit provider; event progress tidak diaudit).
 
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)
 

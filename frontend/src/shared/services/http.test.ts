@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { ApiError, del, get, getBlob, isApiError, notifyUnauthorized, post, request, setUnauthorizedHandler, toApiError } from './http';
+import { ApiError, del, get, getBlob, isApiError, notifyUnauthorized, openStream, post, request, setUnauthorizedHandler, toApiError } from './http';
 import { HealthStatus } from '../validation/error';
 import { setLocale } from '../stores/i18n';
 
@@ -255,5 +255,36 @@ describe('getBlob', () => {
   it('network failure -> NETWORK', async () => {
     fetchMock.mockRejectedValue(new TypeError('fail'));
     await expect(getBlob('/api/x/raw')).rejects.toMatchObject({ code: 'NETWORK' });
+  });
+});
+
+describe('openStream', () => {
+  it('sends SSE headers, CSRF, JSON body and same-origin credentials', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 200 }));
+    await openStream('POST', '/api/x/run', { body: { a: 1 } });
+    const init = lastInit();
+    expect(init.headers.Accept).toBe('text/event-stream');
+    expect(init.headers['X-Requested-With']).toBe('grimoire');
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(init.credentials).toBe('same-origin');
+    expect(init.body).toBe('{"a":1}');
+  });
+  it('409 envelope -> ApiError with details', async () => {
+    fetchMock.mockResolvedValue(envelope('SYNC_IN_PROGRESS', 409, { details: { kind: 'knowledge' } }));
+    await expect(openStream('POST', '/api/x/run')).rejects.toMatchObject({ status: 409, code: 'SYNC_IN_PROGRESS', details: { kind: 'knowledge' } });
+  });
+  it('401 calls the unauthorized handler', async () => {
+    const h = vi.fn();
+    setUnauthorizedHandler(h);
+    fetchMock.mockResolvedValue(envelope('UNAUTHENTICATED', 401));
+    await expect(openStream('POST', '/api/x/run')).rejects.toBeInstanceOf(ApiError);
+    expect(h).toHaveBeenCalled();
+  });
+  it('network failure -> NETWORK; abort is rethrown as is', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fail'));
+    await expect(openStream('POST', '/api/x/run')).rejects.toMatchObject({ code: 'NETWORK', status: 0 });
+    const abort = new DOMException('x', 'AbortError');
+    fetchMock.mockRejectedValueOnce(abort);
+    await expect(openStream('POST', '/api/x/run')).rejects.toBe(abort);
   });
 });

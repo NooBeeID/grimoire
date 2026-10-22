@@ -73,3 +73,26 @@ func TestHandler_Errors(t *testing.T) {
 		}
 	}
 }
+
+func TestHandler_InProgress(t *testing.T) {
+	rec := serve(&fakeAccess{}, &fakeRepo{cfg: sampleCfg(), inProgress: true}, &fakeCred{}, "/projects/p1/git-sync?kind=knowledge")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"in_progress":true`) || rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	rec = serve(&fakeAccess{}, &fakeRepo{inProgress: true}, &fakeCred{}, "/projects/p1/git-sync?kind=knowledge")
+	if !strings.Contains(rec.Body.String(), `"config":null`) || !strings.Contains(rec.Body.String(), `"in_progress":true`) {
+		t.Fatalf("%s", rec.Body)
+	}
+	rec = serve(&fakeAccess{}, &fakeRepo{cfg: sampleCfg()}, &fakeCred{}, "/projects/p1/git-sync?kind=knowledge")
+	if !strings.Contains(rec.Body.String(), `"in_progress":false`) {
+		t.Fatalf("%s", rec.Body)
+	}
+	rec = serve(&fakeAccess{}, &fakeRepo{inProgressErr: errors.New("x")}, &fakeCred{}, "/projects/p1/git-sync?kind=knowledge")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"in_progress":false`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	rec = serve(&fakeAccess{err: base.ErrProjectNotFound}, &fakeRepo{}, &fakeCred{}, "/projects/p1/git-sync?kind=knowledge")
+	if rec.Code != 404 || strings.Contains(rec.Body.String(), "in_progress") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}

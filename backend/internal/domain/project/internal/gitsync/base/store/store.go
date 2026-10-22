@@ -107,3 +107,30 @@ func (s *Store) SelectConfig(ctx context.Context, projectID string, kind base.Ki
 	}
 	return ScanConfig(r), true, nil
 }
+
+// LockKeySQL adalah ekspresi kunci advisory lock (project, kind); $1 = project_id, $2 = kind.
+// Paket ini satu-satunya pemilik teksnya: TryLock/Unlock (runsync) dan IsLocked memakai ini.
+const LockKeySQL = "hashtext('grimoire.gitsync.' || $1::text || '.' || $2::text)"
+
+// isLockedSQL membaca pg_locks tanpa mengambil lock. hashtext (int4) di-cast bigint agar
+// sign-extension sama dengan pg_try_advisory_lock(bigint): hash negatif memberi classid 4294967295.
+const isLockedSQL = "WITH k AS (SELECT (" + LockKeySQL + ")::bigint AS v) " +
+	"SELECT EXISTS (SELECT 1 FROM pg_locks, k " +
+	"WHERE locktype = 'advisory' AND granted AND objsubid = 1 " +
+	"AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) " +
+	"AND classid = ((k.v >> 32) & 4294967295)::oid " +
+	"AND objid = (k.v & 4294967295)::oid)"
+
+// IsLocked true bila advisory lock (project, kind) sedang dipegang sesi mana pun. Tidak mengambil
+// lock (jangan pakai pg_try_advisory_lock + unlock: bisa membuat run lain 409 palsu).
+// projectID bukan uuid -> false tanpa query.
+func (s *Store) IsLocked(ctx context.Context, projectID string, kind base.Kind) (bool, error) {
+	if !ValidUUID(projectID) {
+		return false, nil
+	}
+	var locked bool
+	if err := s.q.GetContext(ctx, &locked, isLockedSQL, projectID, string(kind)); err != nil {
+		return false, err
+	}
+	return locked, nil
+}

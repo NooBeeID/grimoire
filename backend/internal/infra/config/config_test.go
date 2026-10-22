@@ -46,7 +46,8 @@ func TestLoad_Defaults(t *testing.T) {
 		SMTPPort: 587, SMTPTLS: "starttls", MailTimeout: 10 * time.Second,
 		InvitationTTL: 168 * time.Hour, InvitationMaxPerHour: 20, InvitationResendMaxPerHour: 3,
 		InvitationPurgeAfter: 720 * time.Hour,
-		GitSyncTimeout:       120 * time.Second,
+		GitSyncTimeout:       15 * time.Minute, GitSyncRequestInterval: 500 * time.Millisecond,
+		GitSyncMaxWait: 2 * time.Minute, GitSyncMaxTotalWait: 5 * time.Minute,
 	}
 	if !reflect.DeepEqual(c, want) {
 		t.Fatalf("got %+v\nwant %+v", c, want)
@@ -433,8 +434,9 @@ func TestLoad_GitConfig(t *testing.T) {
 	if !reflect.DeepEqual(c.GitSyncAllowedHosts, []string{"git.noobee.id", "x.y:8443"}) {
 		t.Fatalf("hosts: %v", c.GitSyncAllowedHosts)
 	}
-	if c.GitSyncTimeout != 120*time.Second {
-		t.Fatal(c.GitSyncTimeout)
+	if c.GitSyncTimeout != 15*time.Minute || c.GitSyncRequestInterval != 500*time.Millisecond ||
+		c.GitSyncMaxWait != 120*time.Second || c.GitSyncMaxTotalWait != 5*time.Minute {
+		t.Fatal(c.GitSyncTimeout, c.GitSyncRequestInterval, c.GitSyncMaxWait, c.GitSyncMaxTotalWait)
 	}
 	d, _ := Load(env(base(nil)))
 	if d.GitFeatureEnabled() {
@@ -480,5 +482,29 @@ func TestLoad_GitConfigInvalid(t *testing.T) {
 		"APP_ENV": "development", "GIT_SYNC_INSECURE_TEST_HOSTS": "127.0.0.1:9000", "GIT_SYNC_GITHUB_API_BASE": "http://127.0.0.1:9000",
 	}))); err != nil {
 		t.Errorf("dev insecure valid: %v", err)
+	}
+}
+
+func TestLoad_GitSyncPacing(t *testing.T) {
+	ok, err := Load(env(base(map[string]string{"GIT_SYNC_REQUEST_INTERVAL": "0"})))
+	if err != nil || ok.GitSyncRequestInterval != 0 {
+		t.Fatalf("interval 0 harus diterima: %v", err)
+	}
+	cases := map[string]struct {
+		env  map[string]string
+		want string
+	}{
+		"interval 11s":     {map[string]string{"GIT_SYNC_REQUEST_INTERVAL": "11s"}, "GIT_SYNC_REQUEST_INTERVAL: harus di antara 0s dan 10s (sekarang 11s)"},
+		"interval negatif": {map[string]string{"GIT_SYNC_REQUEST_INTERVAL": "-1s"}, "GIT_SYNC_REQUEST_INTERVAL: harus di antara 0s dan 10s (sekarang -1s)"},
+		"max wait kecil":   {map[string]string{"GIT_SYNC_MAX_WAIT": "500ms"}, "GIT_SYNC_MAX_WAIT: harus di antara 1s dan 5m0s"},
+		"max wait > total": {map[string]string{"GIT_SYNC_MAX_WAIT": "6m"}, "GIT_SYNC_MAX_WAIT: harus di antara 1s dan 5m0s (sekarang 6m0s)"},
+		"timeout <= total": {map[string]string{"GIT_SYNC_TIMEOUT": "4m"}, "GIT_SYNC_TIMEOUT: harus lebih besar dari GIT_SYNC_MAX_TOTAL_WAIT (5m0s)"},
+		"total nol":        {map[string]string{"GIT_SYNC_MAX_TOTAL_WAIT": "0s"}, "GIT_SYNC_MAX_TOTAL_WAIT: harus lebih dari 0"},
+	}
+	for name, tc := range cases {
+		_, err := Load(env(base(tc.env)))
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: want %q, got %v", name, tc.want, err)
+		}
 	}
 }

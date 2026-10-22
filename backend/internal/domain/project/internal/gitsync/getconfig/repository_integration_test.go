@@ -79,3 +79,93 @@ func TestRepoGet(t *testing.T) {
 		t.Fatal("cascade")
 	}
 }
+
+func holdLock(t *testing.T, d *db.DB, projectID string, kind base.Kind) (release func()) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := d.Connx(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.ExecContext(ctx, "SELECT pg_advisory_lock("+store.LockKeySQL+")", projectID, string(kind)); err != nil {
+		conn.Close()
+		t.Fatal(err)
+	}
+	done := false
+	release = func() {
+		if done {
+			return
+		}
+		done = true
+		_, _ = conn.ExecContext(ctx, "SELECT pg_advisory_unlock("+store.LockKeySQL+")", projectID, string(kind))
+		conn.Close()
+	}
+	t.Cleanup(release)
+	return release
+}
+
+func TestRepoInProgress(t *testing.T) {
+	ctx := context.Background()
+	d, r := setup(t)
+	p, q := mkProject(t, d, "pp"), mkProject(t, d, "qq")
+
+	if ok, err := r.InProgress(ctx, p, base.KindKnowledge); ok || err != nil {
+		t.Fatalf("tanpa lock: %v %v", ok, err)
+	}
+	release := holdLock(t, d, p, base.KindKnowledge)
+	if ok, err := r.InProgress(ctx, p, base.KindKnowledge); !ok || err != nil {
+		t.Fatalf("lock dipegang: %v %v", ok, err)
+	}
+	if ok, _ := r.InProgress(ctx, p, base.KindAPISpec); ok {
+		t.Fatal("kind lain harus false")
+	}
+	if ok, _ := r.InProgress(ctx, q, base.KindKnowledge); ok {
+		t.Fatal("project lain harus false")
+	}
+	// IsLocked tidak meninggalkan lock: koneksi lain tetap bisa TryLock setelah pemegang lepas.
+	release()
+	if ok, _ := r.InProgress(ctx, p, base.KindKnowledge); ok {
+		t.Fatal("setelah release harus false")
+	}
+	var got bool
+	if err := d.GetContext(ctx, &got, "SELECT pg_try_advisory_lock("+store.LockKeySQL+")", p, string(base.KindKnowledge)); err != nil || !got {
+		t.Fatalf("try lock: %v %v", got, err)
+	}
+	_, _ = d.ExecContext(ctx, "SELECT pg_advisory_unlock_all()")
+	if ok, err := r.InProgress(ctx, "abc", base.KindKnowledge); ok || err != nil {
+		t.Fatalf("bukan uuid: %v %v", ok, err)
+	}
+}
+
+// Hash negatif dan positif harus sama-sama terdeteksi (sign-extension classid).
+func TestRepoInProgressHashSign(t *testing.T) {
+	ctx := context.Background()
+	d, r := setup(t)
+	var neg, pos string
+	for i := 0; i < 64 && (neg == "" || pos == ""); i++ {
+		var id string
+		var isNeg bool
+		if err := d.QueryRowxContext(ctx, `WITH g AS (SELECT gen_random_uuid()::text AS id)
+SELECT id, (hashtext('grimoire.gitsync.' || id || '.knowledge'))::bigint < 0 FROM g`).Scan(&id, &isNeg); err != nil {
+			t.Fatal(err)
+		}
+		if isNeg && neg == "" {
+			neg = id
+		} else if !isNeg && pos == "" {
+			pos = id
+		}
+	}
+	if neg == "" || pos == "" {
+		t.Fatal("tidak menemukan kedua tanda hash")
+	}
+	for _, id := range []string{neg, pos} {
+		release := holdLock(t, d, id, base.KindKnowledge)
+		if ok, err := r.InProgress(ctx, id, base.KindKnowledge); !ok || err != nil {
+			t.Fatalf("%s: %v %v", id, ok, err)
+		}
+		release()
+		if ok, _ := r.InProgress(ctx, id, base.KindKnowledge); ok {
+			t.Fatalf("%s setelah release", id)
+		}
+	}
+}

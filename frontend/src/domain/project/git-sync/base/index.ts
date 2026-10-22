@@ -7,4 +7,4 @@ export { default as RepoOriginChip } from './components/RepoOriginChip.svelte';
 export { default as ReportSummary } from './components/ReportSummary.svelte';
 export { default as ConfigSummary } from './components/ConfigSummary.svelte';
 export { default as SyncReportTable } from './components/SyncReportTable.svelte';
-export { mockConfig, mockKnowledgeReport, mockApiSpecReport } from './mocks';
+export { mockConfig, mockKnowledgeReport, mockApiSpecReport, mockGetConfigResponse, mockSyncStream } from './mocks';

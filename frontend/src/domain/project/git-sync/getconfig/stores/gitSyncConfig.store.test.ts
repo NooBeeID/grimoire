@@ -43,6 +43,14 @@ describe('gitSyncConfig store', () => {
     expect(st.status === 'ready' && st.data.config?.last_result).toEqual(report);
     expect(st.status === 'ready' && st.data.has_credential).toBe(true);
   });
+  it('setFromRun clears in_progress that load reported', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ok({ ...resp(mockConfig()), in_progress: true })));
+    const s = createGitSyncConfigStore();
+    await s.load('p', 'knowledge');
+    expect((get(s) as { data: { in_progress: boolean } }).data.in_progress).toBe(true);
+    s.setFromRun(mockConfig({ last_result: null }), mockKnowledgeReport());
+    expect((get(s) as { data: { in_progress: boolean } }).data.in_progress).toBe(false);
+  });
   it('error keeps previous data', async () => {
     const f = vi
       .fn()

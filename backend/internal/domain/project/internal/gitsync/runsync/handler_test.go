@@ -29,7 +29,7 @@ func init() {
 
 func serve(e *env, body string, ctx context.Context) *httptest.ResponseRecorder {
 	r := chi.NewRouter()
-	r.Post("/projects/{projectID}/git-sync/run", newHandler(e.uc).ServeHTTP)
+	r.Post("/projects/{projectID}/git-sync/run", newHandler(e.uc, handlerOpts{heartbeat: 20 * time.Millisecond}).ServeHTTP)
 	req := httptest.NewRequest(http.MethodPost, "/projects/p1/git-sync/run", strings.NewReader(body)).WithContext(ctx)
 	req.Header.Set("User-Agent", "agent/1")
 	rec := httptest.NewRecorder()

@@ -7,6 +7,7 @@
     title,
     onclose,
     dismissible = true,
+    onrequestclose,
     size = 'md',
     children,
     footer,
@@ -15,6 +16,8 @@
     title: string;
     onclose?: () => void;
     dismissible?: boolean;
+    // Dipanggil saat dismissible=false dan user menekan Esc, tombol silang, atau backdrop.
+    onrequestclose?: () => void;
     size?: 'md' | 'lg';
     children?: Snippet;
     footer?: Snippet;
@@ -49,11 +52,20 @@
   }
 
   function onBackdrop(e: MouseEvent) {
-    if (dismissible && e.target === el) close();
+    if (e.target !== el) return;
+    if (dismissible) close();
+    else onrequestclose?.();
   }
 
   function onCancel(e: Event) {
-    if (!dismissible) e.preventDefault();
+    if (dismissible) return;
+    e.preventDefault();
+    onrequestclose?.();
+  }
+
+  function onCross() {
+    if (dismissible) close();
+    else onrequestclose?.();
   }
 </script>
 
@@ -71,8 +83,8 @@
     <button
       type="button"
       aria-label={$t('common.close')}
-      onclick={close}
-      disabled={!dismissible}
+      onclick={onCross}
+      disabled={!dismissible && !onrequestclose}
       class="rounded-base px-2 py-1 hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none disabled:opacity-40"
     >
       <span aria-hidden="true">&times;</span>

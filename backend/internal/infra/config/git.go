@@ -83,9 +83,14 @@ func (l *loader) loadGit(c *Config, appEnv string) {
 		}
 		c.GitSyncAllowedHosts = append(c.GitSyncAllowedHosts, h)
 	}
-	c.GitSyncTimeout = l.dur("GIT_SYNC_TIMEOUT", 120*time.Second)
+	c.GitSyncMaxTotalWait = l.dur("GIT_SYNC_MAX_TOTAL_WAIT", 5*time.Minute)
+	c.GitSyncMaxWait = l.durBetween("GIT_SYNC_MAX_WAIT", 120*time.Second, time.Second, c.GitSyncMaxTotalWait)
+	c.GitSyncRequestInterval = l.durBetween("GIT_SYNC_REQUEST_INTERVAL", 500*time.Millisecond, 0, 10*time.Second)
+	c.GitSyncTimeout = l.dur("GIT_SYNC_TIMEOUT", 15*time.Minute)
 	if c.GitSyncTimeout <= c.HTTPDefaultTimeout {
 		l.fail("GIT_SYNC_TIMEOUT", "harus lebih besar dari HTTP_DEFAULT_TIMEOUT (%s)", c.HTTPDefaultTimeout)
+	} else if c.GitSyncTimeout <= c.GitSyncMaxTotalWait {
+		l.fail("GIT_SYNC_TIMEOUT", "harus lebih besar dari GIT_SYNC_MAX_TOTAL_WAIT (%s)", c.GitSyncMaxTotalWait)
 	}
 	c.GitSyncInsecureTestHosts = l.hostList("GIT_SYNC_INSECURE_TEST_HOSTS", true)
 	if len(c.GitSyncInsecureTestHosts) > 0 && appEnv == "production" {

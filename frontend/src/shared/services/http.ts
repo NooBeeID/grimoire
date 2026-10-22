@@ -144,6 +144,39 @@ export async function request<T = unknown>(method: string, url: string, o: Reque
   throw err;
 }
 
+export interface StreamOptions {
+  body?: unknown;
+  signal?: AbortSignal;
+  headers?: Record<string, string>;
+}
+
+// Request yang membaca respons sebagai stream (SSE). 2xx dikembalikan mentah; non-2xx dipetakan ke ApiError.
+export async function openStream(method: string, url: string, o: StreamOptions = {}): Promise<Response> {
+  const m = method.toUpperCase();
+  const full = buildUrl(url);
+  const headers: Record<string, string> = { ...o.headers, Accept: 'text/event-stream' };
+  if (MUTATIONS.has(m)) headers[CSRF_HEADER] = CSRF_VALUE;
+  let body: BodyInit | undefined;
+  if (o.body !== undefined) {
+    body = JSON.stringify(o.body);
+    headers['Content-Type'] = 'application/json';
+  }
+  let res: Response;
+  try {
+    res = await fetch(full, { method: m, headers, body, credentials: 'same-origin', signal: o.signal });
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError')) throw e;
+    if (o.signal?.aborted) throw e;
+    throw new ApiError({ status: 0, code: 'NETWORK', message: tr('error.network') });
+  }
+  if (res.ok) return res;
+  const requestId = res.headers.get('X-Request-Id') ?? undefined;
+  const text = await res.text().catch(() => '');
+  const err = toApiError(res.status, text, requestId);
+  if (res.status === 401) notifyUnauthorized();
+  throw err;
+}
+
 export interface BlobResult {
   blob: Blob;
   contentType: string | null;

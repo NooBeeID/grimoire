@@ -49,6 +49,33 @@ func (w *statusWriter) Flush() {
 	}
 }
 
+// FlushError mengembalikan http.ErrNotSupported (tanpa menulis header) bila writer bawah
+// tidak mendukung flush, sehingga handler SSE bisa menolak sebelum header terkirim.
+func (w *statusWriter) FlushError() error {
+	if !canFlush(w.ResponseWriter) {
+		return http.ErrNotSupported
+	}
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+
+func canFlush(rw http.ResponseWriter) bool {
+	for {
+		switch v := rw.(type) {
+		case http.Flusher:
+			return true
+		case interface{ FlushError() error }:
+			return true
+		case interface{ Unwrap() http.ResponseWriter }:
+			rw = v.Unwrap()
+		default:
+			return false
+		}
+	}
+}
+
 func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if h, ok := w.ResponseWriter.(http.Hijacker); ok {
 		return h.Hijack()

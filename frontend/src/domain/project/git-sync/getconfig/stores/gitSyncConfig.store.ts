@@ -52,7 +52,7 @@ export function createGitSyncConfigStore(): GitSyncConfigStore {
       state.update((s) => {
         const base = prevOf(s);
         if (!base) return s;
-        return { status: 'ready', data: { ...base, has_credential: true, credential_unreadable: false, config: { ...config, last_result: report } } };
+        return { status: 'ready', data: { ...base, has_credential: true, credential_unreadable: false, in_progress: false, config: { ...config, last_result: report } } };
       });
     },
     reset() {

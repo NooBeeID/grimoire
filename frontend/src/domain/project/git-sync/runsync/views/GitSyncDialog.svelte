@@ -17,9 +17,12 @@
     type Kind,
   } from '../../base';
   import { createGitSyncConfigStore } from '../../getconfig';
+  import CloseRunningConfirm from '../components/CloseRunningConfirm.svelte';
   import CredentialNotice from '../components/CredentialNotice.svelte';
+  import InProgressNotice from '../components/InProgressNotice.svelte';
   import SyncErrorBlock from '../components/SyncErrorBlock.svelte';
   import SyncForm from '../components/SyncForm.svelte';
+  import SyncProgress from '../components/SyncProgress.svelte';
   import { syncErrorMessage } from '../errorMessage';
   import { createRunSyncStore } from '../stores/runsync.store';
   import type { FormTouched, FormValues } from '../types';
@@ -49,11 +52,18 @@
   let cooldown = $state(0);
   let timer: ReturnType<typeof setInterval> | null = null;
   let announced = false;
+  let wasBusy = false;
+  let confirmClose = $state(false);
+  let now = $state(Date.now());
+  let runningOrigin = $state<{ host: string; repoPath: string; branch: string; folder: string } | null>(null);
 
   const data = $derived($cfg.status === 'ready' ? $cfg.data : $cfg.status === 'loading' || $cfg.status === 'error' ? $cfg.previous : null);
   const config = $derived(data?.config ?? null);
   const loadingConfig = $derived($cfg.status === 'loading' && data === null);
   const running = $derived($run.status === 'running');
+  const progress = $derived($run.status === 'running' ? $run.progress : null);
+  const phase = $derived(progress?.phase);
+  const serverBusy = $derived(data?.in_progress === true && !running && $run.status !== 'done');
   const featureOff = $derived(data?.feature_enabled === false);
   const parsed = $derived(parseRepoUrlLite(values.url));
   const provider = $derived(parsed.ok ? parsed.provider : (config?.provider ?? 'github'));
@@ -61,8 +71,8 @@
   const hostMatches = $derived(parsed.ok && config !== null && parsed.host === config.host);
   const credBad = $derived(config !== null && data !== null && (!data.has_credential || data.credential_unreadable));
   // F5/F6: tanpa config, token baru diperiksa server; dengan config, kunci hanya bila host form = host config.
-  const syncLocked = $derived(featureOff || (credBad && hostMatches) || cooldown > 0);
-  const rerunLocked = $derived(featureOff || !config || credBad || cooldown > 0);
+  const syncLocked = $derived(featureOff || (credBad && hostMatches) || cooldown > 0 || serverBusy);
+  const rerunLocked = $derived(featureOff || !config || credBad || cooldown > 0 || serverBusy);
   const urlProblem = $derived(!parsed.ok && values.url.trim() !== '' ? $t(`gitSync.validation.${parsed.problem}`) : undefined);
   const canSync = $derived(parsed.ok && !running && !syncLocked && !loadingConfig);
   const noticeState = $derived(featureOff ? 'disabled' : data?.credential_unreadable ? 'unreadable' : 'missing');
@@ -97,11 +107,40 @@
   }
   onDestroy(stopTimer);
 
+  // Ticker hitung mundur hanya aktif pada fase waiting.
+  $effect(() => {
+    if (phase !== 'waiting') return;
+    now = Date.now();
+    const id = setInterval(() => (now = Date.now()), 1000);
+    return () => clearInterval(id);
+  });
+
+  // Konfirmasi tutup tidak relevan lagi bila sync sudah selesai/gagal.
+  $effect(() => {
+    if (!running && confirmClose) untrack(() => (confirmClose = false));
+  });
+
+  // Sync dari sesi lain selesai setelah "Muat ulang status": umumkan sekali bila tidak gagal.
+  $effect(() => {
+    const busy = data?.in_progress === true;
+    const last = data?.config?.last_status;
+    untrack(() => {
+      if (wasBusy && !busy && open && data?.config && last !== 'failed' && !announced) {
+        announced = true;
+        onsynced();
+      }
+      wasBusy = busy;
+    });
+  });
+
   $effect(() => {
     if (open) {
       untrack(() => {
         filled = false;
         announced = false;
+        wasBusy = false;
+        confirmClose = false;
+        runningOrigin = null;
         run.reset();
         stopTimer();
         cooldown = 0;
@@ -145,6 +184,10 @@
         ? { kind, url: c.repo_url, branch: c.branch, folder: c.folder, target_prefix: c.target_prefix }
         : { kind, url: values.url, branch: values.branch, folder: values.folder, target_prefix: values.targetPrefix };
     announced = false;
+    const p = parseRepoUrlLite(input.url);
+    runningOrigin = p.ok
+      ? { host: p.host, repoPath: p.repoPath, branch: input.branch || p.branch || '', folder: input.folder || p.folder || '' }
+      : { host: '', repoPath: input.url, branch: input.branch, folder: input.folder };
     const r = await run.start(projectId, input);
     if (r.status === 'done') {
       cfg.setFromRun(r.config, r.report);
@@ -161,11 +204,25 @@
     fillFrom(c);
   }
 
+  function reloadStatus() {
+    run.reset();
+    filled = false;
+    void cfg.load(projectId, kind);
+  }
+
   function cancel() {
     if (running) {
-      run.abort();
-      toast.push({ type: 'info', message: $t('gitSync.cancelledToast') });
+      confirmClose = true;
+      return;
     }
+    onclose();
+  }
+
+  // Menutup hanya memutus stream; sync tetap berjalan di server.
+  function confirmCloseNow() {
+    run.abort();
+    toast.push({ type: 'info', message: $t('gitSync.cancelledToast') });
+    confirmClose = false;
     onclose();
   }
 
@@ -175,9 +232,14 @@
   );
 </script>
 
-<Dialog {open} title={$t(`gitSync.dialog.title.${kind}`)} size="lg" dismissible={!running} onclose={cancel}>
+<Dialog {open} title={$t(`gitSync.dialog.title.${kind}`)} size="lg" dismissible={!running} onrequestclose={() => (confirmClose = true)} onclose={cancel}>
   <div class="flex flex-col gap-4">
-    {#if $run.status === 'done'}
+    {#if progress}
+      {#if runningOrigin}
+        <div><RepoOriginChip host={runningOrigin.host} repoPath={runningOrigin.repoPath} branch={runningOrigin.branch} folder={runningOrigin.folder} /></div>
+      {/if}
+      <SyncProgress {progress} {now} />
+    {:else if $run.status === 'done'}
       <div class="flex flex-col gap-3" aria-live="polite">
         <p class="sr-only">{announce}</p>
         <div class="flex flex-wrap items-center gap-2">
@@ -206,7 +268,11 @@
         <CredentialNotice state={noticeState} host={config?.host ?? ''} />
       {/if}
 
-      <SyncForm {kind} bind:values bind:touched {errors} disabled={running || loadingConfig || featureOff} />
+      {#if serverBusy}
+        <InProgressNotice loading={$cfg.status === 'loading'} onreload={reloadStatus} />
+      {/if}
+
+      <SyncForm {kind} bind:values bind:touched {errors} disabled={running || loadingConfig || featureOff || serverBusy} />
 
       <p class="flex items-start gap-2 text-[13px] text-warning">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" class="mt-0.5 shrink-0">
@@ -216,19 +282,18 @@
         <span>{$t('gitSync.overwriteWarning')}</span>
       </p>
 
-      {#if running}
-        <p class="text-[13px] text-muted" aria-live="polite">{$t('gitSync.runningHint')}</p>
-      {/if}
       {#if runError && !runError.field && runError.code !== 'ABORTED'}
         <div aria-live="polite">
-          <SyncErrorBlock error={runError} seconds={cooldown} onretry={() => start(false)} />
+          <SyncErrorBlock error={runError} seconds={cooldown} lost={$run.status === 'error' && $run.lost} onreloadstatus={reloadStatus} onretry={() => start(false)} />
         </div>
       {/if}
     {/if}
   </div>
 
   {#snippet footer()}
-    {#if $run.status === 'done'}
+    {#if running}
+      <Button variant="ghost" onclick={() => (confirmClose = true)}>{$t('gitSync.close')}</Button>
+    {:else if $run.status === 'done'}
       <Button variant="secondary" onclick={again}>{$t('gitSync.again')}</Button>
       <Button variant="primary" onclick={onclose}>{$t('gitSync.close')}</Button>
     {:else if featureOff}
@@ -244,3 +309,5 @@
     {/if}
   {/snippet}
 </Dialog>
+
+<CloseRunningConfirm open={confirmClose} onconfirm={confirmCloseNow} onstay={() => (confirmClose = false)} />

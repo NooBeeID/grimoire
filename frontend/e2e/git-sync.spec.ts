@@ -360,3 +360,187 @@ test.describe('git sync: negatif', () => {
     await admin.close();
   });
 });
+
+// T17: pacing rate limit + progress SSE. Backend e2e dijalankan dengan GIT_SYNC_REQUEST_INTERVAL=0s,
+// GIT_SYNC_MAX_WAIT=3s, GIT_SYNC_MAX_TOTAL_WAIT=5s (lihat playwright.config.ts).
+const SSE = { Accept: 'text/event-stream' };
+const fiveFiles = (): Record<string, string> =>
+  Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`docs/f${n}.md`, `# File ${n}\n\nIsi ${n}.\n`]));
+
+async function postRaw(request: import('@playwright/test').APIRequestContext, projectId: string, repo: string, headers: Record<string, string>) {
+  return request.post(`/api/projects/${projectId}/git-sync/run`, {
+    headers: { ...CSRF, ...headers },
+    data: { kind: 'knowledge', url: repoUrl(repo, '/tree/main/docs'), branch: '', folder: '', target_prefix: '' },
+  });
+}
+
+test.describe('git sync: progress SSE', () => {
+  test('1 sync 5 file: progress n dari total lalu laporan T14', async ({ browser }) => {
+    const { admin, ctx, page, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), blobDelayMs: 300 });
+    await openKnowledge(page, proj.id);
+
+    const dialog = await openSyncDialog(page);
+    await urlInput(dialog).fill(repoUrl(repo, '/tree/main/docs'));
+    await syncButton(dialog).click();
+
+    await expect(dialog.getByTestId('sync-progress')).toBeVisible();
+    await expect(dialog.getByTestId('sync-progress-count')).toContainText(/\d+ dari 5/);
+    await expect(dialog.getByTestId('sync-progress-path')).toContainText('docs/f');
+    await expect(reportRow(dialog, 'docs/f5.md')).toBeVisible({ timeout: 20_000 });
+    await expect(summaryCount(dialog, 'created')).toContainText('5');
+
+    await closeBtn(dialog).click();
+    await expect(item(page, 'f1.md')).toBeVisible();
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('2 rate limit lewat reset 2 detik: menunggu lalu sukses', async ({ browser }) => {
+    const { admin, ctx, page, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), rateLimit: { afterRequests: 2, resetSeconds: 2 } });
+    await openKnowledge(page, proj.id);
+
+    const dialog = await openSyncDialog(page);
+    await urlInput(dialog).fill(repoUrl(repo, '/tree/main/docs'));
+    await syncButton(dialog).click();
+
+    await expect(dialog.getByTestId('sync-waiting')).toContainText(/Menunggu batas request provider/);
+    await expect(dialog.getByTestId('sync-error')).toHaveCount(0);
+    await expect(reportRow(dialog, 'docs/f5.md')).toBeVisible({ timeout: 20_000 });
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('3 status 429 sekali: sync tetap sukses dengan laporan penuh', async ({ browser }) => {
+    const { admin, ctx, page, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), status429Once: true });
+    await openKnowledge(page, proj.id);
+
+    const dialog = await openSyncDialog(page);
+    await urlInput(dialog).fill(repoUrl(repo, '/tree/main/docs'));
+    await syncButton(dialog).click();
+    await expect(summaryCount(dialog, 'created')).toContainText('5', { timeout: 20_000 });
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('4 tutup saat berjalan: konfirmasi, sync tetap selesai di server', async ({ browser }) => {
+    const { ctx, admin, page, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), blobDelayMs: 600 });
+    await openKnowledge(page, proj.id);
+
+    const dialog = await openSyncDialog(page);
+    await urlInput(dialog).fill(repoUrl(repo, '/tree/main/docs'));
+    await syncButton(dialog).click();
+    await expect(dialog.getByTestId('sync-progress')).toBeVisible();
+
+    await closeBtn(dialog).click();
+    await expect(page.getByTestId('sync-close-confirm')).toBeVisible();
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Tutup', exact: true }).last().click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    // sync lepas dari koneksi: last_result terisi setelah selesai di server
+    await expect
+      .poll(async () => (await getSyncConfigApi(ctx.request, proj.id)).body?.config?.last_result?.status, { timeout: 30_000 })
+      .toBeTruthy();
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('5 klien tanpa Accept SSE mendapat JSON T14', async ({ browser }) => {
+    const { admin, ctx, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles() });
+    const res = await postRaw(ctx.request, proj.id, repo, {});
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('application/json');
+    const body = await res.json();
+    expect(body.report).toBeTruthy();
+    expect(body.config).toBeTruthy();
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('6 respons SSE mentah: urutan start, progress, saving, done; tanpa token', async ({ browser }) => {
+    const { admin, ctx, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles() });
+    const res = await postRaw(ctx.request, proj.id, repo, SSE);
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('text/event-stream');
+    const text = await res.text();
+    const names = [...text.matchAll(/^event: (\w+)$/gm)].map((m) => m[1]);
+    expect(names[0]).toBe('start');
+    expect(names).toContain('progress');
+    expect(names.indexOf('saving')).toBeGreaterThan(names.lastIndexOf('progress'));
+    expect(names[names.length - 1]).toBe('done');
+    expect(text).not.toContain(VALID_TOKEN);
+    expect(text).not.toContain('Isi 1.');
+
+    await ctx.close();
+    await admin.close();
+  });
+});
+
+test.describe('git sync: progress SSE negatif', () => {
+  test('1 reset 60 detik melebihi batas tunggu: RATE_LIMITED dengan retry_after', async ({ browser }) => {
+    const { admin, ctx, page, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), rateLimit: { afterRequests: 1, resetSeconds: 60 } });
+    await openKnowledge(page, proj.id);
+
+    const dialog = await openSyncDialog(page);
+    await urlInput(dialog).fill(repoUrl(repo, '/tree/main/docs'));
+    await syncButton(dialog).click();
+    await expect(dialog.getByTestId('sync-error')).toHaveAttribute('data-code', 'RATE_LIMITED', { timeout: 20_000 });
+    await closeBtn(dialog).click();
+    await expect(item(page, 'f1.md')).toHaveCount(0);
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('2 sync bersamaan: yang kedua 409 SYNC_IN_PROGRESS berupa JSON', async ({ browser }) => {
+    const { admin, ctx, proj, repo } = await setup(browser);
+    await setRepo(repo, { files: fiveFiles(), blobDelayMs: 800 });
+    const first = postRaw(ctx.request, proj.id, repo, SSE);
+    await expect
+      .poll(async () => (await getSyncConfigApi(ctx.request, proj.id)).body?.in_progress, { timeout: 10_000 })
+      .toBe(true);
+    const second = await postRaw(ctx.request, proj.id, repo, SSE);
+    expect(second.status()).toBe(409);
+    expect(second.headers()['content-type']).toContain('application/json');
+    expect((await second.json()).error.code).toBe('SYNC_IN_PROGRESS');
+    expect((await first).status()).toBe(200);
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('3 token belum disimpan: 422 CREDENTIAL_MISSING JSON sebelum stream', async ({ browser }) => {
+    const { admin, ctx, proj, repo } = await setup(browser, { token: false });
+    await setRepo(repo, { files: fiveFiles() });
+    const res = await postRaw(ctx.request, proj.id, repo, SSE);
+    expect(res.status()).toBe(422);
+    expect(res.headers()['content-type']).toContain('application/json');
+    expect((await res.json()).error.code).toBe('CREDENTIAL_MISSING');
+
+    await ctx.close();
+    await admin.close();
+  });
+
+  test('4 repo tidak ditemukan: event error GIT_NOT_FOUND', async ({ browser }) => {
+    const { admin, ctx, proj, repo } = await setup(browser);
+    const res = await postRaw(ctx.request, proj.id, repo, SSE);
+    const text = await res.text();
+    expect(text).toMatch(/event: error/);
+    expect(text).toContain('GIT_NOT_FOUND');
+    expect(text).not.toContain(VALID_TOKEN);
+
+    await ctx.close();
+    await admin.close();
+  });
+});

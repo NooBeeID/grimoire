@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,11 +30,17 @@ const (
 	genericInternal  = "terjadi kesalahan internal"
 )
 
-// GitClient diimplementasi *gitprovider.Client.
+// GitClient membuat Session ber-pacing per sync (diimplementasi adapter di atas *gitprovider.Client).
 type GitClient interface {
 	Policy() gitprovider.HostPolicy
+	Session(onWait func(gitprovider.Wait)) GitSession
+}
+
+// GitSession adalah jalur request ber-pacing untuk satu sync; aman dipakai bersamaan.
+type GitSession interface {
 	ListTree(ctx context.Context, repo gitprovider.Repo, folder string, token secret.String) ([]gitprovider.TreeEntry, error)
 	FetchBlob(ctx context.Context, repo gitprovider.Repo, sha string, maxBytes int64, token secret.String) ([]byte, bool, error)
+	Stats() gitprovider.Stats
 }
 
 // Usecase mengorkestrasi urutan sync (D5).
@@ -70,91 +77,143 @@ type fetched struct {
 	tooLarge bool
 }
 
-// Execute menjalankan sync.
-func (u *Usecase) Execute(ctx context.Context, projectID string, in RunRequest, meta base.RequestMeta) (RunResponse, error) {
+// Run adalah sync yang sudah lolos validasi dan memegang lock; wajib diakhiri Execute atau Abort.
+type Run struct {
+	uc      *Usecase
+	kind    base.Kind
+	ref     base.RepoRef
+	prefix  string
+	token   secret.String
+	info    runInfo
+	started time.Time
+	unlock  func(context.Context) error
+	once    sync.Once
+	running atomic.Bool
+}
+
+// Start mengerjakan akses, parse, token, lock, dan simpan config. Error di sini selalu dikembalikan
+// sebelum ada stream. Sukses: lock dipegang Run.
+func (u *Usecase) Start(ctx context.Context, projectID string, in RunRequest, meta base.RequestMeta) (*Run, error) {
 	started := u.clock()
 	actor, err := u.access.Require(ctx, projectID)
 	if err != nil {
-		return RunResponse{}, err
+		return nil, err
 	}
 	kind, err := base.ParseKind(in.Kind)
 	if err != nil {
-		return RunResponse{}, err
+		return nil, err
 	}
 	allowed := func(p, h string) bool { return u.git.Policy().Allowed(gitprovider.Provider(p), h) }
 	ref, err := base.ParseRepoURL(in.URL, in.Branch, in.Folder, allowed)
 	if err != nil {
-		return RunResponse{}, err
+		return nil, err
 	}
 	prefix := ""
 	if kind == base.KindKnowledge {
 		if prefix, err = base.NormalizeTargetPrefix(in.TargetPrefix); err != nil {
-			return RunResponse{}, err
+			return nil, err
 		}
 	}
 
 	token, err := u.token(ctx, actor, ref)
 	if err != nil {
-		return RunResponse{}, err
+		return nil, err
 	}
 
 	unlock, ok, err := u.repo.TryLock(ctx, projectID, kind)
 	if err != nil {
-		return RunResponse{}, fmt.Errorf("runsync: lock: %w", err)
+		return nil, fmt.Errorf("runsync: lock: %w", err)
 	}
 	if !ok {
-		return RunResponse{}, base.SyncInProgress(kind)
+		return nil, base.SyncInProgress(kind)
 	}
-	defer func() {
-		fctx, cancel := fin(ctx)
-		defer cancel()
-		if e := unlock(fctx); e != nil {
-			u.log.WarnContext(fctx, "runsync: unlock gagal", "project_id", projectID, "kind", string(kind), "error", e)
-		}
-	}()
+	r := &Run{uc: u, kind: kind, ref: ref, prefix: prefix, token: token, started: started, unlock: unlock}
 
 	saved, err := u.repo.UpsertConfig(ctx, base.NewConfig(projectID, kind, ref, prefix))
 	if err != nil {
-		return RunResponse{}, fmt.Errorf("runsync: %w", err)
+		r.release(ctx)
+		return nil, fmt.Errorf("runsync: %w", err)
 	}
+	r.info = runInfo{actor: actor, meta: meta, cfg: saved}
+	return r, nil
+}
 
-	run := runInfo{actor: actor, meta: meta, cfg: saved}
+// release melepas lock tepat sekali.
+func (r *Run) release(ctx context.Context) {
+	r.once.Do(func() {
+		fctx, cancel := fin(ctx)
+		defer cancel()
+		if e := r.unlock(fctx); e != nil {
+			r.uc.log.WarnContext(fctx, "runsync: unlock gagal", "project_id", r.info.cfg.ProjectID, "kind", string(r.kind), "error", e)
+		}
+	})
+}
 
-	cands, skipped, items, err := u.pull(ctx, kind, ref, token)
-	if err != nil {
-		return RunResponse{}, u.fail(ctx, run, err)
+// Abort melepas lock bila Execute tidak akan dipanggil. No-op bila Execute sudah dimulai.
+func (r *Run) Abort(ctx context.Context) {
+	if r.running.Load() {
+		return
 	}
-	written, err := u.write(ctx, projectID, kind, prefix, actor, meta, cands, items)
+	r.release(ctx)
+}
+
+// Execute menjalankan pull, write, simpan hasil, dan audit. Hanya boleh dipanggil sekali.
+func (r *Run) Execute(ctx context.Context, sink Sink) (RunResponse, error) {
+	if !r.running.CompareAndSwap(false, true) {
+		return RunResponse{}, &errs.Error{Code: errs.CodeInternal, Message: genericInternal, Err: errors.New("runsync: Execute dipanggil lebih dari sekali")}
+	}
+	defer r.release(ctx)
+	if sink == nil {
+		sink = NopSink{}
+	}
+	u := r.uc
+	sess := u.git.Session(func(w gitprovider.Wait) {
+		sink.Waiting(int(math.Ceil(w.Duration.Seconds())), string(w.Reason))
+	})
+	cands, skipped, items, err := u.pull(ctx, sess, r, sink)
 	if err != nil {
-		return RunResponse{}, u.fail(ctx, run, err)
+		return RunResponse{}, u.fail(ctx, r.withStats(sess), err)
+	}
+	written, err := u.write(ctx, r, cands, items, sink)
+	if err != nil {
+		return RunResponse{}, u.fail(ctx, r.withStats(sess), err)
 	}
 
 	report := base.NewReport(append(skipped, written...))
 	fctx, cancel := fin(ctx)
 	defer cancel()
+	info := r.withStats(sess)
 	cfg, err := u.repo.SaveResult(fctx, SaveResultParams{
-		ProjectID: projectID, Kind: kind, Status: string(report.Status), SyncedAt: u.clock(),
-		ByID: actor.ID, ByLabel: actor.Label, Result: report.CapForStorage(base.MaxStoredReportItems),
+		ProjectID: info.cfg.ProjectID, Kind: r.kind, Status: string(report.Status), SyncedAt: u.clock(),
+		ByID: info.actor.ID, ByLabel: info.actor.Label, Result: report.CapForStorage(base.MaxStoredReportItems),
 	})
 	if err != nil {
-		u.log.ErrorContext(fctx, "runsync: simpan hasil gagal", "project_id", projectID, "kind", string(kind), "error", err)
-		cfg = saved
+		u.log.ErrorContext(fctx, "runsync: simpan hasil gagal", "project_id", info.cfg.ProjectID, "kind", string(r.kind), "error", err)
+		cfg = info.cfg
 	}
-	u.record(fctx, run, report, "")
-	u.log.InfoContext(fctx, "runsync: selesai", "project_id", projectID, "kind", string(kind), "provider", ref.Provider,
-		"host", ref.Host, "status", string(report.Status), "created", report.Summary.Created,
+	u.record(fctx, info, report, "")
+	u.log.InfoContext(fctx, "runsync: selesai", "project_id", info.cfg.ProjectID, "kind", string(r.kind), "provider", r.ref.Provider,
+		"host", r.ref.Host, "status", string(report.Status), "created", report.Summary.Created,
 		"updated", report.Summary.Updated, "unchanged", report.Summary.Unchanged, "skipped", report.Summary.Skipped,
-		"rejected", report.Summary.Rejected, "duration_ms", u.clock().Sub(started).Milliseconds())
+		"rejected", report.Summary.Rejected, "wait_count", info.stats.Waits, "wait_total_ms", info.stats.TotalWait.Milliseconds(),
+		"duration_ms", u.clock().Sub(r.started).Milliseconds())
 
 	dto := cfg.ToDTO()
 	dto.LastResult = nil
 	return RunResponse{Report: report.ToDTO(), Config: dto}, nil
 }
 
+func (r *Run) withStats(sess GitSession) runInfo {
+	info := r.info
+	info.stats = sess.Stats()
+	return info
+}
+
 type runInfo struct {
 	actor base.Actor
 	meta  base.RequestMeta
 	cfg   base.Config
+	stats gitprovider.Stats
 }
 
 // token mengambil PAT milik pemanggil (UserID dari identity, bukan dari data tersimpan).
@@ -176,9 +235,10 @@ func (u *Usecase) token(ctx context.Context, actor base.Actor, ref base.RepoRef)
 }
 
 // pull adalah fase baca: tree, seleksi, batas, fetch. Tidak menulis ke knowledge/apispec.
-func (u *Usecase) pull(ctx context.Context, kind base.Kind, ref base.RepoRef, token secret.String) ([]base.Candidate, []base.ReportItem, []fetched, error) {
+func (u *Usecase) pull(ctx context.Context, sess GitSession, r *Run, sink Sink) ([]base.Candidate, []base.ReportItem, []fetched, error) {
+	ref := r.ref
 	repo := gitprovider.Repo{Provider: gitprovider.Provider(ref.Provider), Host: ref.Host, Path: ref.Path, Branch: ref.Branch}
-	tree, err := u.git.ListTree(ctx, repo, ref.Folder, token)
+	tree, err := sess.ListTree(ctx, repo, ref.Folder, r.token)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -186,28 +246,45 @@ func (u *Usecase) pull(ctx context.Context, kind base.Kind, ref base.RepoRef, to
 	for i, e := range tree {
 		entries[i] = base.TreeEntry{Path: e.Path, Size: e.Size, BlobSHA: e.BlobSHA}
 	}
-	cands, skipped, err := base.SelectFiles(entries, ref.Folder, kind)
+	cands, skipped, err := base.SelectFiles(entries, ref.Folder, r.kind)
 	if err != nil {
 		if errors.Is(err, base.ErrFolderNotFound) {
 			return nil, nil, nil, base.FolderNotFound(ref.Folder)
 		}
 		return nil, nil, nil, err
 	}
-	lim := base.LimitsFor(kind, u.cfg)
+	lim := base.LimitsFor(r.kind, u.cfg)
 	if err := base.CheckBatchLimits(cands, lim); err != nil {
 		return nil, nil, nil, err
 	}
-	items, err := u.fetchAll(ctx, repo, cands, lim, token)
+	sink.Start(len(cands))
+	items, err := u.fetchAll(ctx, sess, repo, cands, lim, r.token, sink)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return cands, skipped, items, nil
 }
 
+// progressEmitter menaikkan counter dan memanggil sink di bawah satu mutex agar done monoton.
+type progressEmitter struct {
+	mu    sync.Mutex
+	n     int
+	total int
+	sink  Sink
+}
+
+func (p *progressEmitter) done(path string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.n++
+	p.sink.Progress(p.n, p.total, path)
+}
+
 // fetchAll mengambil semua blob (konkurensi 4) dengan pengecekan total kumulatif.
-func (u *Usecase) fetchAll(ctx context.Context, repo gitprovider.Repo, cands []base.Candidate, lim base.Limits, token secret.String) ([]fetched, error) {
+func (u *Usecase) fetchAll(ctx context.Context, sess GitSession, repo gitprovider.Repo, cands []base.Candidate, lim base.Limits, token secret.String, sink Sink) ([]fetched, error) {
 	ctx2, cancel := context.WithCancel(ctx)
 	defer cancel()
+	emitter := &progressEmitter{total: len(cands), sink: sink}
 	out := make([]fetched, len(cands))
 	sem := make(chan struct{}, fetchConcurrency)
 	var (
@@ -223,6 +300,7 @@ loop:
 		out[i].cand = c
 		if c.Size >= 0 && c.Size > lim.MaxFileBytes {
 			out[i].tooLarge = true
+			emitter.done(c.RepoPath)
 			continue
 		}
 		select {
@@ -237,13 +315,14 @@ loop:
 			if ctx2.Err() != nil {
 				return
 			}
-			data, tooLarge, err := u.git.FetchBlob(ctx2, repo, c.SHA, lim.MaxFileBytes, token)
+			data, tooLarge, err := sess.FetchBlob(ctx2, repo, c.SHA, lim.MaxFileBytes, token)
 			if err != nil {
 				setErr(err)
 				return
 			}
 			if tooLarge {
 				out[i].tooLarge = true
+				emitter.done(c.RepoPath)
 				return
 			}
 			if e := base.CheckFetchedTotal(total.Add(int64(len(data))), lim); e != nil {
@@ -251,6 +330,7 @@ loop:
 				return
 			}
 			out[i].content = data
+			emitter.done(c.RepoPath)
 		}()
 	}
 	wg.Wait()
@@ -264,11 +344,12 @@ loop:
 }
 
 // write adalah fase tulis: satu panggilan bus. Tanpa kandidat, bus tidak dipanggil.
-func (u *Usecase) write(ctx context.Context, projectID string, kind base.Kind, prefix string, actor base.Actor,
-	meta base.RequestMeta, cands []base.Candidate, items []fetched) ([]base.ReportItem, error) {
+func (u *Usecase) write(ctx context.Context, r *Run, cands []base.Candidate, items []fetched, sink Sink) ([]base.ReportItem, error) {
 	if len(cands) == 0 {
 		return nil, nil
 	}
+	projectID, kind, prefix, actor, meta := r.info.cfg.ProjectID, r.kind, r.prefix, r.info.actor, r.info.meta
+	sink.Saving()
 	var (
 		out []base.ReportItem
 		err error
@@ -372,6 +453,7 @@ func (u *Usecase) record(ctx context.Context, run runInfo, report base.Report, c
 		Actor: run.actor, ProjectID: run.cfg.ProjectID, Kind: run.cfg.Kind, Provider: run.cfg.Provider,
 		Host: run.cfg.Host, RepoPath: run.cfg.RepoPath, Branch: run.cfg.Branch, Folder: run.cfg.Folder,
 		TargetPrefix: run.cfg.TargetPrefix, Status: report.Status, Summary: report.Summary, ErrorCode: code, Meta: run.meta,
+		WaitCount: run.stats.Waits, WaitTotal: run.stats.TotalWait,
 	})
 }
 
@@ -394,7 +476,7 @@ func mapError(err error) (out error, code, msg string) {
 	case errors.Is(err, gitprovider.ErrNotFound):
 		ee = base.ErrGitRepoNotFound
 	case errors.As(err, &rl):
-		ee = rateLimited(int(rl.RetryAfter.Seconds()))
+		ee = rateLimited(int(math.Ceil(rl.RetryAfter.Seconds())))
 	case errors.Is(err, gitprovider.ErrRateLimited):
 		ee = rateLimited(0)
 	case errors.Is(err, gitprovider.ErrTreeTooLarge):

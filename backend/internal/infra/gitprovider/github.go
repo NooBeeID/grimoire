@@ -25,9 +25,9 @@ func escapePath(p string) string {
 	return strings.Join(parts, "/")
 }
 
-func (c *Client) githubTree(ctx context.Context, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
+func (c *Client) githubTree(ctx context.Context, get getFn, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
 	u := fmt.Sprintf("%s/repos/%s/git/trees/%s?recursive=1", c.ghBase, escapePath(repo.Path), url.PathEscape(repo.Branch))
-	resp, err := c.get(ctx, GitHub, u, token, "")
+	resp, err := get(ctx, GitHub, u, token, "")
 	if err != nil {
 		return nil, err
 	}

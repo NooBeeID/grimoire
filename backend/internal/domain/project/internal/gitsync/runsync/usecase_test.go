@@ -127,6 +127,27 @@ type fakeGit struct {
 	tokens     []string
 	allowedGL  []string
 	blobCalled atomic.Int32
+	// onTree dipanggil di ListTree dengan onWait sesi (untuk mensimulasikan tunggu rate limit).
+	onTree func(onWait func(gitprovider.Wait))
+	onWait func(gitprovider.Wait)
+	// blobGate (bila non-nil) menahan FetchBlob sampai ditutup.
+	blobGate chan struct{}
+	stats    gitprovider.Stats
+}
+
+func (f *fakeGit) Session(onWait func(gitprovider.Wait)) GitSession {
+	f.onWait = onWait
+	return f
+}
+func (f *fakeGit) Stats() gitprovider.Stats { return f.stats }
+
+// Execute hanya untuk tes: Start lalu Run.Execute dengan NopSink.
+func (u *Usecase) Execute(ctx context.Context, projectID string, in RunRequest, meta base.RequestMeta) (RunResponse, error) {
+	run, err := u.Start(ctx, projectID, in, meta)
+	if err != nil {
+		return RunResponse{}, err
+	}
+	return run.Execute(ctx, NopSink{})
 }
 
 func (f *fakeGit) Policy() gitprovider.HostPolicy {
@@ -135,10 +156,20 @@ func (f *fakeGit) Policy() gitprovider.HostPolicy {
 func (f *fakeGit) ListTree(_ context.Context, _ gitprovider.Repo, _ string, tok secret.String) ([]gitprovider.TreeEntry, error) {
 	f.c.add("tree")
 	f.tokens = append(f.tokens, tok.Reveal())
+	if f.onTree != nil {
+		f.onTree(f.onWait)
+	}
 	return f.tree, f.treeErr
 }
 func (f *fakeGit) FetchBlob(ctx context.Context, _ gitprovider.Repo, sha string, _ int64, tok secret.String) ([]byte, bool, error) {
 	f.blobCalled.Add(1)
+	if f.blobGate != nil {
+		select {
+		case <-f.blobGate:
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		}
+	}
 	n := f.cur.Add(1)
 	defer f.cur.Add(-1)
 	for {

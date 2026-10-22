@@ -5,6 +5,8 @@ package audit
 import (
 	"context"
 	"log/slog"
+	"math"
+	"time"
 
 	"grimoire/internal/domain/project/internal/gitsync/base"
 	"grimoire/internal/infra/bus"
@@ -36,7 +38,10 @@ type Event struct {
 	Status       base.Status
 	Summary      base.Summary
 	ErrorCode    string
-	Meta         base.RequestMeta
+	// WaitCount/WaitTotal: tunggu rate limit provider selama sync (0 bila tidak menunggu).
+	WaitCount int
+	WaitTotal time.Duration
+	Meta      base.RequestMeta
 }
 
 type BusRecorder struct {
@@ -79,6 +84,7 @@ func (r *BusRecorder) Record(ctx context.Context, ev Event) {
 			"status": string(ev.Status), "created": ev.Summary.Created, "updated": ev.Summary.Updated,
 			"unchanged": ev.Summary.Unchanged, "skipped": ev.Summary.Skipped, "rejected": ev.Summary.Rejected,
 			"error_code": ev.ErrorCode,
+			"wait_count": ev.WaitCount, "wait_total_seconds": int(math.Ceil(ev.WaitTotal.Seconds())),
 		},
 		Status: status,
 		IP:     ev.Meta.IP, UserAgent: ev.Meta.UserAgent, TraceID: reqctx.TraceID(ctx),

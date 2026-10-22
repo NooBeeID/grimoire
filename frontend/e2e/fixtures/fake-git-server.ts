@@ -14,7 +14,20 @@ export const VALID_TOKEN = 'ghp_e2eValidToken7Qx2';
 interface Repo {
   branch: string;
   files: Map<string, string>;
-  rateLimit: boolean;
+  rateLimit: boolean | RateLimitOpt;
+  status429Once: boolean;
+  blobDelayMs: number;
+  /** Jumlah request API ke repo ini (tree + blob) sejak konfigurasi terakhir. */
+  requests: number;
+  limitedUntil: number;
+  sent429: boolean;
+}
+
+export interface RateLimitOpt {
+  /** Setelah sekian request sukses, request berikutnya kena limit. */
+  afterRequests: number;
+  /** Lama jendela limit (detik); header x-ratelimit-reset dan retry-after mengikutinya. */
+  resetSeconds: number;
 }
 
 export interface RepoState {
@@ -22,7 +35,11 @@ export interface RepoState {
   /** path -> isi; menggantikan seluruh isi repo. */
   files?: Record<string, string>;
   /** true: tree mengembalikan 403 dengan x-ratelimit-remaining: 0. */
-  rateLimit?: boolean;
+  rateLimit?: boolean | RateLimitOpt;
+  /** true: request pertama ke repo dibalas 429 (retry-after 1) sekali saja. */
+  status429Once?: boolean;
+  /** Jeda (ms) sebelum tiap blob dikirim, untuk sync yang berjalan lama. */
+  blobDelayMs?: number;
 }
 
 const blobSha = (content: string) => createHash('sha1').update(`blob ${Buffer.byteLength(content)}\0`).update(content).digest('hex');
@@ -38,6 +55,36 @@ async function readJson(req: IncomingMessage): Promise<RepoState> {
   for await (const c of req) chunks.push(c as Buffer);
   const text = Buffer.concat(chunks).toString('utf8');
   return text ? (JSON.parse(text) as RepoState) : {};
+}
+
+interface Limited {
+  status: number;
+  message: string;
+  headers: Record<string, string>;
+}
+
+/** Hitung request dan putuskan apakah repo sedang kena rate limit (429 sekali, jendela limit, atau limit tetap). */
+function checkLimits(repo: Repo): Limited | null {
+  repo.requests += 1;
+  if (repo.status429Once && !repo.sent429) {
+    repo.sent429 = true;
+    return { status: 429, message: 'Too Many Requests', headers: { 'retry-after': '1' } };
+  }
+  const rl = repo.rateLimit;
+  if (rl === true) return { status: 403, message: 'API rate limit exceeded', headers: { 'x-ratelimit-remaining': '0', 'retry-after': '30' } };
+  if (rl && typeof rl === 'object') {
+    const now = Date.now();
+    if (repo.limitedUntil === 0 && repo.requests > rl.afterRequests) repo.limitedUntil = now + rl.resetSeconds * 1000;
+    if (repo.limitedUntil > now) {
+      const secs = Math.max(1, Math.ceil((repo.limitedUntil - now) / 1000));
+      return {
+        status: 403,
+        message: 'API rate limit exceeded',
+        headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.ceil(repo.limitedUntil / 1000)), 'retry-after': String(secs) },
+      };
+    }
+  }
+  return null;
 }
 
 export function createFakeGitServer(): Server {
@@ -61,7 +108,16 @@ export function createFakeGitServer(): Server {
         const prev = repos.get(key);
         const files = body.files ? new Map(Object.entries(body.files)) : (prev?.files ?? new Map<string, string>());
         for (const content of files.values()) blobs.set(blobSha(content), content);
-        repos.set(key, { branch: body.branch ?? prev?.branch ?? 'main', files, rateLimit: body.rateLimit ?? prev?.rateLimit ?? false });
+        repos.set(key, {
+          branch: body.branch ?? prev?.branch ?? 'main',
+          files,
+          rateLimit: body.rateLimit ?? prev?.rateLimit ?? false,
+          status429Once: body.status429Once ?? prev?.status429Once ?? false,
+          blobDelayMs: body.blobDelayMs ?? prev?.blobDelayMs ?? 0,
+          requests: 0,
+          limitedUntil: 0,
+          sent429: false,
+        });
         return send(res, 200, { ok: true });
       }
 
@@ -75,7 +131,8 @@ export function createFakeGitServer(): Server {
       if (parts[0] === 'repos' && parts[3] === 'git' && parts[4] === 'trees' && parts.length === 6) {
         const repo = repos.get(`${parts[1]}/${parts[2]}`);
         if (!repo || repo.branch !== parts[5]) return send(res, 404, { message: 'Not Found' });
-        if (repo.rateLimit) return send(res, 403, { message: 'API rate limit exceeded' }, { 'x-ratelimit-remaining': '0', 'retry-after': '30' });
+        const limited = checkLimits(repo);
+        if (limited) return send(res, limited.status, { message: limited.message }, limited.headers);
         const tree = [...repo.files.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([path, content]) => ({ path, mode: '100644', type: 'blob', sha: blobSha(content), size: Buffer.byteLength(content) }));
@@ -84,7 +141,11 @@ export function createFakeGitServer(): Server {
 
       // GET /repos/{o}/{r}/git/blobs/{sha} (Accept: application/vnd.github.raw)
       if (parts[0] === 'repos' && parts[3] === 'git' && parts[4] === 'blobs' && parts.length === 6) {
-        if (!repos.has(`${parts[1]}/${parts[2]}`)) return send(res, 404, { message: 'Not Found' });
+        const repo = repos.get(`${parts[1]}/${parts[2]}`);
+        if (!repo) return send(res, 404, { message: 'Not Found' });
+        const limited = checkLimits(repo);
+        if (limited) return send(res, limited.status, { message: limited.message }, limited.headers);
+        if (repo.blobDelayMs > 0) await new Promise((r) => setTimeout(r, repo.blobDelayMs));
         const content = blobs.get(parts[5] ?? '');
         if (content === undefined) return send(res, 404, { message: 'Not Found' });
         res.writeHead(200, { 'content-type': 'application/vnd.github.raw' });

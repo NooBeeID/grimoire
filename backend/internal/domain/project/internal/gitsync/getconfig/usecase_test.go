@@ -43,6 +43,18 @@ type fakeRepo struct {
 	calls int
 	proj  string
 	kind  base.Kind
+
+	inProgress    bool
+	inProgressErr error
+	ipCalls       int
+	ipProj        string
+	ipKind        base.Kind
+}
+
+func (f *fakeRepo) InProgress(_ context.Context, p string, k base.Kind) (bool, error) {
+	f.ipCalls++
+	f.ipProj, f.ipKind = p, k
+	return f.inProgress, f.inProgressErr
 }
 
 func (f *fakeRepo) Get(_ context.Context, p string, k base.Kind) (*base.Config, error) {
@@ -254,5 +266,59 @@ func TestBusCredentials_WrongTypeFailSoft(t *testing.T) {
 	res, err := uc.Execute(context.Background(), in("knowledge"))
 	if err != nil || res.HasCredential || !strings.Contains(buf.String(), "WARN") {
 		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+func TestExecute_InProgress(t *testing.T) {
+	r := &fakeRepo{cfg: sampleCfg(), inProgress: true}
+	uc, _ := newUC(&fakeAccess{}, r, &fakeCred{st: CredentialStatus{Found: true}}, true)
+	res, err := uc.Execute(context.Background(), in("api_spec"))
+	if err != nil || !res.InProgress || res.Config == nil || !res.HasCredential {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if r.ipProj != "p1" || r.ipKind != base.KindAPISpec {
+		t.Fatalf("%q %q", r.ipProj, r.ipKind)
+	}
+	uc, _ = newUC(&fakeAccess{}, &fakeRepo{cfg: sampleCfg()}, &fakeCred{}, true)
+	if res, _ := uc.Execute(context.Background(), in("knowledge")); res.InProgress {
+		t.Fatal("harus false")
+	}
+}
+
+func TestExecute_InProgressNoConfig(t *testing.T) {
+	c := &fakeCred{}
+	uc, _ := newUC(&fakeAccess{}, &fakeRepo{inProgress: true}, c, true)
+	res, err := uc.Execute(context.Background(), in("knowledge"))
+	if err != nil || res.Config != nil || !res.InProgress || c.calls != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+func TestExecute_InProgressFailSoft(t *testing.T) {
+	c := &fakeCred{st: CredentialStatus{Found: true}}
+	uc, buf := newUC(&fakeAccess{}, &fakeRepo{cfg: sampleCfg(), inProgress: true, inProgressErr: errors.New("boom")}, c, true)
+	res, err := uc.Execute(context.Background(), in("knowledge"))
+	if err != nil || res.InProgress || res.Config == nil || !res.HasCredential {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if l := buf.String(); !strings.Contains(l, "level=WARN") || !strings.Contains(l, "project_id=p1") || !strings.Contains(l, "kind=knowledge") {
+		t.Fatalf("log=%s", l)
+	}
+}
+
+func TestExecute_InProgressNotCalledEarly(t *testing.T) {
+	for name, tc := range map[string]struct {
+		a    *fakeAccess
+		r    *fakeRepo
+		kind string
+	}{
+		"access":   {&fakeAccess{err: base.ErrProjectNotFound}, &fakeRepo{}, "knowledge"},
+		"bad kind": {&fakeAccess{}, &fakeRepo{}, "foo"},
+		"get err":  {&fakeAccess{}, &fakeRepo{err: errors.New("x")}, "knowledge"},
+	} {
+		uc, _ := newUC(tc.a, tc.r, &fakeCred{}, true)
+		if _, err := uc.Execute(context.Background(), in(tc.kind)); err == nil || tc.r.ipCalls != 0 {
+			t.Errorf("%s: err=%v ip=%d", name, err, tc.r.ipCalls)
+		}
 	}
 }

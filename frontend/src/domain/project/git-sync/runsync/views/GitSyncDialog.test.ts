@@ -5,9 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { toast, toasts } from '../../../../../shared/stores/toast';
 import { mockApiSpecReport, mockConfig, mockKnowledgeReport } from '../../base';
+import { controlledStream, sseFrame } from '../streamTestUtil';
 import Dialog from './GitSyncDialog.svelte';
 
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const errBody = (code: string, details: unknown = null, message = 'pesan server') => ({ error: { code, message, details }, trace_id: 'TR-2' });
 const cfgResp = (over: Record<string, unknown> = {}) => ({
   kind: 'knowledge',
@@ -15,6 +16,7 @@ const cfgResp = (over: Record<string, unknown> = {}) => ({
   has_credential: true,
   credential_unreadable: false,
   config: mockConfig(),
+  in_progress: false,
   ...over,
 });
 const runResp = (report = mockKnowledgeReport(), config = mockConfig({ last_result: null })) => ({ report, config });
@@ -109,12 +111,12 @@ describe('GitSyncDialog', () => {
     render(Dialog, { props: p });
     await screen.findByDisplayValue(/grimoire-docs/);
     await userEvent.click(btn('Sync'));
-    expect(await screen.findByText('Menarik dari GitHub…')).toBeInTheDocument();
-    expect(screen.getByLabelText('URL repo atau folder')).toBeDisabled();
-    expect(screen.getByText('Sync berjalan di server; bisa sampai 2 menit.')).toBeInTheDocument();
+    expect(await screen.findByTestId('sync-progress')).toBeInTheDocument();
+    expect(screen.getByText('Mengambil daftar file…')).toBeInTheDocument();
+    expect(screen.queryByLabelText('URL repo atau folder')).toBeNull();
     resolve(json(200, runResp()));
     expect(await screen.findByText('docs/legacy/../x.md')).toBeInTheDocument();
-    expect(p.onsynced).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(p.onsynced).toHaveBeenCalledTimes(1));
     const rows = screen.getAllByRole('row').length - 1;
     expect(rows).toBe(4);
     expect(screen.getByTestId('report-summary').textContent).toContain('2');
@@ -185,19 +187,170 @@ describe('GitSyncDialog', () => {
     expect(screen.getByRole('button', { name: 'Coba lagi' })).toBeInTheDocument();
   });
 
-  it('Batal while running aborts, closes, toasts, and does not call onsynced', async () => {
-    stub({
-      run: (_u, init) => new Promise<Response>((_, rej) => init!.signal!.addEventListener('abort', () => rej(new DOMException('x', 'AbortError')))),
-    });
+  it('Tutup while running asks for confirmation; Tetap di sini keeps the run; Tutup aborts, toasts, closes', async () => {
+    const c = controlledStream();
+    stub({ run: () => c.res });
     const p = props();
     render(Dialog, { props: p });
     await screen.findByDisplayValue(/grimoire-docs/);
     await userEvent.click(btn('Sync'));
-    await screen.findByText('Menarik dari GitHub…');
-    await userEvent.click(btn('Batal'));
+    await screen.findByTestId('sync-progress');
+    const footerClose = () => screen.getAllByRole('button', { name: 'Tutup' }).find((b) => b.textContent?.trim() === 'Tutup' && b.closest('.border-t'))!;
+    await userEvent.click(footerClose());
+    expect(await screen.findByTestId('sync-close-confirm')).toBeInTheDocument();
+    await userEvent.click(btn('Tetap di sini'));
+    await vi.waitFor(() => expect(screen.getByTestId('sync-progress')).toBeInTheDocument());
+    expect(p.onclose).not.toHaveBeenCalled();
+    await userEvent.click(footerClose());
+    await screen.findByTestId('sync-close-confirm');
+    const confirm = screen.getAllByRole('button', { name: 'Tutup' }).at(-1)!;
+    await userEvent.click(confirm);
     expect(p.onclose).toHaveBeenCalled();
     expect(p.onsynced).not.toHaveBeenCalled();
     expect(get(toasts).map((x) => x.message)).toContain('Sync tetap diselesaikan server; buka lagi untuk melihat hasilnya.');
+  });
+
+  it('streams progress: listing -> n dari total -> laporan; onsynced once', async () => {
+    const c = controlledStream();
+    stub({ run: () => c.res });
+    const p = props();
+    render(Dialog, { props: p });
+    await screen.findByDisplayValue(/grimoire-docs/);
+    await userEvent.click(btn('Sync'));
+    await screen.findByText('Mengambil daftar file…');
+    c.push(sseFrame('start', { total: 4 }) + sseFrame('progress', { done: 1, total: 4, path: 'docs/api/rate-limit.md' }));
+    expect(await screen.findByText('1 dari 4')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-progress-path')).toHaveTextContent('docs/api/rate-limit.md');
+    c.push(sseFrame('saving', {}));
+    await vi.waitFor(() => expect(screen.getByTestId('sync-progress-count')).toHaveTextContent('Menyimpan…'));
+    c.push(sseFrame('done', runResp()));
+    expect(await screen.findByText('docs/legacy/../x.md')).toBeInTheDocument();
+    await vi.waitFor(() => expect(p.onsynced).toHaveBeenCalledTimes(1));
+  });
+
+  it('waiting phase counts down and the ticker stops after the phase changes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const c = controlledStream();
+      stub({ run: () => c.res });
+      render(Dialog, { props: props() });
+      await screen.findByDisplayValue(/grimoire-docs/);
+      await userEvent.click(btn('Sync'));
+      await screen.findByTestId('sync-progress');
+      c.push(sseFrame('start', { total: 4 }) + sseFrame('waiting', { retry_after_seconds: 38, reason: 'rate_limit_exhausted' }));
+      const w = await screen.findByTestId('sync-waiting');
+      const timersWhileWaiting = vi.getTimerCount();
+      expect(w).toHaveTextContent('lanjut dalam 38 detik');
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(screen.getByTestId('sync-waiting')).toHaveTextContent('lanjut dalam 35 detik');
+      c.push(sseFrame('progress', { done: 1, total: 4, path: 'a.md' }));
+      await screen.findByText('1 dari 4');
+      expect(screen.queryByTestId('sync-waiting')).toBeNull();
+      expect(vi.getTimerCount()).toBeLessThan(timersWhileWaiting);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('done while the confirmation is open closes it and shows the report', async () => {
+    const c = controlledStream();
+    stub({ run: () => c.res });
+    render(Dialog, { props: props() });
+    await screen.findByDisplayValue(/grimoire-docs/);
+    await userEvent.click(btn('Sync'));
+    await screen.findByTestId('sync-progress');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Tutup' }).find((b) => b.closest('.border-t'))!);
+    await screen.findByTestId('sync-close-confirm');
+    c.push(sseFrame('done', runResp()));
+    expect(await screen.findByText('docs/legacy/../x.md')).toBeInTheDocument();
+    await vi.waitFor(() => expect(document.querySelectorAll('dialog[open]')).toHaveLength(1));
+  });
+
+  it('RATE_LIMITED error event: message with countdown, retry disabled until 0', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const c = controlledStream();
+      stub({ run: () => c.res });
+      render(Dialog, { props: props() });
+      await screen.findByDisplayValue(/grimoire-docs/);
+      await userEvent.click(btn('Sync'));
+      await screen.findByTestId('sync-progress');
+      c.push(sseFrame('error', { code: 'RATE_LIMITED', message: 'x', details: { retry_after_seconds: 3 } }));
+      expect(await screen.findByText(/coba lagi dalam 3 detik/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Coba lagi' })).toBeDisabled();
+      await vi.advanceTimersByTimeAsync(3100);
+      await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Coba lagi' })).toBeEnabled());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stream lost: warning with Muat ulang status; reload calls getconfig and returns to idle', async () => {
+    const c = controlledStream();
+    const f = stub({ run: () => c.res });
+    render(Dialog, { props: props() });
+    await screen.findByDisplayValue(/grimoire-docs/);
+    await userEvent.click(btn('Sync'));
+    await screen.findByTestId('sync-progress');
+    c.push(sseFrame('start', { total: 2 }));
+    c.close();
+    expect(await screen.findByText(/Koneksi ke server terputus/)).toBeInTheDocument();
+    const gets = () => f.mock.calls.filter((x) => !String(x[0]).includes('/run')).length;
+    const before = gets();
+    await userEvent.click(btn('Muat ulang status'));
+    await vi.waitFor(() => expect(gets()).toBe(before + 1));
+    await vi.waitFor(() => expect(screen.queryByText(/Koneksi ke server terputus/)).toBeNull());
+    expect(screen.getByLabelText('URL repo atau folder')).toBeInTheDocument();
+  });
+
+  it('in_progress true: banner, Sync and Sync ulang disabled, form locked, no request', async () => {
+    const f = stub({ get: () => json(200, cfgResp({ in_progress: true })) });
+    render(Dialog, { props: props() });
+    expect(await screen.findByTestId('sync-in-progress')).toBeInTheDocument();
+    expect(btn('Sync')).toBeDisabled();
+    expect(btn('Sync ulang')).toBeDisabled();
+    expect(screen.getByLabelText('URL repo atau folder')).toBeDisabled();
+    expect(runCalls(f)).toHaveLength(0);
+  });
+
+  it('config null with in_progress true shows the banner and a locked empty form', async () => {
+    stub({ get: () => json(200, cfgResp({ config: null, in_progress: true })) });
+    render(Dialog, { props: props() });
+    expect(await screen.findByTestId('sync-in-progress')).toBeInTheDocument();
+    expect(screen.getByLabelText('URL repo atau folder')).toBeDisabled();
+    expect(screen.getByLabelText('URL repo atau folder')).toHaveValue('');
+  });
+
+  it('reload: in_progress false + success announces once; failed does not; still true keeps banner', async () => {
+    let n = 0;
+    const answers = [
+      cfgResp({ in_progress: true }),
+      cfgResp({ in_progress: true }),
+      cfgResp({ in_progress: false, config: mockConfig({ last_status: 'success' }) }),
+    ];
+    stub({ get: () => json(200, answers[Math.min(n++, answers.length - 1)]) });
+    const p = props();
+    render(Dialog, { props: p });
+    await screen.findByTestId('sync-in-progress');
+    await userEvent.click(btn('Muat ulang status'));
+    await vi.waitFor(() => expect(n).toBe(2));
+    expect(screen.getByTestId('sync-in-progress')).toBeInTheDocument();
+    expect(p.onsynced).not.toHaveBeenCalled();
+    await userEvent.click(btn('Muat ulang status'));
+    await vi.waitFor(() => expect(screen.queryByTestId('sync-in-progress')).toBeNull());
+    expect(p.onsynced).toHaveBeenCalledTimes(1);
+  });
+
+  it('reload with last_status failed does not announce', async () => {
+    let n = 0;
+    const answers = [cfgResp({ in_progress: true }), cfgResp({ in_progress: false, config: mockConfig({ last_status: 'failed' }) })];
+    stub({ get: () => json(200, answers[Math.min(n++, 1)]) });
+    const p = props();
+    render(Dialog, { props: p });
+    await screen.findByTestId('sync-in-progress');
+    await userEvent.click(btn('Muat ulang status'));
+    await vi.waitFor(() => expect(screen.queryByTestId('sync-in-progress')).toBeNull());
+    expect(p.onsynced).not.toHaveBeenCalled();
   });
 
   it('config load failure keeps the form usable with a retry', async () => {

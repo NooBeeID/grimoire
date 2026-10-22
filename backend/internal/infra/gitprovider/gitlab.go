@@ -16,7 +16,7 @@ const maxGitLabPages = 50
 
 var linkNextRe = regexp.MustCompile(`<([^>]+)>\s*;\s*rel="?next"?`)
 
-func (c *Client) gitlabTree(ctx context.Context, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
+func (c *Client) gitlabTree(ctx context.Context, get getFn, repo Repo, folder string, token secret.String) ([]TreeEntry, error) {
 	base := c.glBase(repo.Host)
 	q := url.Values{}
 	q.Set("path", folder)
@@ -38,7 +38,7 @@ func (c *Client) gitlabTree(ctx context.Context, repo Repo, folder string, token
 		if page >= maxGitLabPages {
 			return nil, ErrTreeTooLarge
 		}
-		resp, err := c.get(ctx, GitLab, next, token, "")
+		resp, err := get(ctx, GitLab, next, token, "")
 		if err != nil {
 			return nil, err
 		}
