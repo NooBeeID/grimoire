@@ -25,7 +25,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T14](T14-project-git-sync.md)          | core + project         | git-credential (PAT per user), git-sync (sync knowledge &amp; API spec dari git) | L      | T01, T02, T03, T05, T06 | Selesai (`e2cbdf5`)                                                        |
 | [T15](T15-core-audit-log-summary.md)    | core                   | audit-log (ringkasan metrik MCP + baris tabel bisa diklik)                       | L      | T02, T07, T11           | Selesai (`0ccf83f`)                                                        |
 | [T16](T16-project-notification.md)      | project                | notification (siaran email manual ke anggota project)                            | M      | T01, T02, T03, T12      | Tiket baru                                                                 |
-| [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Implementasi selesai, menunggu merge                                       |
+| [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Selesai (`4c9043b`)                                                        |
 
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
