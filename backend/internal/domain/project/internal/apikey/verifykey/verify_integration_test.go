@@ -283,3 +283,35 @@ func TestVerify_MalformedFastPathDocumented(t *testing.T) {
 		t.Fatalf("res=%+v err=%v", res, err)
 	}
 }
+
+// T13: key milik user berbeda (nama sama) tetap terverifikasi ke project yang sama; verify tidak peduli pemilik.
+func TestVerify_KeysFromDifferentOwnersVerifyToProject(t *testing.T) {
+	d, pid := setupDB(t)
+	ownerA, ownerB := uuid.NewString(), uuid.NewString()
+	ra, rb := newRaw(t), newRaw(t)
+	ida := insertKey(t, d, pid, "shared", ra, &ownerA, "a@tim.id")
+	idb := insertKey(t, d, pid, "shared", rb, &ownerB, "b@tim.id")
+	r := realBus(t, d, nil)
+
+	for _, c := range []struct {
+		raw base.RawKey
+		id  string
+	}{{ra, ida}, {rb, idb}} {
+		res, err := callVerify(t, r, c.raw.Full)
+		want := verify.Response{Found: true, KeyID: c.id, KeyName: "shared", Prefix: c.raw.Prefix, ProjectID: pid}
+		if err != nil || res != want {
+			t.Fatalf("res=%+v err=%v", res, err)
+		}
+	}
+	if _, err := d.Exec(`UPDATE api_keys SET revoked_at = now() WHERE id = $1`, ida); err != nil {
+		t.Fatal(err)
+	}
+	res, err := callVerify(t, r, ra.Full)
+	if err != nil || res.Found || res.Reason != verify.ReasonRevoked {
+		t.Fatalf("key A dicabut: res=%+v err=%v", res, err)
+	}
+	res, err = callVerify(t, r, rb.Full)
+	if err != nil || !res.Found || res.KeyID != idb {
+		t.Fatalf("key B harus tetap valid: res=%+v err=%v", res, err)
+	}
+}

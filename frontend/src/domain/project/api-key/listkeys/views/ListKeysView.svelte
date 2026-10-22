@@ -17,6 +17,8 @@
     onrevoke,
     onprojectgone,
     auditHref,
+    showOwner = false,
+    isSuperAdmin = false,
   }: {
     projectId: string;
     store: KeyListStore;
@@ -24,6 +26,8 @@
     onrevoke: (key: ApiKey) => void;
     onprojectgone: () => void;
     auditHref?: (key: ApiKey) => string;
+    showOwner?: boolean;
+    isSuperAdmin?: boolean;
   } = $props();
 
   let ver = $state(0);
@@ -70,7 +74,7 @@
       <h2 class="text-base font-semibold">
         {$t('project.apikey.title')}{#if $store.status === 'ready'}<span class="ml-2 font-normal text-muted">{$t('project.apikey.activeCount', { n: activeCount($store) })}</span>{/if}
       </h2>
-      <p class="mt-1 max-w-prose text-sm text-muted">{$t('project.apikey.intro')}</p>
+      <p class="mt-1 max-w-prose text-sm text-muted">{$t(isSuperAdmin ? 'project.apikey.introAdmin' : 'project.apikey.intro')}</p>
     </div>
     <Button onclick={oncreate}>{$t('project.apikey.create.open')}</Button>
   </header>
@@ -78,7 +82,7 @@
   {#if $store.status === 'error'}
     <ErrorState error={$store.error} onretry={() => store.invalidate()} />
   {:else if $store.status === 'ready' && rows.length === 0}
-    <EmptyState title={$t('project.apikey.empty')} description={$t('project.apikey.emptyHint')}>
+    <EmptyState title={$t(isSuperAdmin ? 'project.apikey.emptyAdmin' : 'project.apikey.empty')} description={$t(isSuperAdmin ? 'project.apikey.emptyAdminHint' : 'project.apikey.emptyHint')}>
       {#snippet action()}<Button onclick={oncreate}>{$t('project.apikey.create.open')}</Button>{/snippet}
     </EmptyState>
   {:else if $store.status === 'notFound'}
@@ -89,6 +93,7 @@
       loading={firstLoad}
       {onrevoke}
       {auditHref}
+      {showOwner}
     />
   {/if}
 </section>

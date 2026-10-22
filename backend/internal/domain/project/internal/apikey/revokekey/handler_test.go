@@ -8,10 +8,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"grimoire/internal/domain/project/internal/apikey/base"
+	"grimoire/lib/common/reqctx"
 )
 
 type fakeUC struct {
@@ -90,5 +92,92 @@ func TestHandler_Errors(t *testing.T) {
 				t.Fatalf("tanpa trace_id: %s", body)
 			}
 		})
+	}
+}
+
+// scopedRepo: repo in-memory yang memfilter seperti repo nyata.
+type scopedRepo struct{ tx *fakeTx }
+
+func (r *scopedRepo) InTx(_ context.Context, fn func(txRepo) error) error { return fn(r.tx) }
+
+func e2eServe(uc *Usecase, id reqctx.Identity, keyID string) *httptest.ResponseRecorder {
+	r := chi.NewRouter()
+	r.Post("/projects/{projectID}/api-keys/{keyID}/revoke", newHandler(uc).ServeHTTP)
+	req := httptest.NewRequest(http.MethodPost, "/projects/p1/api-keys/"+keyID+"/revoke", nil)
+	req = req.WithContext(reqctx.WithIdentity(req.Context(), id))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func e2eRig(key base.Key) (*Usecase, *fakeTx, *fakeAudit) {
+	l := &log{}
+	tx := &fakeTx{l: l, key: key, found: true}
+	au := &fakeAudit{l: l}
+	uc := NewUsecase(&scopedRepo{tx: tx}, &fakeAccess{l: l}, au, func() time.Time { return fixedNow })
+	return uc, tx, au
+}
+
+func normBody(t *testing.T, b []byte) string {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	delete(m, "trace_id")
+	out, _ := json.Marshal(m)
+	return string(out)
+}
+
+func TestHandler_OtherUser404IdenticalToMissing(t *testing.T) {
+	uc, tx, au := e2eRig(activeKey()) // milik u1
+	idB := reqctx.Identity{UserID: "u2", Email: "b@tim.id", Role: "developer"}
+	var bodies []string
+	for _, kid := range []string{"k1", "00000000-0000-7000-8000-000000000000", "not-a-uuid"} {
+		if kid != "k1" {
+			tx.found = false
+		}
+		w := e2eServe(uc, idB, kid)
+		if w.Code != 404 {
+			t.Fatalf("%s code=%d", kid, w.Code)
+		}
+		bodies = append(bodies, normBody(t, w.Body.Bytes()))
+		tx.found = true
+	}
+	for _, b := range bodies[1:] {
+		if b != bodies[0] {
+			t.Fatalf("beda: %s vs %s", b, bodies[0])
+		}
+	}
+	if !strings.Contains(bodies[0], "KEY_NOT_FOUND") {
+		t.Fatalf("body %s", bodies[0])
+	}
+	if tx.markedCalls != 0 || len(au.events) != 0 {
+		t.Fatal("key tersentuh / audit tercatat")
+	}
+}
+
+func TestHandler_OwnerAndSuperAdmin(t *testing.T) {
+	uc, _, au := e2eRig(activeKey())
+	w := e2eServe(uc, reqctx.Identity{UserID: "u1", Email: "a@tim.id", Role: "developer"}, "k1")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"revoked"`) || len(au.events) != 1 {
+		t.Fatalf("code=%d %s", w.Code, w.Body)
+	}
+
+	uc, _, au = e2eRig(otherKey())
+	w = e2eServe(uc, reqctx.Identity{UserID: "su", Email: "su@tim.id", Role: "super_admin"}, "k1")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"revoked_by":"su"`) || au.events[0].Actor.ID != "su" {
+		t.Fatalf("code=%d %s", w.Code, w.Body)
+	}
+}
+
+func TestHandler_AlreadyRevokedOwn409(t *testing.T) {
+	k := activeKey()
+	at := created
+	k.RevokedAt = &at
+	uc, _, _ := e2eRig(k)
+	w := e2eServe(uc, reqctx.Identity{UserID: "u1", Email: "a@tim.id", Role: "developer"}, "k1")
+	if w.Code != 409 || !strings.Contains(w.Body.String(), "ALREADY_REVOKED") {
+		t.Fatalf("code=%d %s", w.Code, w.Body)
 	}
 }

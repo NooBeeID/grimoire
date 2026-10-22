@@ -31,12 +31,14 @@ type fakeTx struct {
 	r *fakeRepo
 }
 
-func (t fakeTx) LockProjectKeys(context.Context, string) error {
+func (t fakeTx) LockOwnerKeys(_ context.Context, projectID, ownerID string) error {
 	t.r.j.add("lock")
+	t.r.lockArgs = append(t.r.lockArgs, [2]string{projectID, ownerID})
 	return t.r.lockErr
 }
-func (t fakeTx) CountActive(context.Context, string) (int, error) {
+func (t fakeTx) CountActive(_ context.Context, projectID, ownerID string) (int, error) {
 	t.r.j.add("count")
+	t.r.countArgs = append(t.r.countArgs, [2]string{projectID, ownerID})
 	return t.r.count, t.r.countErr
 }
 func (t fakeTx) Insert(_ context.Context, k base.Key) (base.Key, error) {
@@ -59,6 +61,8 @@ type fakeRepo struct {
 	inserted   []base.Key
 	seen       []string
 	txCalls    int
+	lockArgs   [][2]string
+	countArgs  [][2]string
 }
 
 func (f *fakeRepo) InTx(_ context.Context, fn func(Tx) error) error {
@@ -334,5 +338,77 @@ func TestNoMathRandImport(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func ctxAs(id, email, role string) context.Context {
+	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: id, Email: email, Role: role})
+}
+
+func TestExecute_LockAndCountUseProjectAndActor(t *testing.T) {
+	r := newRig("", 20)
+	if _, err := r.uc.Execute(ctxWith(), pid, CreateRequest{Name: "ci"}, base.RequestMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{{pid, "user-b"}}
+	if fmt.Sprint(r.rp.lockArgs) != fmt.Sprint(want) || fmt.Sprint(r.rp.countArgs) != fmt.Sprint(want) {
+		t.Fatalf("lock=%v count=%v", r.rp.lockArgs, r.rp.countArgs)
+	}
+	if r.rp.inserted[0].CreatedBy == nil || *r.rp.inserted[0].CreatedBy != "user-b" {
+		t.Fatalf("created_by: %v", r.rp.inserted[0].CreatedBy)
+	}
+}
+
+func TestExecute_SuperAdminUsesOwnID(t *testing.T) {
+	r := newRig("", 20)
+	if _, err := r.uc.Execute(ctxAs("user-s", "s@tim.id", "super_admin"), pid, CreateRequest{Name: "ci"}, base.RequestMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{{pid, "user-s"}}
+	if fmt.Sprint(r.rp.lockArgs) != fmt.Sprint(want) || fmt.Sprint(r.rp.countArgs) != fmt.Sprint(want) {
+		t.Fatalf("lock=%v count=%v", r.rp.lockArgs, r.rp.countArgs)
+	}
+	if k := r.rp.inserted[0]; k.CreatedBy == nil || *k.CreatedBy != "user-s" {
+		t.Fatalf("created_by: %v", k.CreatedBy)
+	}
+	if len(r.au.events) != 1 || r.au.events[0].Action != record.ActionAPIKeyCreated || r.au.events[0].Actor.ID != "user-s" {
+		t.Fatalf("audit: %+v", r.au.events)
+	}
+}
+
+func TestExecute_LimitReached_DetailsLimit(t *testing.T) {
+	r := newRig("", 20)
+	r.rp.count = 20
+	_, err := r.uc.Execute(ctxWith(), pid, CreateRequest{Name: "ci"}, base.RequestMeta{})
+	e := asErr(t, err)
+	d, _ := e.Details.(map[string]any)
+	if e.Code != errs.CodeConflict || d["reason"] != base.ReasonKeyLimitReached || d["limit"] != 20 ||
+		!strings.Contains(e.Message, "per user per project") {
+		t.Fatalf("%v", err)
+	}
+	if len(r.rp.inserted) != 0 || len(r.au.events) != 0 {
+		t.Fatal("insert/audit tidak boleh terjadi")
+	}
+}
+
+func TestExecute_NameTakenPassedThrough(t *testing.T) {
+	r := newRig("", 20)
+	r.rp.insertErrs = []error{base.ErrNameTaken}
+	_, err := r.uc.Execute(ctxWith(), pid, CreateRequest{Name: "ci"}, base.RequestMeta{})
+	d, _ := asErr(t, err).Details.(map[string]any)
+	if !errors.Is(err, base.ErrNameTaken) || d["reason"] != base.ReasonNameTaken || r.rp.txCalls != 1 || len(r.au.events) != 0 {
+		t.Fatalf("err=%v tx=%d", err, r.rp.txCalls)
+	}
+}
+
+func TestExecute_PrefixCollisionRetry_RelocksSameOwner(t *testing.T) {
+	r := newRig("", 20)
+	r.rp.insertErrs = []error{base.ErrPrefixCollision}
+	if _, err := r.uc.Execute(ctxWith(), pid, CreateRequest{Name: "ci"}, base.RequestMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{{pid, "user-b"}, {pid, "user-b"}}
+	if r.rp.txCalls != 2 || fmt.Sprint(r.rp.lockArgs) != fmt.Sprint(want) || fmt.Sprint(r.rp.countArgs) != fmt.Sprint(want) || len(r.au.events) != 1 {
+		t.Fatalf("tx=%d lock=%v count=%v", r.rp.txCalls, r.rp.lockArgs, r.rp.countArgs)
 	}
 }

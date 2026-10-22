@@ -21,7 +21,7 @@ var (
 	ErrProjectNotFound = errs.New(errs.CodeNotFound, "project tidak ditemukan")
 	ErrKeyNotFound     = errs.WithDetails(errs.CodeNotFound, "API key tidak ditemukan",
 		map[string]any{"reason": ReasonKeyNotFound})
-	ErrNameTaken = errs.WithDetails(errs.CodeConflict, "nama key sudah dipakai key aktif lain di project ini",
+	ErrNameTaken = errs.WithDetails(errs.CodeConflict, "nama key sudah dipakai key aktif Anda yang lain di project ini",
 		map[string]any{"reason": ReasonNameTaken})
 	ErrAlreadyRevoked = errs.WithDetails(errs.CodeConflict, "API key sudah dicabut",
 		map[string]any{"reason": ReasonAlreadyRevoked})
@@ -33,7 +33,7 @@ var (
 // ErrKeyLimitReached adalah 409 dengan details {reason, limit}. Instance baru tiap panggilan.
 func ErrKeyLimitReached(limit int) *errs.Error {
 	return errs.WithDetails(errs.CodeConflict,
-		fmt.Sprintf("batas %d key aktif per project tercapai; cabut key yang tidak dipakai", limit),
+		fmt.Sprintf("batas %d key aktif per user per project tercapai; cabut key yang tidak dipakai", limit),
 		map[string]any{"reason": ReasonKeyLimitReached, "limit": limit})
 }
 

@@ -96,6 +96,10 @@ Tab "API Keys" di workspace project:
 8. Key dengan prefix valid tetapi secret salah → `Found=false`, dan durasi respons setara dengan key tak dikenal (tidak ada timing leak yang berarti).
 9. Entri audit tercipta untuk create dan revoke.
 
+## Catatan revisi
+
+- Direvisi T13: (a) daftar dan pencabutan key dibatasi ke pemilik (`created_by`), Super Admin tetap melihat/mencabut semua; (b) batas key aktif dan unik nama berlaku per user per project (migrasi `backend/migrations/project/20261022160000000_api_keys_owner_scope.sql`); (c) `count-keys` tetap menghitung seluruh project.
+
 ## Pertanyaan terbuka
 
 1. **Kedaluwarsa opsional** pada key (mis. 30/90 hari/tanpa batas)? Default saya: tidak ada di versi pertama; menambahkannya nanti berupa satu kolom `expires_at` dan satu cek di `verify`.

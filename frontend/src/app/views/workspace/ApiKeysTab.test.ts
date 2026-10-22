@@ -10,7 +10,7 @@ const mockKey = (n: number) => ({
   name: 'ci-pipeline',
   prefix: 'a1b2c3d4',
   status: 'active',
-  created_by: null,
+  created_by: '0192f5a0-aaaa-7aaa-8bbb-00000000000a',
   created_by_label: 'ana@tim.id',
   created_at: '2026-10-23T10:00:00Z',
   last_used_at: null,
@@ -38,6 +38,21 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('ApiKeysTab', () => {
+  it('developer: no owner column, own-keys intro; super_admin: owner column and admin intro', async () => {
+    login('developer');
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockKeyList(mockKey(1)))));
+    const { unmount } = render(Tab, props());
+    await screen.findByText('ci-pipeline');
+    expect(screen.queryByRole('columnheader', { name: 'Dibuat oleh' })).toBeNull();
+    expect(screen.getByText(/hanya milik Anda/)).toBeInTheDocument();
+    unmount();
+    login('super_admin');
+    render(Tab, props());
+    await screen.findByText('ci-pipeline');
+    expect(screen.getByRole('columnheader', { name: 'Dibuat oleh' })).toBeInTheDocument();
+    expect(screen.getAllByText('ana@tim.id').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Sebagai Super Admin/)).toBeInTheDocument();
+  });
   it('developer sees no audit link; super_admin gets the filtered href', async () => {
     login('developer');
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockKeyList(mockKey(1)))));
@@ -60,7 +75,7 @@ describe('ApiKeysTab', () => {
     );
     vi.stubGlobal('fetch', f);
     render(Tab, props());
-    await screen.findByText('Belum ada API key');
+    await screen.findByText('Belum ada API key Anda');
     await userEvent.click(screen.getAllByRole('button', { name: 'Buat key' })[0]!);
     await userEvent.type(screen.getByLabelText('Nama key'), 'claude-code-budi');
     await userEvent.click(screen.getByRole('button', { name: 'Buat' }));

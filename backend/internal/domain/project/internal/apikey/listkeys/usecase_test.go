@@ -29,18 +29,22 @@ func (f *fakeAccess) Require(_ context.Context, p string, a base.Actor) error {
 type fakeRepo struct {
 	calls   int
 	project string
+	scope   base.OwnerScope
 	keys    []base.Key
 	err     error
 }
 
-func (f *fakeRepo) ListByProject(_ context.Context, p string) ([]base.Key, error) {
+func (f *fakeRepo) ListByProject(_ context.Context, p string, sc base.OwnerScope) ([]base.Key, error) {
 	f.calls++
 	f.project = p
+	f.scope = sc
 	return f.keys, f.err
 }
 
-func authCtx() context.Context {
-	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: "u1", Role: "developer", Email: "a@tim.id"})
+func authCtx() context.Context { return authCtxAs("u1", "developer") }
+
+func authCtxAs(id, role string) context.Context {
+	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: id, Role: role, Email: "a@tim.id"})
 }
 
 func TestExecute_NoIdentity(t *testing.T) {
@@ -157,5 +161,64 @@ func TestExecute_DTOHasNoSecretFields(t *testing.T) {
 		if strings.Contains(s, bad) {
 			t.Fatalf("leak %q in %s", bad, s)
 		}
+	}
+}
+
+func TestExecute_ScopeFromRole(t *testing.T) {
+	cases := []struct {
+		name, id, role string
+		want           base.OwnerScope
+	}{
+		{"developer", "u-a", "developer", base.OwnerScope{OwnerID: "u-a"}},
+		{"super_admin", "u-s", "super_admin", base.OwnerScope{All: true}},
+		{"role kosong", "u-x", "", base.OwnerScope{OwnerID: "u-x"}},
+		{"role tak dikenal", "u-y", "hacker", base.OwnerScope{OwnerID: "u-y"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := &fakeRepo{}
+			if _, err := NewUsecase(&fakeAccess{}, r).Execute(authCtxAs(c.id, c.role), "p"); err != nil {
+				t.Fatal(err)
+			}
+			if r.calls != 1 || r.scope != c.want {
+				t.Fatalf("calls=%d scope=%+v want %+v", r.calls, r.scope, c.want)
+			}
+		})
+	}
+}
+
+type orderRecorder struct{ log *[]string }
+
+func (o orderRecorder) Require(context.Context, string, base.Actor) error {
+	*o.log = append(*o.log, "access")
+	return nil
+}
+
+type orderRepo struct{ log *[]string }
+
+func (o orderRepo) ListByProject(context.Context, string, base.OwnerScope) ([]base.Key, error) {
+	*o.log = append(*o.log, "repo")
+	return nil, nil
+}
+
+func TestExecute_AccessBeforeRepo(t *testing.T) {
+	var log []string
+	if _, err := NewUsecase(orderRecorder{&log}, orderRepo{&log}).Execute(authCtx(), "p"); err != nil {
+		t.Fatal(err)
+	}
+	if len(log) != 2 || log[0] != "access" || log[1] != "repo" {
+		t.Fatalf("log=%v", log)
+	}
+}
+
+func TestExecute_NoInMemoryFiltering(t *testing.T) {
+	keys := []base.Key{
+		{ID: "1", Name: "own", Prefix: "aaaaaaaa", CreatedBy: str("u1"), CreatedAt: time.Now()},
+		{ID: "2", Name: "other", Prefix: "bbbbbbbb", CreatedBy: str("u2"), CreatedAt: time.Now()},
+		{ID: "3", Name: "legacy", Prefix: "cccccccc", CreatedAt: time.Now()},
+	}
+	res, err := NewUsecase(&fakeAccess{}, &fakeRepo{keys: keys}).Execute(authCtx(), "p")
+	if err != nil || len(res.Items) != 3 {
+		t.Fatalf("res=%+v err=%v", res, err)
 	}
 }

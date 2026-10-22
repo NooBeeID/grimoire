@@ -38,14 +38,25 @@ type fakeTx struct {
 	lockErr     error
 	markErr     error
 	lockArgs    [2]string
+	lockScope   base.OwnerScope
+	lockCalls   int
+	ignoreScope bool // simulasi regresi SQL: kembalikan key walau scope tak cocok
 	marked      *base.Key
 	markedCalls int
 }
 
-func (f *fakeTx) LockInProject(_ context.Context, p, k string) (base.Key, bool, error) {
+func (f *fakeTx) LockInProject(_ context.Context, p, k string, scope base.OwnerScope) (base.Key, bool, error) {
 	f.l.add("lock")
+	f.lockCalls++
 	f.lockArgs = [2]string{p, k}
-	return f.key, f.found, f.lockErr
+	f.lockScope = scope
+	if f.lockErr != nil {
+		return f.key, f.found, f.lockErr
+	}
+	if !f.ignoreScope && !scope.All && (f.key.CreatedBy == nil || *f.key.CreatedBy != scope.OwnerID) {
+		return base.Key{}, false, nil
+	}
+	return f.key, f.found, nil
 }
 
 func (f *fakeTx) MarkRevoked(_ context.Context, k base.Key) (base.Key, error) {
@@ -116,7 +127,7 @@ type rig struct {
 }
 
 func activeKey() base.Key {
-	by, lbl := "creator", "c@x"
+	by, lbl := "u1", "a@tim.id"
 	return base.Key{ID: "k1", ProjectID: "p1", Name: "ci", Prefix: "abcd1234", SecretHash: []byte{1},
 		CreatedBy: &by, CreatedByLabel: &lbl, CreatedAt: created}
 }
@@ -147,8 +158,8 @@ func TestExecute_Success(t *testing.T) {
 	if g.acc.pid != "p1" || g.acc.actor != (base.Actor{ID: "u1", Role: "developer", Label: "a@tim.id"}) {
 		t.Fatalf("access %+v %s", g.acc.actor, g.acc.pid)
 	}
-	if g.tx.lockArgs != [2]string{"p1", "k1"} {
-		t.Fatalf("lock args %v", g.tx.lockArgs)
+	if g.tx.lockArgs != [2]string{"p1", "k1"} || g.tx.lockScope != (base.OwnerScope{OwnerID: "u1"}) {
+		t.Fatalf("lock args %v scope %+v", g.tx.lockArgs, g.tx.lockScope)
 	}
 	m := g.tx.marked
 	if m == nil || m.RevokedAt == nil || !m.RevokedAt.Equal(fixedNow) || *m.RevokedBy != "u1" || *m.RevokedByLabel != "a@tim.id" {
@@ -255,5 +266,90 @@ func TestExecute_SentinelsUnchanged(t *testing.T) {
 	if base.ErrKeyNotFound.Message != nf.Message || base.ErrAlreadyRevoked.Message != ar.Message ||
 		base.ErrKeyNotFound.Code != nf.Code || base.ErrAlreadyRevoked.Code != ar.Code {
 		t.Fatal("sentinel berubah")
+	}
+}
+
+func superCtx() context.Context {
+	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: "su", Email: "su@tim.id", Role: "super_admin"})
+}
+
+func otherKey() base.Key {
+	k := activeKey()
+	by, lbl := "u2", "b@tim.id"
+	k.CreatedBy, k.CreatedByLabel = &by, &lbl
+	return k
+}
+
+func TestExecute_OtherUsersKey_NotFound(t *testing.T) {
+	g := newRig()
+	g.tx.key = otherKey()
+	_, err := g.uc.Execute(authed(), in())
+	if !errors.Is(err, base.ErrKeyNotFound) || g.tx.markedCalls != 0 || len(g.aud.events) != 0 {
+		t.Fatalf("err=%v", err)
+	}
+	if strings.Contains(strings.Join(g.l.events, ","), "commit") {
+		t.Fatalf("commit: %v", g.l.events)
+	}
+	// identik dengan "tidak ada"
+	g2 := newRig()
+	g2.tx.found = false
+	_, err2 := g2.uc.Execute(authed(), in())
+	if err != err2 {
+		t.Fatalf("beda sentinel: %v %v", err, err2)
+	}
+}
+
+func TestExecute_LegacyKey_DeveloperNotFound(t *testing.T) {
+	g := newRig()
+	g.tx.key.CreatedBy, g.tx.key.CreatedByLabel = nil, nil
+	_, err := g.uc.Execute(authed(), in())
+	if !errors.Is(err, base.ErrKeyNotFound) || g.tx.markedCalls != 0 || len(g.aud.events) != 0 {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestExecute_DefenseInDepth(t *testing.T) {
+	g := newRig()
+	g.tx.key = otherKey()
+	g.tx.ignoreScope = true
+	_, err := g.uc.Execute(authed(), in())
+	if !errors.Is(err, base.ErrKeyNotFound) || g.tx.markedCalls != 0 || len(g.aud.events) != 0 {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestExecute_SuperAdminRevokesOthers(t *testing.T) {
+	for name, mk := range map[string]func() base.Key{
+		"other":  otherKey,
+		"legacy": func() base.Key { k := activeKey(); k.CreatedBy, k.CreatedByLabel = nil, nil; return k },
+	} {
+		t.Run(name, func(t *testing.T) {
+			g := newRig()
+			g.tx.key = mk()
+			if _, err := g.uc.Execute(superCtx(), in()); err != nil {
+				t.Fatal(err)
+			}
+			if g.tx.lockScope != (base.OwnerScope{All: true}) {
+				t.Fatalf("scope %+v", g.tx.lockScope)
+			}
+			m := g.tx.marked
+			if m == nil || *m.RevokedBy != "su" || *m.RevokedByLabel != "su@tim.id" {
+				t.Fatalf("marked %+v", m)
+			}
+			if len(g.aud.events) != 1 || g.aud.events[0].Actor.ID != "su" || g.aud.events[0].Actor.Role != "super_admin" {
+				t.Fatalf("audit %+v", g.aud.events)
+			}
+		})
+	}
+}
+
+func TestExecute_AlreadyRevokedOthers_NotFound(t *testing.T) {
+	g := newRig()
+	g.tx.key = otherKey()
+	at := created
+	g.tx.key.RevokedAt = &at
+	_, err := g.uc.Execute(authed(), in())
+	if !errors.Is(err, base.ErrKeyNotFound) {
+		t.Fatalf("err=%v", err)
 	}
 }

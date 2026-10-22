@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
-import { mockKey, mockKeyList } from '../mocks/keys';
+import { mockKey, mockKeyList, mockTeamKeys } from '../mocks/keys';
 import { createKeyListStore } from '../stores/keyList.store';
 import View from './ListKeysView.svelte';
 
@@ -20,6 +20,32 @@ const props = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('ListKeysView', () => {
+  it('developer sees own-keys intro, no owner column, active count from rows', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockKeyList(...mockTeamKeys().slice(0, 2)))));
+    render(View, props());
+    await screen.findByText('claude-code-ana');
+    expect(screen.getByText(/Key di sini hanya milik Anda\./)).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Dibuat oleh' })).toBeNull();
+    expect(screen.getByText('2 key aktif')).toBeInTheDocument();
+  });
+  it('super admin sees admin intro, owner column, and 4 active keys', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, mockKeyList(...mockTeamKeys()))));
+    render(View, props({ isSuperAdmin: true, showOwner: true }));
+    await screen.findByText('cursor-budi');
+    expect(screen.getByText(/Sebagai Super Admin Anda melihat key semua anggota project\./)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Dibuat oleh' })).toBeInTheDocument();
+    expect(screen.getByText('4 key aktif')).toBeInTheDocument();
+  });
+  it('empty state for developer mentions other members hint', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { items: [] })));
+    render(View, props());
+    expect(await screen.findByText(/Key yang dibuat anggota lain tidak ditampilkan di sini/)).toBeInTheDocument();
+  });
+  it('empty state for super admin is project-wide', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { items: [] })));
+    render(View, props({ isSuperAdmin: true, showOwner: true }));
+    expect(await screen.findByText('Belum ada API key di project ini')).toBeInTheDocument();
+  });
   it('first load is aria-busy then lists keys with active count', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockKeyList(mockKey(1)))));
     render(View, props());
@@ -31,7 +57,7 @@ describe('ListKeysView', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, { items: [] })));
     const p = props();
     render(View, p);
-    expect(await screen.findByText('Belum ada API key')).toBeInTheDocument();
+    expect(await screen.findByText('Belum ada API key Anda')).toBeInTheDocument();
     await userEvent.click(screen.getAllByRole('button', { name: 'Buat key' })[1]!);
     expect(p.oncreate).toHaveBeenCalled();
   });

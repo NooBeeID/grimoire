@@ -334,7 +334,7 @@ func TestMigrateUp_PrintsApplied(t *testing.T) {
 	dbURL, _, _ := testDBURL(t)
 	cfg := testCfg(t, dbURL, nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: core/20261021233706157_create_user_invitations.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105258455_create_api_specs.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\n", "tidak ada migrasi baru\n"} {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: core/20261021233706157_create_user_invitations.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105258455_create_api_specs.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\nditerapkan: project/20261022160000000_api_keys_owner_scope.sql\n", "tidak ada migrasi baru\n"} {
 		var out bytes.Buffer
 		if err := MigrateUp(context.Background(), cfg, log, &out); err != nil {
 			t.Fatal(err)

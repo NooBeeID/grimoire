@@ -28,3 +28,10 @@ export async function listKeysApi(request: APIRequestContext, projectId: string)
   expect(res.status(), `list keys: ${await res.text()}`).toBe(200);
   return ((await res.json()) as { items: ApiKeyApi[] }).items;
 }
+
+/** Revoke tanpa asersi status; dipakai untuk memeriksa 404 pada key milik orang lain. */
+export async function revokeKeyRawApi(request: APIRequestContext, projectId: string, keyId: string) {
+  return request.post(`/api/projects/${projectId}/api-keys/${keyId}/revoke`, {
+    headers: CSRF,
+  });
+}

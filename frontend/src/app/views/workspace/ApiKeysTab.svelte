@@ -29,6 +29,8 @@
   onrevoke={(k) => (revokeTarget = { id: k.id, name: k.name, prefix: k.prefix })}
   {onprojectgone}
   auditHref={isSuperAdmin ? auditHref : undefined}
+  showOwner={isSuperAdmin}
+  {isSuperAdmin}
 />
 
 <CreateKeyDialog

@@ -12,7 +12,8 @@ paths:
       summary: Daftar API key project
       description: >
         Anggota (owner/member) dan super_admin. Key aktif lebih dulu, lalu created_at DESC, lalu id.
-        Key yang sudah dicabut ikut ditampilkan. Tanpa paginasi; tidak pernah memuat raw key atau hash.
+        Key yang sudah dicabut ikut ditampilkan. Hanya key milik pemanggil (`created_by` = pemanggil).
+        super_admin melihat key semua anggota, termasuk key tanpa pemilik. Tanpa paginasi; tidak pernah memuat raw key atau hash.
         Project yang tidak ada, id bukan uuid, atau bukan milik pemanggil dijawab 404 yang identik.
       security: [{ sessionCookie: [] }]
       responses:
@@ -35,11 +36,11 @@ paths:
                     revoked_by: null
                     revoked_by_label: null
                   - id: 0192f5a0-2222-7aaa-8bbb-000000000001
-                    name: claude-code-budi
+                    name: claude-code-lama
                     prefix: k3x9q2ma
                     status: revoked
-                    created_by: 0192f5a0-bbbb-7aaa-8bbb-00000000000b
-                    created_by_label: b@tim.id
+                    created_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                    created_by_label: a@tim.id
                     created_at: "2026-10-23T09:00:00Z"
                     last_used_at: null
                     revoked_at: "2026-10-23T12:00:00Z"
@@ -55,7 +56,9 @@ paths:
       description: >
         Anggota (owner/member) dan super_admin. raw_key hanya dikembalikan sekali pada respons ini;
         simpan sekarang. Respons memakai Cache-Control no-store. Nama 2-60 karakter dan unik di antara
-        key aktif project; maksimal 20 key aktif per project. Field tak dikenal ditolak 400.
+        key aktif milik pemanggil di project ini; maksimal 20 key aktif per user per project
+        (`API_KEY_MAX_ACTIVE_PER_PROJECT`). Key yang dibuat super_admin dihitung ke kuota super_admin
+        sendiri. Field tak dikenal ditolak 400.
       security: [{ sessionCookie: [] }]
       parameters:
         - $ref: "#/components/parameters/XRequestedWith"
@@ -114,8 +117,8 @@ paths:
         "404": { $ref: "#/components/responses/ProjectNotFound" }
         "409":
           description: >
-            Konflik (CONFLICT). details.reason NAME_TAKEN (nama dipakai key aktif lain) atau
-            KEY_LIMIT_REACHED (batas key aktif tercapai; details.limit berisi batas).
+            Konflik (CONFLICT). details.reason NAME_TAKEN (nama dipakai key aktif Anda yang lain) atau
+            KEY_LIMIT_REACHED (batas key aktif per user tercapai; details.limit berisi batas).
           content:
             application/json:
               schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
@@ -124,14 +127,14 @@ paths:
                   value:
                     error:
                       code: CONFLICT
-                      message: nama key sudah dipakai key aktif lain di project ini
+                      message: nama key sudah dipakai key aktif Anda yang lain di project ini
                       details: { reason: NAME_TAKEN }
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
                 keyLimitReached:
                   value:
                     error:
                       code: CONFLICT
-                      message: batas 20 key aktif per project tercapai; cabut key yang tidak dipakai
+                      message: batas 20 key aktif per user per project tercapai; cabut key yang tidak dipakai
                       details: { reason: KEY_LIMIT_REACHED, limit: 20 }
                     trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
         "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
@@ -145,7 +148,9 @@ paths:
       summary: Cabut API key
       description: >
         Anggota (owner/member) dan super_admin. Tanpa request body (body diabaikan). Pencabutan
-        permanen: key tidak bisa diaktifkan lagi. Key yang tidak ada, keyID bukan uuid, atau milik
+        permanen: key tidak bisa diaktifkan lagi. Hanya key milik pemanggil; super_admin boleh mencabut
+        key siapa pun. Key milik user lain dijawab 404 KEY_NOT_FOUND, identik dengan key yang tidak ada.
+        Key yang tidak ada, keyID bukan uuid, atau milik
         project lain dijawab 404 KEY_NOT_FOUND (tidak bocor).
       security: [{ sessionCookie: [] }]
       parameters:
@@ -162,8 +167,8 @@ paths:
                   name: claude-code-budi
                   prefix: k3x9q2ma
                   status: revoked
-                  created_by: 0192f5a0-bbbb-7aaa-8bbb-00000000000b
-                  created_by_label: b@tim.id
+                  created_by: 0192f5a0-aaaa-7aaa-8bbb-00000000000a
+                  created_by_label: a@tim.id
                   created_at: "2026-10-23T09:00:00Z"
                   last_used_at: "2026-10-23T11:00:00Z"
                   revoked_at: "2026-10-23T12:00:00Z"

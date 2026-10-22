@@ -10,9 +10,9 @@ import (
 	"grimoire/lib/common/reqctx"
 )
 
-// KeyLister membaca key sebuah project (urutan sudah ditentukan repository).
+// KeyLister membaca key sebuah project sesuai scope pemilik (urutan ditentukan repository).
 type KeyLister interface {
-	ListByProject(ctx context.Context, projectID string) ([]base.Key, error)
+	ListByProject(ctx context.Context, projectID string, scope base.OwnerScope) ([]base.Key, error)
 }
 
 type Usecase struct {
@@ -22,7 +22,8 @@ type Usecase struct {
 
 func NewUsecase(a access.Checker, r KeyLister) *Usecase { return &Usecase{access: a, repo: r} }
 
-// Execute mengembalikan seluruh key project (aktif dan dicabut) tanpa hash/secret.
+// Execute mengembalikan key project (aktif dan dicabut) tanpa hash/secret:
+// key milik pemanggil; super_admin semua. Penyaringan dilakukan di SQL oleh repository.
 func (u *Usecase) Execute(ctx context.Context, projectID string) (base.KeyList, error) {
 	actor, ok := base.ActorFrom(reqctx.IdentityFrom(ctx))
 	if !ok {
@@ -31,7 +32,8 @@ func (u *Usecase) Execute(ctx context.Context, projectID string) (base.KeyList, 
 	if err := u.access.Require(ctx, projectID, actor); err != nil {
 		return base.KeyList{}, err
 	}
-	keys, err := u.repo.ListByProject(ctx, projectID)
+	scope := actor.OwnerScope()
+	keys, err := u.repo.ListByProject(ctx, projectID, scope)
 	if err != nil {
 		return base.KeyList{}, fmt.Errorf("listkeys: list: %w", err)
 	}

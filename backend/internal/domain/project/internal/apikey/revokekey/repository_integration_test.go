@@ -55,14 +55,25 @@ func (e ienv) project(t *testing.T, name string) string {
 
 var iseq int
 
-func (e ienv) key(t *testing.T, pid, name string) string {
+const (
+	userA = "0192f5a0-aaaa-7aaa-8bbb-00000000000a"
+	userB = "0192f5a0-bbbb-7aaa-8bbb-00000000000b"
+	userS = "0192f5a0-cccc-7aaa-8bbb-00000000000c"
+)
+
+// key membuat key milik owner ("" -> legacy, created_by NULL).
+func (e ienv) key(t *testing.T, pid, owner, name string) string {
 	t.Helper()
 	iseq++
 	h := sha256.Sum256([]byte("s"))
 	var id string
+	var by any
+	if owner != "" {
+		by = owner
+	}
 	err := e.d.GetContext(context.Background(), &id,
-		`INSERT INTO api_keys (project_id, name, prefix, secret_hash) VALUES ($1,$2,$3,$4) RETURNING id::text`,
-		pid, name+" key", fmt.Sprintf("rk%06d", iseq), h[:])
+		`INSERT INTO api_keys (project_id, name, prefix, secret_hash, created_by) VALUES ($1,$2,$3,$4,$5::uuid) RETURNING id::text`,
+		pid, name+" key", fmt.Sprintf("rk%06d", iseq), h[:], by)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,20 +89,24 @@ func (e ienv) row(t *testing.T, id string) base.Key {
 	return k
 }
 
-func uctx() context.Context {
-	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: "0192f5a0-aaaa-7aaa-8bbb-00000000000a", Email: "a@tim.id", Role: "developer"})
+func ictx(id, email, role string) context.Context {
+	return reqctx.WithIdentity(context.Background(), reqctx.Identity{UserID: id, Email: email, Role: role})
 }
+
+func uctx() context.Context  { return ictx(userA, "a@tim.id", "developer") }
+func bctx() context.Context  { return ictx(userB, "b@tim.id", "developer") }
+func suctx() context.Context { return ictx(userS, "admin@tim.id", "super_admin") }
 
 func TestT04_Revoke_SuccessThenConflict(t *testing.T) {
 	e := isetup(t)
 	p := e.project(t, "P1")
-	k := e.key(t, p, "ci")
+	k := e.key(t, p, userA, "ci")
 	dto, err := e.uc.Execute(uctx(), Input{ProjectID: p, KeyID: k})
 	if err != nil || string(dto.Status) != "revoked" {
 		t.Fatalf("dto=%+v err=%v", dto, err)
 	}
 	r1 := e.row(t, k)
-	if r1.RevokedAt == nil || r1.RevokedBy == nil || *r1.RevokedBy != "0192f5a0-aaaa-7aaa-8bbb-00000000000a" || *r1.RevokedByLabel != "a@tim.id" || r1.LastUsedAt != nil {
+	if r1.RevokedAt == nil || r1.RevokedBy == nil || *r1.RevokedBy != userA || *r1.RevokedByLabel != "a@tim.id" || r1.LastUsedAt != nil {
 		t.Fatalf("row=%+v", r1)
 	}
 	time.Sleep(5 * time.Millisecond)
@@ -111,7 +126,7 @@ func TestT04_Security_ConcurrentRevokeExactlyOne(t *testing.T) {
 	e := isetup(t)
 	p := e.project(t, "P1")
 	for round := 0; round < 5; round++ {
-		k := e.key(t, p, fmt.Sprintf("k%d", round))
+		k := e.key(t, p, userA, fmt.Sprintf("k%d", round))
 		before := e.aud.n.Load()
 		var ok, conflict atomic.Int32
 		var wg sync.WaitGroup
@@ -143,7 +158,7 @@ func TestT04_Security_ConcurrentRevokeExactlyOne(t *testing.T) {
 func TestT04_Security_ProjectIsolation(t *testing.T) {
 	e := isetup(t)
 	p1, p2 := e.project(t, "P1"), e.project(t, "P2")
-	k1, k2 := e.key(t, p1, "a"), e.key(t, p2, "b")
+	k1, k2 := e.key(t, p1, userA, "a"), e.key(t, p2, userA, "b")
 	for _, c := range [][2]string{{p1, k2}, {p2, k1}} {
 		if _, err := e.uc.Execute(uctx(), Input{ProjectID: c[0], KeyID: c[1]}); !errors.Is(err, base.ErrKeyNotFound) {
 			t.Fatalf("err=%v", err)
@@ -167,7 +182,7 @@ func TestT04_Revoke_NonUUIDKeyID(t *testing.T) {
 func TestT04_Revoke_NonMemberGets404(t *testing.T) {
 	e := isetup(t)
 	p := e.project(t, "P1")
-	k := e.key(t, p, "ci")
+	k := e.key(t, p, userA, "ci")
 	e.acc.err = base.ErrProjectNotFound
 	if _, err := e.uc.Execute(uctx(), Input{ProjectID: p, KeyID: k}); !errors.Is(err, base.ErrProjectNotFound) {
 		t.Fatalf("err=%v", err)
@@ -180,9 +195,155 @@ func TestT04_Revoke_NonMemberGets404(t *testing.T) {
 func TestT04_AC4_RevokedNameReusable(t *testing.T) {
 	e := isetup(t)
 	p := e.project(t, "P1")
-	k := e.key(t, p, "ci")
+	k := e.key(t, p, userA, "ci")
 	if _, err := e.uc.Execute(uctx(), Input{ProjectID: p, KeyID: k}); err != nil {
 		t.Fatal(err)
 	}
-	e.key(t, p, "ci") // nama bebas setelah dicabut
+	e.key(t, p, userA, "ci") // nama bebas setelah dicabut
+}
+
+func TestT13_CrossUser_NotFound_RowUntouched(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	k := e.key(t, p, userA, "a")
+	if _, err := e.uc.Execute(bctx(), Input{ProjectID: p, KeyID: k}); !errors.Is(err, base.ErrKeyNotFound) {
+		t.Fatalf("err=%v", err)
+	}
+	r := e.row(t, k)
+	if r.RevokedAt != nil || r.RevokedBy != nil || e.aud.n.Load() != 0 {
+		t.Fatalf("row=%+v audit=%d", r, e.aud.n.Load())
+	}
+}
+
+func TestT13_Lock_ScopeB_OnKeyA_NotBlocked(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	k := e.key(t, p, userA, "a")
+	ctx := context.Background()
+	held, release := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- newRepo(e.d, store.New(e.d)).InTx(ctx, func(tx txRepo) error {
+			if _, found, err := tx.LockInProject(ctx, p, k, base.OwnerScope{OwnerID: userA}); err != nil || !found {
+				return fmt.Errorf("lock A: %v %v", found, err)
+			}
+			close(held)
+			<-release
+			return nil
+		})
+	}()
+	<-held
+	res := make(chan bool, 1)
+	go func() {
+		_ = newRepo(e.d, store.New(e.d)).InTx(ctx, func(tx txRepo) error {
+			_, found, err := tx.LockInProject(ctx, p, k, base.OwnerScope{OwnerID: userB})
+			res <- found || err != nil
+			return nil
+		})
+	}()
+	select {
+	case bad := <-res:
+		if bad {
+			t.Fatal("B menemukan key A")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("B terblokir oleh lock A")
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if e.row(t, k).RevokedAt != nil {
+		t.Fatal("baris berubah")
+	}
+}
+
+func TestT13_Legacy_SuperAdminOnly(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	k := e.key(t, p, "", "legacy")
+	ctx := context.Background()
+	r := newRepo(e.d, store.New(e.d))
+	_ = r.InTx(ctx, func(tx txRepo) error {
+		if _, f, err := tx.LockInProject(ctx, p, k, base.OwnerScope{All: true}); err != nil || !f {
+			t.Fatalf("all: %v %v", f, err)
+		}
+		if _, f, err := tx.LockInProject(ctx, p, k, base.OwnerScope{OwnerID: userA}); err != nil || f {
+			t.Fatalf("owner: %v %v", f, err)
+		}
+		return nil
+	})
+	if _, err := e.uc.Execute(uctx(), Input{ProjectID: p, KeyID: k}); !errors.Is(err, base.ErrKeyNotFound) {
+		t.Fatalf("err=%v", err)
+	}
+	if _, err := e.uc.Execute(suctx(), Input{ProjectID: p, KeyID: k}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestT13_SuperAdmin_RevokesOthers(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	k := e.key(t, p, userB, "b")
+	if _, err := e.uc.Execute(suctx(), Input{ProjectID: p, KeyID: k}); err != nil {
+		t.Fatal(err)
+	}
+	r := e.row(t, k)
+	if r.RevokedBy == nil || *r.RevokedBy != userS || r.CreatedBy == nil || *r.CreatedBy != userB || e.aud.n.Load() != 1 {
+		t.Fatalf("row=%+v", r)
+	}
+}
+
+func TestT13_Lock_FailClosed(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	k := e.key(t, p, userA, "a")
+	ctx := context.Background()
+	_ = newRepo(e.d, store.New(e.d)).InTx(ctx, func(tx txRepo) error {
+		cases := []struct {
+			p, k string
+			s    base.OwnerScope
+		}{
+			{p, k, base.OwnerScope{}},
+			{p, k, base.OwnerScope{OwnerID: "bukan-uuid"}},
+			{p, "bukan-uuid", base.OwnerScope{All: true}},
+		}
+		for i, c := range cases {
+			if _, f, err := tx.LockInProject(ctx, c.p, c.k, c.s); f || err != nil {
+				t.Fatalf("case %d: %v %v", i, f, err)
+			}
+		}
+		return nil
+	})
+}
+
+func TestT13_ProjectIsolation_SuperAdminToo(t *testing.T) {
+	e := isetup(t)
+	p1, p2 := e.project(t, "P1"), e.project(t, "P2")
+	k := e.key(t, p1, userA, "a")
+	for _, c := range []context.Context{uctx(), suctx()} {
+		if _, err := e.uc.Execute(c, Input{ProjectID: p2, KeyID: k}); !errors.Is(err, base.ErrKeyNotFound) {
+			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestT13_Concurrent_OtherUserCannotBlock(t *testing.T) {
+	e := isetup(t)
+	p := e.project(t, "P1")
+	for round := 0; round < 5; round++ {
+		k := e.key(t, p, userA, fmt.Sprintf("c%d", round))
+		before := e.aud.n.Load()
+		var wg sync.WaitGroup
+		gate := make(chan struct{})
+		var errA, errB error
+		wg.Add(2)
+		go func() { defer wg.Done(); <-gate; _, errA = e.uc.Execute(uctx(), Input{ProjectID: p, KeyID: k}) }()
+		go func() { defer wg.Done(); <-gate; _, errB = e.uc.Execute(bctx(), Input{ProjectID: p, KeyID: k}) }()
+		close(gate)
+		wg.Wait()
+		if errA != nil || !errors.Is(errB, base.ErrKeyNotFound) || e.aud.n.Load()-before != 1 {
+			t.Fatalf("errA=%v errB=%v audit=%d", errA, errB, e.aud.n.Load()-before)
+		}
+	}
 }

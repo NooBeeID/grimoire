@@ -1,11 +1,12 @@
 <script lang="ts">
+  import Avatar from '../../../../../shared/components/Avatar.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
   import type { ApiError } from '../../../../../shared/services/http';
   import { locale, t } from '../../../../../shared/stores/i18n';
   import { formatDateTime } from '../../../../../shared/utils/datetime';
   import { displayPrefix, type ApiKey } from '../types';
-  import { createdLine, revokedLine } from './format';
+  import { createdAtLine, revokedLine } from './format';
   import KeyStatusBadge from './KeyStatusBadge.svelte';
 
   let {
@@ -15,6 +16,7 @@
     onretry,
     onrevoke,
     auditHref,
+    showOwner = false,
   }: {
     items: ApiKey[];
     loading?: boolean;
@@ -22,10 +24,12 @@
     onretry?: () => void;
     onrevoke: (key: ApiKey) => void;
     auditHref?: (key: ApiKey) => string;
+    showOwner?: boolean;
   } = $props();
 
   const columns = $derived([
     { key: 'name', header: $t('project.apikey.col.name') },
+    ...(showOwner ? [{ key: 'owner', header: $t('project.apikey.col.owner') }] : []),
     { key: 'prefix', header: $t('project.apikey.col.prefix') },
     { key: 'created', header: $t('project.apikey.col.created') },
     { key: 'lastUsed', header: $t('project.apikey.col.lastUsed') },
@@ -37,15 +41,24 @@
 {#snippet cell(k: ApiKey, col: { key: string })}
   {#if col.key === 'name'}
     <span class="break-words">{k.name}</span>
+  {:else if col.key === 'owner'}
+    {#if k.created_by_label}
+      <span class="flex min-w-0 items-center gap-2">
+        <Avatar name={k.created_by_label} size={24} />
+        <span class="truncate" title={k.created_by_label}>{k.created_by_label}</span>
+      </span>
+    {:else}
+      <span class="text-muted">{$t('project.apikey.unknownUser')}</span>
+    {/if}
   {:else if col.key === 'prefix'}
     <code class="font-mono text-[13px]">{displayPrefix(k.prefix)}</code>
   {:else if col.key === 'created'}
-    <time datetime={k.created_at}>{createdLine(k, $locale)}</time>
+    <time datetime={k.created_at}>{createdAtLine(k, $locale)}</time>
   {:else if col.key === 'lastUsed'}
     {#if k.last_used_at}
       <time datetime={k.last_used_at}>{formatDateTime(k.last_used_at, $locale)}</time>
     {:else}
-      <span class="text-muted" aria-label={$t('project.apikey.neverUsed')}>-</span>
+      <span class="text-muted" aria-label={$t('project.apikey.neverUsed')}>–</span>
     {/if}
   {:else if col.key === 'status'}
     <KeyStatusBadge status={k.status} />

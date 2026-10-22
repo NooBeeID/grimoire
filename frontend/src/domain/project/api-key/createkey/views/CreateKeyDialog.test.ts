@@ -54,7 +54,7 @@ describe('CreateKeyDialog', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(409, errBody('CONFLICT', { reason: 'NAME_TAKEN' }))));
     render(Dialog, { props: props() });
     await submit('dupe');
-    expect(await screen.findByText(/sudah dipakai key aktif lain/)).toBeInTheDocument();
+    expect(await screen.findByText(/sudah punya key aktif dengan nama ini/)).toBeInTheDocument();
     expect(screen.getByLabelText('Nama key')).toHaveValue('dupe');
   });
   it('T04-AC5 KEY_LIMIT_REACHED mentions limit', async () => {

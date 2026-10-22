@@ -15,11 +15,15 @@ import (
 )
 
 func serve(a *fakeAccess, r *fakeRepo, withID bool, target string) *httptest.ResponseRecorder {
+	return serveAs(a, r, withID, "u1", "developer", target)
+}
+
+func serveAs(a *fakeAccess, r *fakeRepo, withID bool, id, role, target string) *httptest.ResponseRecorder {
 	router := chi.NewRouter()
 	router.Get("/projects/{projectID}/api-keys", newHandler(NewUsecase(a, r)).ServeHTTP)
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	if withID {
-		req = req.WithContext(reqctx.WithIdentity(req.Context(), reqctx.Identity{UserID: "u1", Role: "developer", Email: "a@tim.id"}))
+		req = req.WithContext(reqctx.WithIdentity(req.Context(), reqctx.Identity{UserID: id, Role: role, Email: "a@tim.id"}))
 	}
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -75,5 +79,18 @@ func TestHandler_ErrorMapping(t *testing.T) {
 				t.Fatalf("code=%d body=%s", rec.Code, body)
 			}
 		})
+	}
+}
+
+func TestHandler_PassesIdentityAsScope(t *testing.T) {
+	r := &fakeRepo{}
+	serveAs(&fakeAccess{}, r, true, "u1", "developer", "/projects/p1/api-keys")
+	if r.scope != (base.OwnerScope{OwnerID: "u1"}) {
+		t.Fatalf("developer scope=%+v", r.scope)
+	}
+	r = &fakeRepo{}
+	serveAs(&fakeAccess{}, r, true, "s1", "super_admin", "/projects/p1/api-keys")
+	if r.scope != (base.OwnerScope{All: true}) {
+		t.Fatalf("super_admin scope=%+v", r.scope)
 	}
 }

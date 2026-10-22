@@ -31,21 +31,21 @@ func (r *Repo) InTx(ctx context.Context, fn func(Tx) error) error {
 }
 
 const (
-	qLock  = `SELECT pg_advisory_xact_lock(hashtextextended('apikey:' || $1::text, 0))`
-	qCount = `SELECT count(*) FROM api_keys WHERE project_id = $1 AND revoked_at IS NULL`
+	qLock  = `SELECT pg_advisory_xact_lock(hashtextextended('apikey:' || $1::text || ':' || $2::text, 0))`
+	qCount = `SELECT count(*) FROM api_keys WHERE project_id = $1 AND created_by = $2::uuid AND revoked_at IS NULL`
 	qIns   = `INSERT INTO api_keys (project_id, name, prefix, secret_hash, created_by, created_by_label, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING ` + store.KeyColumns
 )
 
-func (r *Repo) LockProjectKeys(ctx context.Context, projectID string) error {
-	_, err := r.s.Querier().ExecContext(ctx, qLock, projectID)
+func (r *Repo) LockOwnerKeys(ctx context.Context, projectID, ownerID string) error {
+	_, err := r.s.Querier().ExecContext(ctx, qLock, projectID, ownerID)
 	return err
 }
 
-func (r *Repo) CountActive(ctx context.Context, projectID string) (int, error) {
+func (r *Repo) CountActive(ctx context.Context, projectID, ownerID string) (int, error) {
 	var n int
-	if err := r.s.Querier().QueryRowxContext(ctx, qCount, projectID).Scan(&n); err != nil {
+	if err := r.s.Querier().QueryRowxContext(ctx, qCount, projectID, ownerID).Scan(&n); err != nil {
 		return 0, err
 	}
 	return n, nil

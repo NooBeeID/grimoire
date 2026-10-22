@@ -80,7 +80,8 @@ func TestHandler_ErrorMapping(t *testing.T) {
 		r := newRig("", 20)
 		r.rp.insertErrs = []error{base.ErrNameTaken}
 		rec := serve(t, r, `{"name":"ci"}`, "")
-		if rec.Code != 409 || !strings.Contains(rec.Body.String(), "NAME_TAKEN") {
+		if rec.Code != 409 || !strings.Contains(rec.Body.String(), "NAME_TAKEN") ||
+			!strings.Contains(rec.Body.String(), "nama key sudah dipakai key aktif Anda yang lain di project ini") {
 			t.Fatalf("%d %s", rec.Code, rec.Body.String())
 		}
 	})
@@ -88,7 +89,8 @@ func TestHandler_ErrorMapping(t *testing.T) {
 		r := newRig("", 20)
 		r.rp.count = 20
 		rec := serve(t, r, `{"name":"ci"}`, "")
-		if rec.Code != 409 || !strings.Contains(rec.Body.String(), "KEY_LIMIT_REACHED") || !strings.Contains(rec.Body.String(), `"limit":20`) {
+		if rec.Code != 409 || !strings.Contains(rec.Body.String(), "KEY_LIMIT_REACHED") || !strings.Contains(rec.Body.String(), `"limit":20`) ||
+			!strings.Contains(rec.Body.String(), "batas 20 key aktif per user per project tercapai; cabut key yang tidak dipakai") {
 			t.Fatalf("%d %s", rec.Code, rec.Body.String())
 		}
 	})

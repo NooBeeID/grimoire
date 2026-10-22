@@ -41,7 +41,7 @@ func TestErrKeyLimitReached_FreshInstance(t *testing.T) {
 	if a == b || a.Details.(map[string]any)["limit"] != 1 || b.Details.(map[string]any)["limit"] != 2 {
 		t.Fatal("not fresh")
 	}
-	if a.Message != "batas 1 key aktif per project tercapai; cabut key yang tidak dipakai" {
+	if a.Message != "batas 1 key aktif per user per project tercapai; cabut key yang tidak dipakai" {
 		t.Fatal(a.Message)
 	}
 }
@@ -59,5 +59,11 @@ func TestFieldErrors(t *testing.T) {
 	e := InvalidFields(fe)
 	if e.Code != errs.CodeInvalid {
 		t.Fatal(e.Code)
+	}
+}
+
+func TestErrNameTakenMessage(t *testing.T) {
+	if ErrNameTaken.Message != "nama key sudah dipakai key aktif Anda yang lain di project ini" {
+		t.Fatal(ErrNameTaken.Message)
 	}
 }

@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setLocale } from '../../../../../shared/stores/i18n';
 import { mockKey, mockRevokedKey } from '../mocks/keys';
-import { createdLine, revokedLine } from './format';
+import { formatDateTime } from '../../../../../shared/utils/datetime';
+import { createdAtLine, revokedLine } from './format';
 
 beforeEach(() => setLocale('id'));
 
 describe('format', () => {
-  it('createdLine uses creator label', () => {
-    const line = createdLine(mockKey(1, { created_by_label: 'budi@tim.id' }), 'id');
-    expect(line).toContain('budi@tim.id');
-    expect(line).toContain(' · ');
-  });
-  it('createdLine falls back when creator unknown', () => {
-    expect(createdLine(mockKey(1, { created_by_label: null }), 'id')).toContain('Tidak diketahui');
+  it('createdAtLine returns the date only for both locales', () => {
+    const k = mockKey(1, { created_by_label: 'budi@tim.id' });
+    expect(createdAtLine(k, 'id')).toBe(formatDateTime(k.created_at, 'id'));
+    expect(createdAtLine(k, 'en')).toBe(formatDateTime(k.created_at, 'en'));
+    expect(createdAtLine(k, 'id')).not.toContain('budi@tim.id');
   });
   it('revokedLine names the revoker', () => {
     expect(revokedLine(mockRevokedKey(2), 'id')).toMatch(/^Dicabut oleh ana@tim\.id pada /);

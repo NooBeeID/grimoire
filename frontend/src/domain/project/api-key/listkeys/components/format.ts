@@ -6,11 +6,8 @@ import type { ApiKey } from '../types';
 
 const tr = (k: string, p?: Record<string, string | number>) => get(t)(k, p);
 
-export function createdLine(key: ApiKey, locale: Locale): string {
-  return tr('project.apikey.createdBy', {
-    by: key.created_by_label ?? tr('project.apikey.unknownUser'),
-    at: formatDateTime(key.created_at, locale),
-  });
+export function createdAtLine(key: ApiKey, locale: Locale): string {
+  return formatDateTime(key.created_at, locale);
 }
 
 export function revokedLine(key: ApiKey, locale: Locale): string {

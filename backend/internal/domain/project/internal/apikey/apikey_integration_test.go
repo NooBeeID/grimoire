@@ -301,7 +301,7 @@ func TestT04_AC3_VerifyImmediatelyAfterCreateAndRevoke(t *testing.T) {
 	if !v.Found || v.KeyID != c.Key.ID || v.KeyName != "ci" || v.Prefix != c.Key.Prefix || v.ProjectID != e.p1 {
 		t.Fatalf("verify after create: %+v", v)
 	}
-	if rec := e.revoke(uidB, e.p1, c.Key.ID); rec.Code != 200 {
+	if rec := e.revoke(uidS, e.p1, c.Key.ID); rec.Code != 200 {
 		t.Fatalf("revoke: %d %s", rec.Code, rec.Body)
 	}
 	v = e.verify(c.RawKey)
@@ -469,7 +469,7 @@ func TestT04_AC7_TouchWritesOncePerMinute(t *testing.T) {
 func TestT04_AC9_AuditCreatedAndRevoked(t *testing.T) {
 	e := setup(t, 20)
 	c := e.mustCreate(uidA, e.p1, "ci")
-	if r := e.revoke(uidB, e.p1, c.Key.ID); r.Code != 200 {
+	if r := e.revoke(uidS, e.p1, c.Key.ID); r.Code != 200 {
 		t.Fatalf("revoke: %d", r.Code)
 	}
 	cr, rv := e.auditActions(record.ActionAPIKeyCreated), e.auditActions(record.ActionAPIKeyRevoked)
@@ -486,7 +486,7 @@ func TestT04_AC9_AuditCreatedAndRevoked(t *testing.T) {
 			t.Fatalf("audit leaks secret: %s", raw)
 		}
 	}
-	if cr[0].ActorID != uidA || rv[0].ActorID != uidB {
+	if cr[0].ActorID != uidA || rv[0].ActorID != uidS {
 		t.Fatalf("actors: %s %s", cr[0].ActorID, rv[0].ActorID)
 	}
 
@@ -670,5 +670,188 @@ func TestRoutesRegistered(t *testing.T) {
 	}
 	if err := e.bus.Publish(ctx, constants.BUS_PROJECT_APIKEY_TOUCH, touch.Request{KeyID: "bukan-uuid"}); errors.Is(err, bus.ErrNotRegistered) {
 		t.Fatalf("touch: %v", err)
+	}
+}
+
+// ---- T13: kuota dan unik nama per user per project ----
+
+func errBody(t *testing.T, rec *httptest.ResponseRecorder) (msg string, details map[string]any) {
+	t.Helper()
+	var b struct {
+		Error struct {
+			Message string         `json:"message"`
+			Details map[string]any `json:"details"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
+		t.Fatalf("decode error body: %v %s", err, rec.Body)
+	}
+	return b.Error.Message, b.Error.Details
+}
+
+func (e *env) grant(user, pid string, lv checkaccess.Level) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.acl[user+"|"+pid] = lv
+}
+
+func TestT13_AC4_SameNameAcrossUsers(t *testing.T) {
+	e := setup(t, 20)
+	e.mustCreate(uidA, e.p1, "shared")
+	e.mustCreate(uidB, e.p1, "shared")
+}
+
+func TestT13_AC4_SameUserSameName_NameTaken(t *testing.T) {
+	e := setup(t, 20)
+	e.mustCreate(uidA, e.p1, "ci")
+	rec, _ := e.create(uidA, e.p1, "ci")
+	if rec.Code != 409 {
+		t.Fatalf("dup: %d %s", rec.Code, rec.Body)
+	}
+	msg, d := errBody(t, rec)
+	if d["reason"] != "NAME_TAKEN" || msg != "nama key sudah dipakai key aktif Anda yang lain di project ini" {
+		t.Fatalf("%q %v", msg, d)
+	}
+	e.mustCreate(uidB, e.p1, "ci")
+}
+
+func TestT13_AC4_RevokedNameReusableByOwner(t *testing.T) {
+	e := setup(t, 20)
+	c := e.mustCreate(uidA, e.p1, "ci")
+	if r := e.revoke(uidA, e.p1, c.Key.ID); r.Code != 200 {
+		t.Fatalf("revoke: %d %s", r.Code, r.Body)
+	}
+	e.mustCreate(uidA, e.p1, "ci")
+}
+
+func TestT13_AC5_LimitPerUser(t *testing.T) {
+	e := setup(t, 1)
+	a1 := e.mustCreate(uidA, e.p1, "a1")
+	rec, _ := e.create(uidA, e.p1, "a2")
+	if rec.Code != 409 {
+		t.Fatalf("limit: %d %s", rec.Code, rec.Body)
+	}
+	_, d := errBody(t, rec)
+	if d["reason"] != "KEY_LIMIT_REACHED" || d["limit"] != float64(1) {
+		t.Fatalf("details: %v", d)
+	}
+	e.mustCreate(uidB, e.p1, "b1")
+	if r := e.revoke(uidA, e.p1, a1.Key.ID); r.Code != 200 {
+		t.Fatalf("revoke: %d", r.Code)
+	}
+	e.mustCreate(uidA, e.p1, "a2")
+}
+
+func TestT13_AC5_ConcurrentSameUser(t *testing.T) {
+	e := setup(t, 1)
+	for i := 0; i < 10; i++ {
+		pid := e.mkProject("race")
+		e.grant(uidA, pid, checkaccess.LevelOwner)
+		codes := make([]int, 2)
+		var wg sync.WaitGroup
+		for j := range codes {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				r, _ := e.create(uidA, pid, "race-"+string(rune('0'+j)))
+				codes[j] = r.Code
+			}()
+		}
+		wg.Wait()
+		sort.Ints(codes)
+		if codes[0] != 201 || codes[1] != 409 || e.activeCount(pid) != 1 {
+			t.Fatalf("iter %d: codes=%v aktif=%d", i, codes, e.activeCount(pid))
+		}
+	}
+}
+
+func TestT13_AC5_ConcurrentDifferentUsers(t *testing.T) {
+	e := setup(t, 1)
+	for i := 0; i < 10; i++ {
+		pid := e.mkProject("race")
+		e.grant(uidA, pid, checkaccess.LevelOwner)
+		e.grant(uidB, pid, checkaccess.LevelMember)
+		codes := make([]int, 2)
+		var wg sync.WaitGroup
+		for j, u := range []string{uidA, uidB} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				r, _ := e.create(u, pid, "same-name") // nama sama antar user juga boleh
+				codes[j] = r.Code
+			}()
+		}
+		wg.Wait()
+		if codes[0] != 201 || codes[1] != 201 || e.activeCount(pid) != 2 {
+			t.Fatalf("iter %d: codes=%v aktif=%d", i, codes, e.activeCount(pid))
+		}
+	}
+}
+
+func TestT13_AC6_SuperAdminQuotaOwn(t *testing.T) {
+	e := setup(t, 1)
+	e.mustCreate(uidA, e.p1, "a1")
+	s1 := e.mustCreate(uidS, e.p1, "s1")
+	for _, c := range []struct {
+		user, name string
+	}{{uidS, "s2"}, {uidA, "a2"}} {
+		rec, _ := e.create(c.user, e.p1, c.name)
+		_, d := errBody(t, rec)
+		if rec.Code != 409 || d["reason"] != "KEY_LIMIT_REACHED" {
+			t.Fatalf("%s: %d %s", c.name, rec.Code, rec.Body)
+		}
+	}
+	e.mustCreate(uidB, e.p1, "b1")
+
+	rec := e.list(uidS, e.p1)
+	var res struct {
+		Items []struct {
+			ID        string  `json:"id"`
+			Name      string  `json:"name"`
+			CreatedBy *string `json:"created_by"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || rec.Code != 200 {
+		t.Fatalf("list: %d %v %s", rec.Code, err, rec.Body)
+	}
+	owners := map[string]string{}
+	for _, it := range res.Items {
+		if it.CreatedBy != nil {
+			owners[it.Name] = *it.CreatedBy
+		}
+	}
+	if owners["s1"] != uidS || owners["a1"] != uidA || owners["b1"] != uidB || len(res.Items) != 3 {
+		t.Fatalf("owners: %v items=%d", owners, len(res.Items))
+	}
+	// Kuota S tidak mempengaruhi A dan sebaliknya: S mencabut s1 lalu bisa buat lagi, A tetap penuh.
+	if r := e.revoke(uidS, e.p1, s1.Key.ID); r.Code != 200 {
+		t.Fatalf("revoke: %d", r.Code)
+	}
+	e.mustCreate(uidS, e.p1, "s2")
+	if rec, _ := e.create(uidA, e.p1, "a3"); rec.Code != 409 {
+		t.Fatalf("A masih penuh: %d", rec.Code)
+	}
+}
+
+func TestT13_AC4_ErrorDoesNotLeakOtherUsersName(t *testing.T) {
+	e := setup(t, 20)
+	e.mustCreate(uidB, e.p1, "rahasia")
+	e.mustCreate(uidA, e.p1, "rahasia") // tidak boleh NAME_TAKEN
+	rec, _ := e.create(uidA, e.p1, "rahasia")
+	if rec.Code != 409 {
+		t.Fatalf("dup sendiri: %d", rec.Code)
+	}
+	if bodyHas(rec, uidB) || bodyHas(rec, uidB[len(uidB)-2:]+"@tim.id") || bodyHas(rec, "rahasia") {
+		t.Fatalf("bocor: %s", rec.Body)
+	}
+}
+
+func TestT13_AC9_ConstraintMappingStill(t *testing.T) {
+	e := setup(t, 20)
+	e.mustCreate(uidA, e.p1, "ci")
+	e.mustCreate(uidB, e.p1, "ci")
+	rec, _ := e.create(uidB, e.p1, "ci")
+	if _, d := errBody(t, rec); rec.Code != 409 || d["reason"] != "NAME_TAKEN" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
 }

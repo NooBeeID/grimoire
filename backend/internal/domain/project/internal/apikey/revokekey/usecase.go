@@ -16,8 +16,10 @@ import (
 
 // txRepo adalah operasi di dalam transaksi. Hanya SQL.
 type txRepo interface {
-	// LockInProject: SELECT ... WHERE id AND project_id FOR UPDATE. Bukan uuid -> found=false tanpa query.
-	LockInProject(ctx context.Context, projectID, keyID string) (base.Key, bool, error)
+	// LockInProject: SELECT ... WHERE id AND project_id [AND created_by] FOR UPDATE.
+	// scope.All -> tanpa filter pemilik; selain itu hanya baris created_by = scope.OwnerID.
+	// keyID/projectID bukan uuid, scope.Empty(), atau OwnerID bukan uuid -> (zero, false, nil) TANPA query.
+	LockInProject(ctx context.Context, projectID, keyID string, scope base.OwnerScope) (base.Key, bool, error)
 	// MarkRevoked menyimpan field revoked_* dari k dan mengembalikan baris baru.
 	MarkRevoked(ctx context.Context, k base.Key) (base.Key, error)
 }
@@ -55,13 +57,19 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (base.KeyDTO, error) {
 		return zero, err
 	}
 
+	scope := actor.OwnerScope()
+
 	var revoked base.Key
 	err := u.repo.InTx(ctx, func(tx txRepo) error {
-		k, found, err := tx.LockInProject(ctx, in.ProjectID, in.KeyID)
+		k, found, err := tx.LockInProject(ctx, in.ProjectID, in.KeyID, scope)
 		if err != nil {
 			return fmt.Errorf("revokekey: lock key: %w", err)
 		}
 		if !found {
+			return base.ErrKeyNotFound
+		}
+		// Pertahanan berlapis: fail-closed bila repository salah memfilter.
+		if !scope.Permits(k) {
 			return base.ErrKeyNotFound
 		}
 		if err := k.Revoke(actor, u.clock()); err != nil {

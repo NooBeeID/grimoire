@@ -37,7 +37,7 @@ Konfigurasi hanya lewat environment. Saat start, semua error validasi dilaporkan
 | `LOGIN_FAILURE_WINDOW` | duration | `15m` | tidak | durasi > 0 | Jendela penghitungan gagal login. |
 | `LOGIN_LOCK_DURATION` | duration | `15m` | tidak | durasi > 0 | Lama penundaan login setelah batas gagal. |
 | `LOGIN_RATE_PER_MINUTE` | int | `20` | tidak | 1..1000 | Batas login per menit per IP. |
-| `API_KEY_MAX_ACTIVE_PER_PROJECT` | int | `20` | tidak | >= 1 | Batas API key aktif per project. |
+| `API_KEY_MAX_ACTIVE_PER_PROJECT` | int | `20` | tidak | >= 1 | Batas API key aktif per user per project (nama env dipertahankan). |
 | `PUBLIC_URL` | string | - | tidak (wajib bila `MAIL_DRIVER=smtp`) | URL absolut http(s) dengan host, tanpa query/fragment/userinfo; trailing slash dibuang | URL publik server; dipakai membentuk `mcp_url` (`<PUBLIC_URL>/mcp`) di respons buat key. |
 | `MAIL_DRIVER` | enum | - | tidak | kosong, smtp, log; `log` ditolak saat `APP_ENV=production` | Driver email. Kosong = tanpa email (undangan mengembalikan kredensial di respons). `log` mencetak email ke log (hanya dev). |
 | `SMTP_HOST` | string | - | bila `smtp` | tidak kosong bila `MAIL_DRIVER=smtp` | Host server SMTP. |

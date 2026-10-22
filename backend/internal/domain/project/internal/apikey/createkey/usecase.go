@@ -19,9 +19,10 @@ import (
 const maxPrefixAttempts = 3
 
 // Tx = operasi di dalam satu transaksi create. Implementasi: repository.
+// ownerID = pemanggil (actor.ID) untuk semua role; kuota dan unik nama per user per project (T13 K5).
 type Tx interface {
-	LockProjectKeys(ctx context.Context, projectID string) error
-	CountActive(ctx context.Context, projectID string) (int, error)
+	LockOwnerKeys(ctx context.Context, projectID, ownerID string) error
+	CountActive(ctx context.Context, projectID, ownerID string) (int, error)
 	Insert(ctx context.Context, k base.Key) (base.Key, error)
 }
 
@@ -79,10 +80,10 @@ func (u *Usecase) Execute(ctx context.Context, projectID string, in CreateReques
 		}
 		var got base.Key
 		err = u.repo.InTx(ctx, func(tx Tx) error {
-			if err := tx.LockProjectKeys(ctx, projectID); err != nil {
+			if err := tx.LockOwnerKeys(ctx, projectID, actor.ID); err != nil {
 				return fmt.Errorf("createkey: lock: %w", err)
 			}
-			n, err := tx.CountActive(ctx, projectID)
+			n, err := tx.CountActive(ctx, projectID, actor.ID)
 			if err != nil {
 				return fmt.Errorf("createkey: count: %w", err)
 			}

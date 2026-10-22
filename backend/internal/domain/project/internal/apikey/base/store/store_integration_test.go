@@ -27,9 +27,12 @@ func setup(t *testing.T) (*db.DB, *Store, string) {
 
 func hash(s string) []byte { h := sha256.Sum256([]byte(s)); return h[:] }
 
+// testOwner: pemilik tetap; unique nama aktif kini per (project, created_by, name) dan NULL dianggap berbeda.
+const testOwner = "11111111-1111-1111-1111-111111111111"
+
 func insert(d *db.DB, pid, name, prefix string) error {
 	_, err := d.ExecContext(context.Background(),
-		`INSERT INTO api_keys (project_id, name, prefix, secret_hash) VALUES ($1,$2,$3,$4)`, pid, name, prefix, hash("s"))
+		`INSERT INTO api_keys (project_id, created_by, name, prefix, secret_hash) VALUES ($1,$2,$3,$4,$5)`, pid, testOwner, name, prefix, hash("s"))
 	return err
 }
 

@@ -32,11 +32,20 @@ var _ txRepo = (*txRepoImpl)(nil)
 
 const lockInProjectSQL = `SELECT ` + store.KeyColumns + ` FROM api_keys WHERE id = $1 AND project_id = $2 FOR UPDATE`
 
-func (t *txRepoImpl) LockInProject(ctx context.Context, projectID, keyID string) (base.Key, bool, error) {
-	if !store.ValidUUID(keyID) || !store.ValidUUID(projectID) {
+const lockOwnedInProjectSQL = `SELECT ` + store.KeyColumns +
+	` FROM api_keys WHERE id = $1 AND project_id = $2 AND created_by = $3::uuid FOR UPDATE`
+
+func (t *txRepoImpl) LockInProject(ctx context.Context, projectID, keyID string, scope base.OwnerScope) (base.Key, bool, error) {
+	if !store.ValidUUID(keyID) || !store.ValidUUID(projectID) || scope.Empty() {
 		return base.Key{}, false, nil
 	}
-	return t.s.GetKey(ctx, lockInProjectSQL, keyID, projectID)
+	if scope.All {
+		return t.s.GetKey(ctx, lockInProjectSQL, keyID, projectID)
+	}
+	if !store.ValidUUID(scope.OwnerID) {
+		return base.Key{}, false, nil
+	}
+	return t.s.GetKey(ctx, lockOwnedInProjectSQL, keyID, projectID, scope.OwnerID)
 }
 
 const markRevokedSQL = `UPDATE api_keys SET revoked_at = $2, revoked_by = $3, revoked_by_label = $4

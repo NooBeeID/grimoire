@@ -127,7 +127,7 @@ Tidak ada. Aksi `api_key.created` dan `api_key.revoked` tetap.
 
 ## Risiko
 
-- **Log audit**: event `api_key.created`/`api_key.revoked` memuat nama dan prefix key. Bila halaman audit (T02) bisa dibuka non-Super Admin, nama key user lain tetap bocor lewat sana. Periksa saat mengerjakan; di T02 audit-log setahu kami khusus Super Admin, tetapi harus diverifikasi, bukan diasumsikan.
+- **Log audit**: event `api_key.created`/`api_key.revoked` memuat nama dan prefix key. Bila halaman audit (T02) bisa dibuka non-Super Admin, nama key user lain tetap bocor lewat sana. Terverifikasi (ditutup): audit-log khusus Super Admin. `backend/internal/domain/core/internal/auditlog/base.go` memasang `middleware.RequireRole(resolvesession.RoleSuperAdmin)` pada seluruh grup `/audit-log`; route FE `/audit-log` di `frontend/src/app/routes/index.ts` ber-meta `roles: ['super_admin']`; link audit di `frontend/src/app/views/workspace/ApiKeysTab.svelte` hanya dipasang bila `isSuperAdmin`. Tidak ada perubahan kode audit.
 - Angka `countkeys` di kartu project tidak sama dengan yang dilihat user biasa (K7).
 - Perubahan batas jadi per user menaikkan total key aktif per project secara teoretis (jumlah anggota × batas). Dapat diterima untuk skala saat ini.
 - Menyentuh tiga jalur tulis/baca key; butuh tes regresi untuk jalur MCP (`verifykey`).
@@ -149,4 +149,4 @@ Tidak ada. Aksi `api_key.created` dan `api_key.revoked` tetap.
 ## Pertanyaan terbuka
 
 1. **`countkeys` (K7)**: biarkan jumlah total project (default tiket ini), atau ubah kontrak `contentcount` agar membawa user dan menghitung key milik user itu saja? Opsi kedua menyentuh kontrak T03 dan konsumennya.
-2. Apakah halaman audit log memang hanya untuk Super Admin? Bila tidak, nama key di audit perlu disaring juga (di luar tiket ini).
+2. ~~Apakah halaman audit log memang hanya untuk Super Admin?~~ Terjawab: ya, khusus Super Admin (rujukan: bagian Risiko, `auditlog/base.go`, `routes/index.ts`, `ApiKeysTab.svelte`). Tidak perlu penyaringan nama key di audit.
