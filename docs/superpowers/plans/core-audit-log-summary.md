@@ -4,9 +4,11 @@ Tiket: `docs/tickets/T15-core-audit-log-summary.md`.
 
 Konteks yang dibaca: `CLAUDE.md` (tidak ada); `.claude/rules/migrations.md` (tidak relevan karena tiket ini tanpa migrasi); `rules.txt` bagian 4 (batas import); `docs/tickets/README.md` (konvensi arsitektur, katalog bus baris `discovery.knowledgetools.search-quality-report` yang sudah mencantumkan T15 sebagai consumer, katalog aksi, bagian "Aksi baru"); `docs/superpowers/specs/2026-10-20-grimoire-design.md` (file `*knowledge-hub-design.md` tidak ada, ini padanannya); `DESIGN.md`; `.claude/skills/design-taste-frontend/references/app-screens.md` (bagian 4.4, 5, 6, 11, 12).
 
-Kode yang dicek: `auditlog/base.go`, `auditlog/arch_test.go`, `auditlog/base/{filter,entry}.go`, `auditlog/listentries/*` (pola params/handler/repository, `explain_integration_test.go`, `repository_test.go`), `auditlog/getentry/http_integration_test.go` (pola `X-Test-Role`), `infra/db/tx.go` (`BeginTx` memakai opsi `nil`), `infra/bus/typed.go`, `lib/contracts/core/audit/record/actions.go`, `lib/contracts/discovery/knowledgetools/searchquality/searchquality.go`, `discovery/.../searchquality/{params,repository,init}.go` (pola adapter bus di `repository.go`), `discovery/.../mcpgateway/base/audit.go` (`duration_ms` berupa `int64` milidetik), `cmd/cli/searchquality.go`, `cmd/internal/server/searchquality_report_integration_test.go`, `backend/migrations/core/20261021090000000_create_audit_log.sql`, `frontend/src/app/views/AuditLogView.svelte`, `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte`, `frontend/.dependency-cruiser.cjs`, `frontend/src/app.css` (token `chart-1/2/3`), `api/modules/core/audit-log.yml`, `api/modules/project/management.yml` (`GET /api/projects`, `limit` maks 100).
+Kode yang dicek: `auditlog/base.go`, `auditlog/arch_test.go`, `auditlog/base/{filter,entry}.go`, `auditlog/listentries/*` (pola params/handler/repository, `explain_integration_test.go`, `repository_test.go`), `auditlog/getentry/http_integration_test.go` (pola `X-Test-Role`), `infra/db/tx.go` (`BeginTx` memakai opsi `nil`), `infra/bus/typed.go`, `lib/contracts/core/audit/record/actions.go`, `lib/contracts/discovery/knowledgetools/searchquality/searchquality.go`, `discovery/.../searchquality/{params,repository,init}.go` (pola adapter bus di `repository.go`), `discovery/.../mcpgateway/base/audit.go` (`duration_ms` berupa `int64` milidetik), `cmd/cli/searchquality.go`, `cmd/internal/server/searchquality_report_integration_test.go`, `backend/migrations/core/20261021090000000_create_audit_log.sql`, `frontend/src/app/routes/{index,guard}.ts` (route `/audit-log`/`/admin/users` dengan `roles: ['super_admin']`; role tidak cocok menghasilkan `notfound`), `frontend/src/app/layouts/AppLayout.svelte` (item nav Users dan Audit Log di blok `role === 'super_admin'`), `frontend/src/app/views/AuditLogView.svelte` (tidak diubah oleh T15), `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte`, `frontend/.dependency-cruiser.cjs`, `frontend/src/app.css` (token `chart-1/2/3`), `api/modules/core/audit-log.yml`, `api/modules/project/management.yml` (`GET /api/projects`, `limit` maks 100).
 
 Plan ini satu-satunya rujukan untuk T15, backend dan frontend. Feature backend `summary` tidak dipecah: satu usecase (`Summarize`) yang mengorkestrasi window, repository, bus T11, dan pembentukan laporan.
+
+**Revisi penempatan (keputusan pemilik):** ringkasan metrik MCP tidak lagi menjadi tab di halaman Audit Log, melainkan halaman **Dashboard** sendiri (`/dashboard`) yang hanya bisa dilihat Super Admin. Rancangan tab (tab Log/Ringkasan, `?tab=summary`, pembawaan query antar tab, perubahan `AuditLogView`/`ListEntriesView`) dibatalkan seluruhnya. Backend tidak berubah karena revisi ini (tiket K12). Keputusan turunan (route, nav, URL state) ada di tiket K10 sampai K12 dan ditandai belum disetujui pemilik.
 
 ---
 
@@ -18,7 +20,8 @@ Plan ini satu-satunya rujukan untuk T15, backend dan frontend. Feature backend `
 | Scope | fullstack |
 | Domain / Module | core / audit-log (`backend/internal/domain/core/internal/auditlog`, `frontend/src/domain/core/audit-log`) |
 | Feature baru | backend `auditlog/summary`, frontend `audit-log/summary` |
-| Feature diubah | frontend `audit-log/listentries` (`AuditTable` klik baris), `app/views/AuditLogView.svelte` (tab) |
+| Feature diubah | frontend `audit-log/listentries` (`AuditTable` klik baris) |
+| App (frontend) | route baru `/dashboard` di `app/routes/index.ts`, view baru `app/views/DashboardView.svelte`, item nav "Dashboard" di `app/layouts/AppLayout.svelte` (khusus super_admin). `AuditLogView.svelte` tidak diubah |
 | Migrasi | tidak ada |
 | Aksi audit baru | tidak ada |
 | Endpoint bus baru | tidak ada (consumer baru `discovery.knowledgetools.search-quality-report`) |
@@ -45,7 +48,7 @@ Keputusan inti:
 6. **Label project** diambil dari label terbaru di `audit_log` (`(array_agg(project_label ORDER BY occurred_at DESC, id DESC))[1]`), tanpa bus ke `project.management` dan tanpa penanda "dihapus". Tiket mengizinkan cara ini ("cukup label apa adanya bila penanda sulit"), dan tidak ada titik gagal tambahan.
 7. **Tanpa** migrasi, indeks baru, aksi audit, atau endpoint bus baru. `infra/db` tidak diubah. Repository memanggil `d.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})` langsung, dan rollback selalu dijalankan lewat `defer`.
 
-Frontend menambah tab "Ringkasan" di `/audit-log` yang di-lazy-load (`import()`) bersama Chart.js. Tab ini berisi filter preset rentang dan project, dua angka utama, lima chart, dan blok kualitas pencarian. `AuditTable` juga diubah agar seluruh baris bisa diklik (K9).
+Frontend menambah halaman Dashboard di route baru `/dashboard` (khusus super_admin, guard sama dengan `/audit-log`) dengan item navigasi sendiri di sidebar. `app/views/DashboardView.svelte` merender `PageHeader` "Dashboard" lalu `SummaryView` yang di-lazy-load (`import()`) bersama Chart.js. Isinya filter preset rentang dan project, dua angka utama, lima chart, dan blok kualitas pencarian. `AuditTable` juga diubah agar seluruh baris bisa diklik (K9); selain itu halaman Audit Log tidak berubah.
 
 ---
 
@@ -436,16 +439,16 @@ File baru `backend/cmd/internal/server/auditsummary_integration_test.go` (`//go:
 
 ### h. Dokumen
 
-- `docs/mcp-gateway.md` bagian `## Audit`: satu paragraf yang menyatakan bahwa ringkasan pemakaian tool tampil di `/audit-log?tab=summary` (`GET /api/audit-log/summary`), definisi tool = `mcp.*` minus 5 aksi gateway, dan latensi dari `result.duration_ms`.
-- `docs/search-quality.md`: catatan bahwa metrik yang sama tampil di tab Ringkasan untuk project terpilih, dengan window 120s default, rentang preset, CLI tetap ada, serta catatan snapshot (laporan T11 memakai koneksi sendiri, jadi bisa berbeda sedikit dari agregat tool bila ada insert bersamaan).
-- `docs/tickets/README.md`: baris katalog bus `discovery.knowledgetools.search-quality-report` sudah mencantumkan T15. Tambahkan catatan revisi T15 pada bagian "Perubahan dari rencana awal": (1) `mcp.auth_rejected` di tiket dibaca sebagai `mcp.auth.rejected`; (2) `search_quality` gagal = `{available:false}` bukan `null`; (3) field aditif `total_errors`, `error_rate`, `project_id`; (4) label project dari audit tanpa penanda dihapus. Tandai T15 di daftar tiket sesuai status saat merge.
-- `docs/tickets/T15-core-audit-log-summary.md` tidak diubah isinya, kecuali status bila README memintanya.
+- `docs/mcp-gateway.md` bagian `## Audit`: satu paragraf yang menyatakan bahwa ringkasan pemakaian tool tampil di halaman Dashboard `/dashboard` (khusus Super Admin; data dari `GET /api/audit-log/summary`), definisi tool = `mcp.*` minus 5 aksi gateway, dan latensi dari `result.duration_ms`.
+- `docs/search-quality.md`: catatan bahwa metrik yang sama tampil di halaman Dashboard (`/dashboard`) untuk project terpilih, dengan window 120s default, rentang preset, CLI tetap ada, serta catatan snapshot (laporan T11 memakai koneksi sendiri, jadi bisa berbeda sedikit dari agregat tool bila ada insert bersamaan).
+- `docs/tickets/README.md`: baris katalog bus `discovery.knowledgetools.search-quality-report` sudah mencantumkan T15. Tambahkan catatan revisi T15 pada bagian "Perubahan dari rencana awal": (1) `mcp.auth_rejected` di tiket dibaca sebagai `mcp.auth.rejected`; (2) `search_quality` gagal = `{available:false}` bukan `null`; (3) field aditif `total_errors`, `error_rate`, `project_id`; (4) label project dari audit tanpa penanda dihapus; (5) penempatan UI berubah dari tab Audit Log menjadi halaman `/dashboard` khusus Super Admin, endpoint tetap di module audit-log. Tandai T15 di daftar tiket sesuai status saat merge (kolom Module sudah berbunyi "audit-log (dashboard metrik MCP + baris tabel bisa diklik)").
+- `docs/tickets/T15-core-audit-log-summary.md` sudah direvisi untuk penempatan Dashboard (K10 sampai K12); saat implementasi tidak diubah isinya, kecuali status bila README memintanya.
 
 ### i sampai l. Frontend (detail di bagian 9)
 
 - i. `frontend/package.json`: `chart.js` versi stabil terbaru yang sudah rilis minimal dua minggu (cek `npm view chart.js time --json`; contoh `4.5.0`), ditulis tanpa `^`/`~`, lalu `npm install` agar lockfile ikut.
-- j. Feature `summary` dengan mock (`mocks/summary.ts`), kemudian tab di `AuditLogView` (lazy `import()`), lalu wiring ke API nyata.
-- k. `AuditTable` klik baris (K9).
+- j. Feature `summary` dengan mock (`mocks/summary.ts`), kemudian route `/dashboard` + `DashboardView` (lazy `import()` feature `summary`) + item nav "Dashboard" khusus super_admin di `AppLayout`, lalu wiring ke API nyata.
+- k. `AuditTable` klik baris (K9). `AuditLogView` tidak disentuh.
 - l. i18n, tes unit/komponen, e2e Playwright.
 
 ---
@@ -503,7 +506,7 @@ Tidak berubah (hanya dibaca): `lib/contracts/core/audit/record/actions.go`, `lib
 | `.../summary/services/summary.service.ts` (+ `.test.ts`) | `getSummary(q, signal)` (GET `/api/audit-log/summary`, parse Zod) |
 | `.../summary/services/projectOptions.service.ts` (+ `.test.ts`) | `listProjectOptions(q, signal)` (GET `/api/projects?limit=100[&q=]`, Zod minimal `{id,name}`) |
 | `.../summary/stores/summary.store.ts` (+ `.test.ts`) | state `idle/loading/ready/error`, abort request lama, `reload()`, `retryQuality()` |
-| `.../summary/stores/summaryQuery.ts` (+ `.test.ts`) | parse/serialize `?tab=summary&range=&project=` |
+| `.../summary/stores/summaryQuery.ts` (+ `.test.ts`) | parse/serialize `/dashboard?range=&project=` |
 | `.../summary/components/chartSetup.ts` | `Chart.register(...)` 9 komponen (K7), baca token CSS `--color-chart-*`/`--color-muted`/`--color-rule`, opsi dasar |
 | `.../summary/components/ChartCard.svelte` | bingkai kartu: judul, status (skeleton/kosong/error), `<canvas aria-label>`, `sr-only` tabel data |
 | `.../summary/components/{TopProjectsChart,ToolUsageChart,ToolStatusChart,ToolLatencyChart,TrafficChart}.svelte` | lima chart |
@@ -513,11 +516,14 @@ Tidak berubah (hanya dibaca): `lib/contracts/core/audit/record/actions.go`, `lib
 | `.../summary/components/SearchQualityBlock.svelte` | 3 rasio + bar rank; ajakan pilih project; error + coba lagi |
 | `.../summary/components/components.test.ts` | tes komponen |
 | `.../summary/mocks/summary.ts` | data contoh (bagian 9.4) |
-| `.../summary/views/SummaryView.svelte` | komposisi tab |
+| `.../summary/views/SummaryView.svelte` | komposisi isi halaman Dashboard |
 | `.../summary/index.ts` | `export { default as SummaryView }` dan tipe |
-| `frontend/src/app/views/AuditLogView.svelte` (+ `.test.ts`) | tab Log/Ringkasan dari `?tab=`, `SummaryView` via `import()` |
+| `frontend/src/app/routes/index.ts` | route `/dashboard`, meta `{ auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' }` |
+| `frontend/src/app/views/DashboardView.svelte` (+ `.test.ts`) | baru: `PageHeader` "Dashboard" + `SummaryView` via `import()` |
+| `frontend/src/app/layouts/AppLayout.svelte` | item nav "Dashboard" (ikon `chart`) di blok super_admin |
+| `frontend/src/app/views/app.test.ts` | item nav dan guard `/dashboard` |
 | `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte` (+ `components.test.ts`) | klik baris (K9) |
-| `frontend/src/shared/i18n/{id,en}.json` | kunci `auditLog.tabs.*`, `auditLog.summary.*` |
+| `frontend/src/shared/i18n/{id,en}.json` | kunci `dashboard.*` |
 | `frontend/e2e/audit-log-summary.spec.ts` | e2e Playwright |
 
 ### Dokumen
@@ -611,17 +617,19 @@ Negatif:
 ### 7.2 Frontend Playwright (`frontend/e2e/audit-log-summary.spec.ts`, terhadap binary sungguhan, AC15)
 
 Positif:
-1. Super admin membuka `/audit-log?tab=summary`: tab Ringkasan aktif (`aria-selected=true`), rentang "7 hari" terpilih, lima kartu chart punya `aria-label`, blok kualitas pencarian menampilkan ajakan pilih project (AC1, AC8).
-2. Klik "24 jam": URL menjadi `range=24h`, request `/api/audit-log/summary?range=24h` terkirim, sumbu trafik per jam. Reload halaman mempertahankan tab dan rentang (AC11).
+1. Super admin mengklik item nav "Dashboard" di sidebar: URL `/dashboard`, item itu `aria-current=page`, h1 "Dashboard", rentang "7 hari" terpilih, lima kartu chart punya `aria-label`, blok kualitas pencarian menampilkan ajakan pilih project (AC1, AC8).
+2. Klik "24 jam": URL menjadi `/dashboard?range=24h`, request `/api/audit-log/summary?range=24h` terkirim, sumbu trafik per jam. Reload halaman mempertahankan rentang (AC11).
 3. Pilih project dari pemilih: URL `project=<id>`, chart Project teratas disembunyikan, blok kualitas pencarian menampilkan tiga rasio dan bar rank (AC8).
-4. Tab Log: klik sel aktor pada sebuah baris membuka panel detail; tutup dengan Escape/tombol, fokus kembali ke tombol waktu baris itu; Tab ke tombol waktu + Enter membuka detail (AC14).
-5. Jaringan: saat membuka `/audit-log` (tab Log) tidak ada request chunk yang memuat `chart` (cek `page.on('request')` terhadap nama chunk `SummaryView`/`chart`); chunk itu baru diminta setelah klik tab Ringkasan (AC13).
+4. Halaman Audit Log: klik sel aktor pada sebuah baris membuka panel detail; tutup dengan Escape/tombol, fokus kembali ke tombol waktu baris itu; Tab ke tombol waktu + Enter membuka detail (AC14).
+5. Jaringan: saat membuka `/` dan `/audit-log` tidak ada request chunk yang memuat `chart` (cek `page.on('request')` terhadap chunk `summary`/`chart.js` dari manifest); chunk itu baru diminta setelah membuka `/dashboard` (AC13).
 
 Negatif:
-6. Sesi developer membuka `/audit-log?tab=summary` dan ditolak seperti T02 (redirect/403 view yang sama).
+6. Sesi developer: item nav "Dashboard" tidak ada; membuka `/dashboard` langsung diperlakukan sama seperti `/audit-log` untuk non-super-admin (guard `notfound`, heading "Dashboard" tidak ada), dan tidak ada request ke `/api/audit-log/summary` (AC1).
 7. `page.route('/api/audit-log/summary*')` dengan respons `search_quality:{available:false,error_code:"UNAVAILABLE"}`: chart lain tampil, blok kualitas menampilkan pesan error + tombol "Coba lagi"; klik tombol mengirim ulang request (AC9).
-8. Respons 500 untuk summary menampilkan `ErrorState` per kartu dengan tombol coba lagi, dan tab Log tetap berfungsi.
-9. Drag-select teks target di tab Log tidak membuka detail (AC14).
+8. Respons 500 untuk summary menampilkan satu error di strip angka dengan tombol coba lagi (kartu chart "Data tidak tersedia", lihat FE-0 no.3), dan halaman Audit Log tetap berfungsi.
+9. Drag-select teks target di halaman Audit Log tidak membuka detail (AC14).
+
+Rincian lengkap dan nomor final ada di FE-9.
 
 ---
 
@@ -810,8 +818,9 @@ bus.CallTyped[searchquality.Response](ctx5s, d.Bus,
 
 ### 9.1 Struktur dan aliran
 
-- `AuditLogView.svelte`: baca `tab = query.get('tab') === 'summary' ? 'summary' : 'log'`. Render tab garis bawah (pola `WorkspaceTabsNav`: `role="tablist"`, `<a role="tab" aria-selected>` dengan `href` `?tab=summary`, panah kiri/kanan berpindah tab), indikator 2px `border-accent` selebar label di atas rule 1px `border-rule`. Tab Log merender layout yang sudah ada tanpa perubahan perilaku (`?entry=` tetap). Tab Ringkasan merender `{#await import('../../domain/core/audit-log/summary')}` dengan Spinner selama chunk dimuat. Import dinamis ini memisahkan chunk Chart.js. `index.ts` summary di-import dari `app/` (sesuai depcruise `outside-domain-only-via-index`). Saat pindah tab, `entry` dihapus dari query; `project` dipertahankan (K10).
-- `summaryQuery.ts`: `parse(q) -> { range: '24h'|'7d'|'30d' (default '7d', nilai asing -> '7d'), projectId: string | null }`; `serialize` selalu menulis `tab=summary` dan `range` (URL eksplisit, termasuk default `7d`), serta `project` bila ada. Perubahan filter memakai `navigate(url, { replace: true })`.
+- Route `/dashboard` (`app/routes/index.ts`, meta `{ auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' }`) merender `app/views/DashboardView.svelte`. View ini di-import statis oleh tabel route (ukurannya kecil), lalu merender `PageHeader` "Dashboard" dan `{#await import('../../domain/core/audit-log/summary')}` dengan Spinner selama chunk dimuat. Import dinamis ini memisahkan chunk Chart.js dari halaman lain. `index.ts` summary di-import dari `app/` (sesuai depcruise `outside-domain-only-via-index`). Karena `DashboardView` hanya dirender setelah guard mengizinkan, sesi non-super-admin tidak pernah memicu `import()` maupun request ke `/api/audit-log/summary`. `AuditLogView.svelte` tidak berubah.
+- Item nav "Dashboard" ditambahkan di `app/layouts/AppLayout.svelte` di blok `role === 'super_admin'` (sebelum Users dan Audit Log), dengan cabang ikon `chart` baru. `isActive` yang ada (`path === href`) sudah cukup untuk `/dashboard`.
+- `summaryQuery.ts`: `parse(q) -> { range: '24h'|'7d'|'30d' (default '7d', nilai asing -> '7d'), projectId: string | null }`; `serialize` selalu menulis `range` (URL eksplisit, termasuk default `7d`) dan `project` bila ada, tanpa kunci lain. Perubahan filter memakai `navigate('/dashboard?' + q, { replace: true })`.
 - `summary.service.ts`: `get('/api/audit-log/summary', { params: { range, project_id } , signal })`, parse dengan `AuditSummarySchema` (Zod, `.strict()` di root agar kunci tak terduga terdeteksi di tes), `search_quality: z.union([z.null(), AvailableSchema, UnavailableSchema])`.
 - `projectOptions.service.ts`: memanggil endpoint T03 `GET /api/projects?limit=100` sekali. Bila `total > 100`, pemilih menjadi input pencarian dengan debounce 250ms (`q=`). Schema Zod minimal `{ items: [{ id, name }], total }` (`.passthrough()` pada item, karena itu milik module lain). Bila project di URL tidak ada di daftar (project dihapus), label diambil dari `top_projects[0].project_label` atau ditampilkan id-nya.
 - `summary.store.ts`: `load(query)` membatalkan request sebelumnya (`AbortController`), state `{ status, data, error }`. `reload()` untuk tombol muat ulang. `retryQuality()` memanggil ulang endpoint yang sama (tidak ada endpoint terpisah) dan hanya blok kualitas yang menampilkan memuat; chart lain mempertahankan data lama sampai respons tiba.
@@ -819,8 +828,9 @@ bus.CallTyped[searchquality.Response](ctx5s, d.Bus,
 - `configs.ts` (fungsi murni, dites): `topProjectsConfig`, `toolUsageConfig`, `toolStatusConfig`, `toolLatencyConfig`, `trafficConfig`, `rankConfig`. Label sumbu panjang dipotong 24 karakter dengan `…`; nama lengkap ada di tooltip.
 - `ChartCard.svelte`: props `title`, `status: 'loading'|'empty'|'error'|'ready'`, `ariaLabel`, `table: { columns, rows }`, `onretry`. Render `<figure>`: `<figcaption>` judul 16px; saat loading tampil skeleton blok abu `bg-raised` setinggi plot (tanpa shimmer); saat kosong tampil teks "Belum ada panggilan MCP pada rentang ini" di dalam bingkai yang sama; saat error tampil `ErrorState` + coba lagi; saat siap tampil `<canvas role="img" aria-label=...>` + `<table class="sr-only">` dengan angka yang sama (K8).
 
-### 9.2 Isi tab Ringkasan (urutan atas ke bawah)
+### 9.2 Isi halaman Dashboard (urutan atas ke bawah)
 
+0. Title row `PageHeader`: h1 "Dashboard" + satu kalimat redup tentang data ("Pemakaian tool MCP oleh agent, dari audit log").
 1. Baris filter (urutan app-screens 4.4: cakupan kiri, utilitas kanan): segmented "24 jam | 7 hari | 30 hari" (`role="radiogroup"`, tinggi 32), pemilih project "Semua project", lalu di kanan tombol sekunder "Muat ulang" + teks redup "Data s.d. 10.30 (WIB)" dari `to`.
 2. Strip angka (satu kontainer dipisah garis 1px, bukan ubin per angka): "Panggilan tool" `1.234` (28px weight 400) dan "Error rate" `2,5%` dengan sufiks redup "31 error". `error_rate` null ditampilkan `–` abu.
 3. Grid dua kolom di ≥1024px, satu kolom di bawahnya:
@@ -835,11 +845,11 @@ bus.CallTyped[searchquality.Response](ctx5s, d.Bus,
 
 | Layar | Pertanyaan | Pola DESIGN.md | Blok terbesar yang menjawab |
 |---|---|---|---|
-| `/audit-log?tab=summary` | Seberapa banyak agent memakai MCP, lewat tool apa, dan di mana gagal atau lambat? | Pola `/audit-log` + tab garis bawah 2px pada rule 1px (pola workspace project); sheet putih, kartu chart radius 8 berborder `border-border` tanpa bayangan lebih tebal dari sheet | Chart Trafik (lebar penuh, paling atas) |
-| `/audit-log` (tab Log) | Siapa (manusia atau agent) melakukan apa, kapan? | Tidak berubah, hanya baris menjadi target klik | Tabel |
+| `/dashboard` | Seberapa banyak agent memakai MCP, lewat tool apa, dan di mana gagal atau lambat? | Pola baru "ringkasan analitik" (usulan DESIGN.md di FE-11): title row `PageHeader` tanpa tab; sheet putih, kartu chart radius 8 berborder `border-border` tanpa bayangan lebih tebal dari sheet | Chart Trafik (lebar penuh, paling atas) |
+| `/audit-log` | Siapa (manusia atau agent) melakukan apa, kapan? | Tidak berubah, hanya baris menjadi target klik | Tabel |
 
-- **Wajah produk yang dipakai**: mono (IBM Plex Mono) untuk nama tool di sumbu dan tabel sr-only (`read_file`, `search_knowledge`), karena nama itu dibaca mesin. Nama project memakai sans. Aksen kuning hanya pada seri data utama (`chart-1`) dan garis bawah tab aktif; tidak ada kuning di tombol atau latar kartu. Teal `chart-3` tidak dipakai (tidak ada seri ketiga). Status error memakai `danger` + pola + teks, tidak hanya warna.
-- **Elemen khas**: judul kartu memakai "jejak agent" ringan, yaitu chip kotak kuning pucat dengan ikon agent di samping judul "Panggilan tool" pada strip angka, untuk menegaskan bahwa semua angka di tab ini berasal dari agent (actor `api_key`). Chip yang sama dipakai tabel audit, tanpa chip baru.
+- **Wajah produk yang dipakai**: mono (IBM Plex Mono) untuk nama tool di sumbu dan tabel sr-only (`read_file`, `search_knowledge`), karena nama itu dibaca mesin. Nama project memakai sans. Aksen kuning hanya pada seri data utama (`chart-1`) dan chip agent; tidak ada kuning di tombol atau latar kartu. Teal `chart-3` tidak dipakai (tidak ada seri ketiga). Status error memakai `danger` + pola + teks, tidak hanya warna.
+- **Elemen khas**: judul kartu memakai "jejak agent" ringan, yaitu chip kotak kuning pucat dengan ikon agent di samping judul "Panggilan tool" pada strip angka, untuk menegaskan bahwa semua angka di halaman ini berasal dari agent (actor `api_key`). Chip yang sama dipakai tabel audit, tanpa chip baru.
 - **Token**: `bg-surface`, `border-border`, `rounded-card`, `text-muted` untuk label dan tick, gridline `--color-rule` 1px horizontal saja (3-5 garis), tanpa garis sumbu y, tick 12px, `tabular-nums`, `chart-1`/`chart-2`, `text-danger`, `rounded-base` untuk segmented. Gap 24, padding kartu 24, tinggi plot 200px (trafik 220px), bar sudut siku.
 - **Aturan yang dicek**: tanpa gradien/glow, tanpa sparkline di KPI, tanpa chart pelangi (maks 2 hue + danger), tanpa animasi masuk, legenda hanya untuk chart multi-seri (status, latensi, trafik), satu tombol utama per layar (tidak ada; "Muat ulang" sekunder), nol ditulis `0`, nilai hilang `–`.
 - **Ponsel** (<640px): filter menjadi dua baris (segmented selebar penuh di bawah 480px), chart satu kolom, label sumbu dipotong dengan `title`, tabel sr-only tetap.
@@ -859,18 +869,19 @@ Memakai kata produk: project "Payments", "Onboarding Mobile", "Ledger Core", "Pa
 
 - `summary.service.test.ts`: URL dan query benar (`range`, `project_id` hanya bila ada); respons valid lolos parse; kunci tambahan `args` di root ditolak Zod (penjaga AC10); `search_quality` tiga bentuk; 400/403 diteruskan sebagai `ApiError`.
 - `projectOptions.service.test.ts`: `limit=100`, `q` saat mencari, schema minimal.
-- `summaryQuery.test.ts`: default `7d`, nilai asing menjadi `7d`, round-trip serialize, `entry` dibuang.
+- `summaryQuery.test.ts`: default `7d`, nilai asing menjadi `7d`, round-trip serialize, kunci lain dibuang.
 - `summary.store.test.ts`: abort request lama saat filter berubah cepat; error per status; `retryQuality` hanya mengubah status blok kualitas.
 - `configs.test.ts` (AC15 "data masuk, konfigurasi Chart.js benar"): label dan data sesuai input; seri error memakai pola dan `borderDash`; `p50_ms` null menjadi `null` di dataset (bukan 0); trafik memakai label waktu lokal; jumlah titik = jumlah bucket.
 - `components.test.ts`: `ChartCard` empat state; `aria-label` ada; tabel sr-only berisi angka sama; `SearchQualityBlock` tiga keadaan (null, available, unavailable + klik "Coba lagi" memanggil callback); top project disembunyikan saat project dipilih. Chart.js di-mock (`vi.mock('chart.js')`) untuk memastikan `register` dipanggil dengan 9 komponen.
-- `AuditLogView.test.ts`: `?tab=summary` merender tab Ringkasan; klik tab memperbarui URL; panah kanan/kiri berpindah tab.
+- `DashboardView.test.ts`: h1 "Dashboard"; setelah `import()` selesai `SummaryView` tampil; perubahan filter menavigasi ke `/dashboard?range=...` dengan `replace`.
+- `app.test.ts`: item nav "Dashboard" hanya untuk super_admin; developer di `/dashboard` mendapat not found tanpa fetch summary.
 - `listentries/components/components.test.ts` (`AuditTable`): klik sel aktor memanggil `onselect(id)` sekali; klik tombol waktu memanggil sekali (bukan dua); seleksi teks aktif tidak memanggil; tombol waktu tetap fokusable.
 - Ukuran bundle (AC13): setelah `npm run build`, skrip tes kecil (atau langkah CI yang ada) memastikan chunk entri `index-*.js` tidak memuat string `"chart.js"`/`BarController`; tercakup juga oleh e2e 7.2 no.5.
 - Jalankan `npm run depcruise`, `npm run test:arch`, dan `node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src` pada file yang diubah.
 
 ### 9.7 i18n (`frontend/src/shared/i18n/{id,en}.json`)
 
-`auditLog.tabs.log` "Log" / "Log", `auditLog.tabs.summary` "Ringkasan" / "Summary", `auditLog.summary.range.{24h,7d,30d}` "24 jam/7 hari/30 hari", `auditLog.summary.allProjects` "Semua project", `auditLog.summary.reload` "Muat ulang", `auditLog.summary.asOf` "Data s.d. {time}", `auditLog.summary.figures.{calls,errorRate,errors}`, `auditLog.summary.charts.{traffic,topProjects,toolUsage,toolStatus,toolLatency}` (+ `.aria` dengan placeholder angka), `auditLog.summary.empty` "Belum ada panggilan MCP pada rentang ini", `auditLog.summary.timezone` "Waktu: {tz}; bucket dihitung UTC", `auditLog.summary.quality.{title,zeroResult,followUp,reformulation,rank,notInResults,pickProject,pickProjectAction,unavailable,retry,hint}`. Teks bahasa Indonesia, sentence case.
+`dashboard.title` "Dashboard" / "Dashboard", `dashboard.menu` "Dashboard" / "Dashboard", `dashboard.subtitle`, `dashboard.range.{24h,7d,30d}` "24 jam/7 hari/30 hari", `dashboard.allProjects` "Semua project", `dashboard.reload` "Muat ulang", `dashboard.asOf` "Data s.d. {time}", `dashboard.figures.{calls,errorRate,errors}`, `dashboard.charts.{traffic,topProjects,toolUsage,toolStatus,toolLatency}` (+ `.aria` dengan placeholder angka), `dashboard.empty` "Belum ada panggilan MCP pada rentang ini", `dashboard.timezone` "Waktu: {tz}; bucket dihitung UTC", `dashboard.quality.{title,zeroResult,followUp,reformulation,rank,notInResults,pickProject,pickProjectAction,unavailable,retry,hint}`. Tidak ada kunci `auditLog.tabs.*` atau `auditLog.summary.*`. Teks bahasa Indonesia, sentence case. Daftar final ada di FE-3 no.9.
 
 ---
 
@@ -891,27 +902,26 @@ Memakai kata produk: project "Payments", "Onboarding Mobile", "Ledger Core", "Pa
 
 ## Frontend Plan
 
-Bagian ini adalah rujukan implementasi frontend T15. Isinya merinci bagian 9 dan **menggantikannya** pada lima titik yang bertentangan dengan kode yang ada (lihat FE-0). Bagian backend (1 sampai 8, 10) tidak berubah.
+Bagian ini adalah rujukan implementasi frontend T15. Isinya merinci bagian 9 dan **menggantikannya** pada tiga titik yang bertentangan dengan kode yang ada (lihat FE-0). Bagian backend (1 sampai 8, 10) tidak berubah. Halaman target adalah `/dashboard` (route baru, khusus super_admin); rancangan tab di halaman Audit Log dibatalkan dan tidak ada sisa pekerjaan untuk `AuditLogView`, `ListEntriesView`, atau tab.
 
-Konteks tambahan yang dicek untuk bagian ini: `frontend/src/app/views/AuditLogView.svelte` dan `.test.ts`, `app/views/workspace/WorkspaceTabsNav.svelte` (pola tab), `app/routes/index.ts` (route `/audit-log` dengan `roles: ['super_admin']`), `domain/core/audit-log/listentries/{types.ts,index.ts,views/ListEntriesView.svelte,components/AuditTable.svelte,components/ActorIcon.svelte,stores/filterQuery.ts,mocks/entries.ts}`, `shared/components/{PageHeader,EmptyState,ErrorState,Select,Button,Spinner}.svelte`, `shared/services/http.ts` (`get(url, { query, schema, signal })`), `shared/stores/{theme,i18n}.ts`, `shared/i18n/id.json` (kunci datar `"auditLog.x.y"`), `frontend/.dependency-cruiser.cjs`, `frontend/package.json`, `vite.config.ts`, `playwright.config.ts`, `e2e/audit-log.spec.ts`, `e2e/helpers/{auth,projects,apikeys,knowledge-tools}.ts`, `api/modules/project/management.yml` (`GET /api/projects`, super_admin melihat semua project).
+Konteks tambahan yang dicek untuk bagian ini: `frontend/src/app/views/AuditLogView.svelte` dan `.test.ts` (tidak diubah; dicek untuk pola `urlFor`/`onquerychange` dan pengembalian fokus), `app/routes/index.ts` (route `/audit-log` dan `/admin/users` dengan `roles: ['super_admin']`; route di-import statis), `app/routes/guard.ts` (role tidak cocok menghasilkan `{ kind: 'notfound' }`), `app/layouts/AppLayout.svelte` (array `links`: Project untuk semua, lalu Users dan Audit Log hanya bila `$session.identity?.role === 'super_admin'`; ikon outline 16px per cabang `l.icon`; `isActive` = `path === href`), `app/views/app.test.ts` (tes "users menu and route only for super_admin"), `app/views/UsersView.svelte` (pola view app tipis yang merender view feature), `domain/core/audit-log/listentries/{types.ts,index.ts,views/ListEntriesView.svelte,components/AuditTable.svelte,components/ActorIcon.svelte,stores/filterQuery.ts,mocks/entries.ts}`, `shared/components/{PageHeader,EmptyState,ErrorState,Select,Button,Spinner}.svelte`, `shared/services/http.ts` (`get(url, { query, schema, signal })`), `shared/stores/{theme,i18n}.ts`, `shared/i18n/id.json` (kunci datar `"auditLog.x.y"`), `frontend/.dependency-cruiser.cjs`, `frontend/package.json`, `vite.config.ts`, `playwright.config.ts`, `e2e/audit-log.spec.ts`, `e2e/helpers/{auth,projects,apikeys,knowledge-tools}.ts`, `api/modules/project/management.yml` (`GET /api/projects`, super_admin melihat semua project).
 
 ### FE-0. Koreksi terhadap bagian 9
 
 | No | Bagian 9 menulis | Fakta di kode | Keputusan FE |
 |---|---|---|---|
 | 1 | Zod `AuditSummarySchema`, tipe `AuditSummary` | `listentries/types.ts` sudah mengekspor `AuditSummary`/`AuditSummarySchema` untuk **baris** entri, dan `listentries/index.ts` mengekspornya | Nama di feature `summary`: `UsageSummary`, `UsageSummarySchema`. Kata "summary" untuk baris entri tidak disentuh. |
-| 2 | Tab `role="tablist"` + `aria-selected` + panah kiri/kanan | `WorkspaceTabsNav` memakai `<nav>` + `<a aria-current="page">` karena tiap tab adalah URL | Ikuti pola repo: tautan + `aria-current="page"`, tanpa panah. Tes dan e2e memeriksa `aria-current`. |
-| 3 | `?tab=summary&range=&project=` tanpa memperhatikan tab Log | Tab Log sudah memakai `range` (`1h/24h/7d/30d/90d/all/custom`) dan `project_id` | URL mengikuti tiket (`range`, `project` di tab Ringkasan). Tautan tab membangun query baru: Log ke Ringkasan membawa `project_id` sebagai `project`, sedangkan Ringkasan ke Log membawa `project` sebagai `project_id`. `range` dan kunci filter lain tidak dibawa (K10). |
-| 4 | Garis error trafik putus-putus 4/3 | `app-screens.md` 6.3/6.1: garis putus-putus hanya untuk grid dan prakiraan | Garis error padat 1.5px `danger`, garis panggilan 2px `chart-1`. Seri dibedakan lewat legenda + tooltip + tabel `sr-only` (opsi yang diizinkan anti-tujuan tiket). |
-| 5 | `ErrorState` + coba lagi di **setiap** kartu bila endpoint gagal | Satu endpoint, jadi lima tombol "Coba lagi" merah yang sama hanyalah noise (`app-screens.md` 11 "Red is a signal") | Error ditampilkan sekali di strip angka (kalimat + "Coba lagi"). Kartu chart tetap punya status `error` sendiri: bingkai dan judul tetap, plus kalimat abu "Data tidak tersedia". Pengecualian: blok kualitas pencarian punya error dan tombol sendiri (AC9). |
+| 2 | Garis error trafik putus-putus 4/3 | `app-screens.md` 6.3/6.1: garis putus-putus hanya untuk grid dan prakiraan | Garis error padat 1.5px `danger`, garis panggilan 2px `chart-1`. Seri dibedakan lewat legenda + tooltip + tabel `sr-only` (opsi yang diizinkan anti-tujuan tiket). |
+| 3 | `ErrorState` + coba lagi di **setiap** kartu bila endpoint gagal | Satu endpoint, jadi lima tombol "Coba lagi" merah yang sama hanyalah noise (`app-screens.md` 11 "Red is a signal") | Error ditampilkan sekali di strip angka (kalimat + "Coba lagi"). Kartu chart tetap punya status `error` sendiri: bingkai dan judul tetap, plus kalimat abu "Data tidak tersedia". Pengecualian: blok kualitas pencarian punya error dan tombol sendiri (AC9). |
 
 ### FE-1. Metadata
 
 | Atribut | Nilai |
 |---|---|
 | Scope | frontend (bagian dari fullstack T15) |
-| Domain / Module / Feature | core / audit-log / `summary` (baru), `listentries` (ubah) |
-| Route | `/audit-log?tab=summary&range=24h\|7d\|30d&project=<uuid>` (route yang sudah ada, guard `auth` + `roles: ['super_admin']` tidak berubah) |
+| Domain / Module / Feature | core / audit-log / `summary` (baru), `listentries` (ubah: klik baris saja); `app/` (route, `DashboardView`, nav) |
+| Route | `/dashboard?range=24h\|7d\|30d&project=<uuid>` (baru), meta `{ auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' }`, guard sama dengan `/audit-log`. `/audit-log` dan `/` tidak berubah |
+| Navigasi | item "Dashboard" di sidebar `AppLayout`, hanya untuk super_admin, sebelum Users dan Audit Log |
 | Dependensi baru | `chart.js` (versi pasti, lihat FE-3 langkah 1) |
 | Migrasi | tidak ada |
 
@@ -919,11 +929,11 @@ Konteks tambahan yang dicek untuk bagian ini: `frontend/src/app/views/AuditLogVi
 |---|---|---|---|
 | `/api/audit-log/summary` | GET | `api/modules/core/audit-log.yml` 0.2.0 (baru di T15) | `summary/services/summary.service.ts` |
 | `/api/projects?limit=100` | GET | `api/modules/project/management.yml` 0.2.0 (tidak berubah) | `summary/services/projectOptions.service.ts` |
-| `/api/audit-log`, `/api/audit-log/{id}` | GET | tidak berubah | tab Log (T02) |
+| `/api/audit-log`, `/api/audit-log/{id}` | GET | tidak berubah | halaman Audit Log (T02) |
 
 ### FE-2. Summary Plan
 
-`AuditLogView` sekarang memiliki title row ("Audit Log") dan dua tab garis bawah, Log dan Ringkasan. Tab aktif ditentukan oleh `?tab=`. Tab Ringkasan dimuat lewat `import()`, sehingga Chart.js hanya diunduh ketika tab itu dibuka (AC13).
+Route baru `/dashboard` (khusus super_admin) merender `app/views/DashboardView.svelte`: title row `PageHeader` "Dashboard" lalu `SummaryView` yang dimuat lewat `import()`, sehingga Chart.js hanya diunduh ketika `/dashboard` dibuka (AC13). Sidebar mendapat item "Dashboard" yang hanya dirender untuk super_admin. Non-super-admin yang membuka `/dashboard` mendapat not found dari guard yang sama dengan `/audit-log`, tanpa request ke API ringkasan (AC1). `AuditLogView` tidak berubah.
 
 Feature `summary` memanggil `GET /api/audit-log/summary` satu kali per kombinasi filter dan memvalidasi respons dengan Zod `.strict()`. Hasilnya ditampilkan dalam satu baris filter (preset rentang, project, muat ulang, cap waktu data), strip dua angka, lima chart Chart.js, dan blok kualitas pencarian. Setiap kartu menurunkan statusnya sendiri (memuat, kosong, error, siap) dari satu store. Pemilih project memakai `GET /api/projects?limit=100`. Kegagalan daftar project tidak menghalangi ringkasan.
 
@@ -944,7 +954,7 @@ Langkah 1 sampai 6 memakai mock (`mocks/summary.ts`, lewat `vi.stubGlobal('fetch
    - `services/summary.service.ts`: `getUsageSummary(f: SummaryFilter, signal?: AbortSignal): Promise<UsageSummary>`, yang memanggil `get('/api/audit-log/summary', { query: { range: f.range, project_id: f.projectId ?? undefined }, schema: UsageSummarySchema, signal })`. Error HTTP diteruskan sebagai `ApiError` dari `shared/services/http`. Kegagalan Zod mengikuti perilaku `http.ts` yang ada (`error.invalid_response`).
    - `services/projectOptions.service.ts`: `listProjectOptions(signal?)`, yang menjalankan `get('/api/projects', { query: { limit: 100 }, schema: ProjectOptionListSchema, signal })` dan mengembalikan `{ options: ProjectOption[]; total: number }`, diurutkan ulang `name` naik (locale-aware `localeCompare`).
 4. **Store** (state UI):
-   - `stores/summaryQuery.ts`: `summaryFilterFromQuery(q: URLSearchParams): SummaryFilter` (range asing atau kosong menjadi `7d`; `project` bukan uuid diabaikan dan menjadi `null`, sama dengan cara `filterQuery.ts` menolak uuid rusak), `summaryFilterToQuery(f): URLSearchParams` (selalu `tab=summary` dan `range`, lalu `project` bila ada; kunci lain tidak ditulis), `summaryFilterKey(f)`.
+   - `stores/summaryQuery.ts`: `summaryFilterFromQuery(q: URLSearchParams): SummaryFilter` (range asing atau kosong menjadi `7d`; `project` bukan uuid diabaikan dan menjadi `null`, sama dengan cara `filterQuery.ts` menolak uuid rusak), `summaryFilterToQuery(f): URLSearchParams` (selalu `range`, lalu `project` bila ada; kunci lain tidak ditulis), `summaryFilterKey(f)`. Tidak ada kunci `tab`; `/dashboard` adalah route sendiri sehingga tidak ada kunci yang dibagi dengan filter `/audit-log`.
    - `stores/summary.store.ts`: `createSummaryStore()` dengan state
      ```ts
      type SummaryState = {
@@ -959,7 +969,7 @@ Langkah 1 sampai 6 memakai mock (`mocks/summary.ts`, lewat `vi.stubGlobal('fetch
      };
      ```
      Method: `load(f)` (key berubah: `data=null`, `status=loading`, abort request lama lewat `AbortController`), `reload()` (key sama: `refreshing=true`, data lama dipertahankan), `retryQuality()` (memanggil endpoint yang sama; hanya `qualityRetrying` yang berubah; saat respons tiba seluruh `data` diganti agar satu snapshot, AC9), dan `dispose()`. Respons yang kalah balapan (key lama) dibuang.
-   - `stores/projectOptions.store.ts`: `createProjectOptionsStore()` dengan state `{ status, options, total, error }` dan method `load()`/`retry()`. Dimuat sekali saat tab dibuka.
+   - `stores/projectOptions.store.ts`: `createProjectOptionsStore()` dengan state `{ status, options, total, error }` dan method `load()`/`retry()`. Dimuat sekali saat halaman Dashboard dibuka.
 5. **Komponen** (`summary/components/`, presentasi saja; data dan callback lewat props):
    - `format.ts`: `formatCount(n, locale)` (`Intl.NumberFormat`, `id` menjadi `1.234`), `formatPercent(rate, locale)` (1 desimal, `null` atau `denominator 0` menjadi `–`), `formatMs(v, locale)` (`null` menjadi `–`, lalu sufiks ` ms`), `bucketLabel(at, bucket, locale)` (hour: jam lokal `HH.mm` id / `HH:mm` en; day: tanggal **UTC** `d MMM`, karena bucket hari dihitung UTC), `timezoneCaption(bucket, locale)` (mis. "Waktu: Asia/Jakarta (UTC+7)" untuk hour, "Tanggal dihitung UTC" untuk day), `truncate(label, 24)`.
    - `chart/chartSetup.ts`: `Chart.register(BarController, LineController, BarElement, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend)` sekali (K7). `Chart.defaults`: `animation: false`, `responsive: true`, `maintainAspectRatio: false`, font dari `getComputedStyle(body).fontFamily` ukuran 12. Tidak memakai `chart.js/auto`.
@@ -975,16 +985,16 @@ Langkah 1 sampai 6 memakai mock (`mocks/summary.ts`, lewat `vi.stubGlobal('fetch
    - `SummaryFigures.svelte`: satu kontainer `rounded-card border border-border bg-surface` yang dibagi dua kolom oleh garis 1px `border-rule`. Sel 1 berisi label "Panggilan tool" dengan `AgentChip` di depannya dan nilai 28px weight 400 `formatCount(total_calls)`. Sel 2 berisi label "Error rate" dan nilai `formatPercent(error_rate)` dengan sufiks redup "31 error". Saat `loading`, nilai diganti bar abu setinggi 28px. Saat `error` (muat pertama gagal), satu kalimat "Ringkasan tidak dapat dimuat." + trace id + "Coba lagi" merentang dua kolom (`role="alert"`).
    - `AgentChip.svelte`: kotak `h-6 w-6 rounded-card bg-accent/20 text-accent-ink` dengan ikon agent yang sama dengan `listentries/components/ActorIcon.svelte` (path SVG disalin, karena depcruise melarang import internals feature lain), plus `aria-hidden` karena label teks sudah ada. Usulan pemindahan ke `shared/components/` dicatat di FE-11.
    - `SearchQualityBlock.svelte`: props `{ quality: SearchQuality | null; projectSelected: boolean; retrying: boolean; onretry; onpickproject }`. Bila `quality === null`: bingkai + judul "Kualitas pencarian" + `EmptyState` "Pilih project untuk melihat kualitas pencarian" + `Button secondary` "Pilih project" yang memfokuskan select project. Bila `available=false`: kalimat "Kualitas pencarian tidak dapat dimuat." + "Coba lagi" (`loading` saat `retrying`), tanpa memengaruhi kartu lain. Bila `available=true`: strip tiga angka (Zero-result, Follow-up, Reformulasi), masing-masing `6,8%` + sufiks redup `4/59`, dengan `denominator 0` ditampilkan `–`. Di bawahnya teks bantuan 12px "Perkiraan tren dari jeda 120 detik, bukan angka mutlak." lalu `RankChart`. Bila `searches === 0`: angka `–` dan RankChart dalam status `empty` "Belum ada pencarian pada rentang ini". Bila `legacy_searches > 0`: catatan 12px "{n} pencarian lama tanpa data peringkat tidak dihitung."
-6. **View** `summary/views/SummaryView.svelte`: props `{ query: URLSearchParams; onquerychange: (q: URLSearchParams) => void }`. Filter diturunkan dari `query`, lalu `$effect` pada `summaryFilterKey` memanggil `store.load(f)` (pola `untrack` seperti `ListEntriesView`). Perubahan rentang atau project memanggil `onquerychange(summaryFilterToQuery(f))`, yang kemudian dijalankan `navigate(..., { replace: true })` oleh app. Klik batang Project teratas menjalankan set `projectId`. `index.ts`: `export { default as SummaryView } from './views/SummaryView.svelte'; export type { SummaryFilter, SummaryRange } from './types';`. Tidak ada yang meng-import `summary/index.ts` secara statis.
-7. **Komposisi app**:
-   - `app/views/auditLogTabs.ts` (baru, murni): `activeTab(q): 'log'|'summary'` dan `tabHref(tab, q): string` sesuai FE-0 no.3 (`entry` selalu dibuang).
-   - `app/views/AuditLogTabsNav.svelte` (baru): pola `WorkspaceTabsNav` (nav `aria-label="Tampilan audit log"`, `<a aria-current="page">`, garis 2px `border-accent` selebar label di atas `border-b border-border`).
-   - `app/views/AuditLogView.svelte` (ubah): `PageHeader title="Audit Log" description=subtitle`, lalu `AuditLogTabsNav`. Untuk `log`, merender blok lama apa adanya (grid + panel detail `?entry=`). Untuk `summary`, merender `{#await import('../../domain/core/audit-log/summary') then m}<m.SummaryView {query} {onquerychange} />{:catch e}<ErrorState error={e} onretry={reloadChunk} />{/await}` dengan `Spinner` selama chunk dimuat. `onquerychange` yang sudah ada dipakai bersama (`navigate(urlFor(q), { replace: true })`).
-   - `listentries/views/ListEntriesView.svelte` (ubah): h1 dan subtitle dipindah ke `AuditLogView` (satu h1 per layar). Tombol "Muat ulang" tetap di kanan, sebaris dengan atas `FilterBar`. Perilaku lain tidak berubah.
+6. **View** `summary/views/SummaryView.svelte`: props `{ query: URLSearchParams; onquerychange: (q: URLSearchParams) => void }`. Filter diturunkan dari `query`, lalu `$effect` pada `summaryFilterKey` memanggil `store.load(f)` (pola `untrack` seperti `ListEntriesView`). Perubahan rentang atau project memanggil `onquerychange(summaryFilterToQuery(f))`, yang kemudian dijalankan `navigate('/dashboard?...', { replace: true })` oleh `DashboardView`. `SummaryView` tidak merender h1 (h1 milik `DashboardView`). Klik batang Project teratas menjalankan set `projectId`. `index.ts`: `export { default as SummaryView } from './views/SummaryView.svelte'; export type { SummaryFilter, SummaryRange } from './types';`. Tidak ada yang meng-import `summary/index.ts` secara statis.
+7. **Komposisi app** (K10, K11 tiket):
+   - `app/routes/index.ts` (ubah): `import DashboardView from '../views/DashboardView.svelte';` dan entri `{ path: '/dashboard', view: DashboardView, meta: { auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' } }`, diletakkan setelah `/audit-log`. Import statis view ini aman untuk AC13 karena `DashboardView` sendiri tidak meng-import `summary` atau `chart.js` secara statis.
+   - `app/views/DashboardView.svelte` (baru), mengikuti pola `AuditLogView` (`query = $derived($current.location.query)`, `urlFor`): `const urlFor = (q) => '/dashboard' + (q.size ? '?' + q.toString() : '')`, `onquerychange(q) => navigate(urlFor(q), { replace: true })`. Markup: `<PageHeader title={$t('dashboard.title')} description={$t('dashboard.subtitle')} />`, lalu `{#await import('../../domain/core/audit-log/summary') then m}<m.SummaryView {query} {onquerychange} />{:catch e}<ErrorState error={e} onretry={reloadChunk} />{/await}` dengan `Spinner` selama chunk dimuat. `reloadChunk` menyetel ulang promise `import()` (state lokal) agar `{#await}` dievaluasi ulang.
+   - `app/layouts/AppLayout.svelte` (ubah): di array `links`, blok `role === 'super_admin'` menjadi `[{ href: '/dashboard', label: $t('dashboard.menu'), icon: 'chart' }, { href: '/admin/users', ... }, { href: '/audit-log', ... }]`. Tambah cabang `{:else if l.icon === 'chart'}` di SVG ikon (outline 16px, stroke 1.5 seperti ikon lain; tiga batang vertikal, mis. `<path d="M5 19v-6M12 19V5M19 19v-9" />`). Tidak ada perubahan lain di sidebar.
+   - `AuditLogView.svelte`, `AuditLogView.test.ts`, dan `listentries/views/ListEntriesView.svelte` **tidak diubah** (h1 "Audit Log" tetap di `ListEntriesView`).
 8. **Klik baris `AuditTable`** (K9, AC14) sesuai 9.5, ditambah detail berikut. `<tr onclick={(e) => onRowClick(e, r.id)} class="cursor-pointer ...">`. `onRowClick` mengabaikan event bila (a) `e.target.closest('button,a,input,select,textarea,label')` ada, sehingga tombol waktu tetap memakai handler sendiri dan tidak terpanggil dua kali, atau (b) `window.getSelection()` tidak kosong dan `anchorNode` berada di dalam `e.currentTarget`. Tidak ada `role`/`tabindex` pada `<tr>`. Fungsi penentu dipisah ke `listentries/components/rowClick.ts` (`shouldOpenFromRowClick(e, row)`) agar bisa dites.
-9. **i18n** (`shared/i18n/{id,en}.json`, kunci datar): `auditLog.tabs.label|log|summary`, `auditLog.summary.range.label|24h|7d|30d`, `auditLog.summary.project.label|all|more|loadFailed`, `auditLog.summary.reload`, `auditLog.summary.asOf`, `auditLog.summary.reloadFailed`, `auditLog.summary.loadFailed`, `auditLog.summary.figures.calls|errorRate|errors`, `auditLog.summary.charts.traffic|topProjects|toolUsage|toolStatus|toolLatency` (+ `.aria` berplaceholder angka, mis. "Trafik panggilan tool, {n} bucket, puncak {max} pada {at}"), `auditLog.summary.series.calls|errors|ok|error|p50|p95`, `auditLog.summary.empty`, `auditLog.summary.emptyLatency`, `auditLog.summary.unavailable`, `auditLog.summary.timezone`, `auditLog.summary.timezoneUtcDay`, `auditLog.summary.quality.title|zeroResult|followUp|reformulation|rank|notInResults|pickProject|pickProjectAction|unavailable|hint|noSearches|legacy`. Teks Indonesia, sentence case. Teks Inggris setara.
+9. **i18n** (`shared/i18n/{id,en}.json`, kunci datar): `dashboard.title` ("Dashboard" / "Dashboard", dipakai `titleKey` route dan h1), `dashboard.menu` ("Dashboard" / "Dashboard", item nav), `dashboard.subtitle` ("Pemakaian tool MCP oleh agent, dari audit log." / "MCP tool usage by agents, from the audit log."), `dashboard.range.label|24h|7d|30d`, `dashboard.project.label|all|more|loadFailed`, `dashboard.reload`, `dashboard.asOf`, `dashboard.reloadFailed`, `dashboard.loadFailed`, `dashboard.chunkFailed`, `dashboard.figures.calls|errorRate|errors`, `dashboard.charts.traffic|topProjects|toolUsage|toolStatus|toolLatency` (+ `.aria` berplaceholder angka, mis. "Trafik panggilan tool, {n} bucket, puncak {max} pada {at}"), `dashboard.series.calls|errors|ok|error|p50|p95`, `dashboard.empty`, `dashboard.emptyLatency`, `dashboard.unavailable`, `dashboard.timezone`, `dashboard.timezoneUtcDay`, `dashboard.quality.title|zeroResult|followUp|reformulation|rank|notInResults|pickProject|pickProjectAction|unavailable|hint|noSearches|legacy`. Tidak ada kunci `auditLog.tabs.*`/`auditLog.summary.*`; kunci `auditLog.*` yang ada tidak diubah. Teks Indonesia, sentence case. Teks Inggris setara.
 10. **Penjaga bundle (AC13)**: tambahkan `frontend/scripts/check-lazy-chunks.mjs`. Skrip membaca `dist/.vite/manifest.json`, sehingga `build.manifest: true` perlu ditambahkan di `vite.config.ts`. Skrip gagal bila chunk entri (`index.html`) atau `imports` statisnya memuat modul `node_modules/chart.js`. Script npm `check:chunks` dijalankan setelah `npm run build` di job `build` CI (`.github/workflows/ci.yml`, satu baris).
-11. **Wiring dan verifikasi**: jalankan terhadap binary nyata (`make build`), lalu `npm run check`, `npm test`, `npm run depcruise`, `npm run build && npm run check:chunks`, `npx playwright test e2e/audit-log-summary.spec.ts e2e/audit-log.spec.ts`, dan `node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src`. Terakhir, `inspect.mjs --app http://localhost:5173/audit-log?tab=summary` di 1280px dan 390px, tema terang dan gelap.
+11. **Wiring dan verifikasi**: jalankan terhadap binary nyata (`make build`), lalu `npm run check`, `npm test`, `npm run depcruise`, `npm run build && npm run check:chunks`, `npx playwright test e2e/audit-log-summary.spec.ts e2e/audit-log.spec.ts`, dan `node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src`. Terakhir, `inspect.mjs --app http://localhost:5173/dashboard` di 1280px dan 390px, tema terang dan gelap.
 
 ### FE-4. Migration
 
@@ -1008,20 +1018,20 @@ Tidak ada.
 | `.../summary/components/chart/{chartSetup,chartTheme,configs,attachChart}.ts` (+ `configs.test.ts`, `chartSetup.test.ts`) | baru | Chart.js |
 | `.../summary/components/{ChartCard,ChartLegend,TrafficChart,TopProjectsChart,ToolUsageChart,ToolStatusChart,ToolLatencyChart,RankChart,RangeSegmented,ProjectPicker,SummaryToolbar,SummaryFigures,AgentChip,SearchQualityBlock}.svelte` | baru | presentasi |
 | `.../summary/components/components.test.ts` | baru | tes komponen |
-| `.../summary/views/SummaryView.svelte` (+ `SummaryView.test.ts`) | baru | komposisi tab |
-| `.../summary/mocks/summary.ts` | baru | data contoh FE-7 |
+| `.../summary/views/SummaryView.svelte` (+ `SummaryView.test.ts`) | baru | komposisi isi halaman Dashboard |
+| `.../summary/mocks/summary.ts` | baru | data contoh FE-6 (5) |
 | `.../summary/index.ts` | baru | `SummaryView`, tipe |
-| `frontend/src/app/views/AuditLogView.svelte` (+ `AuditLogView.test.ts`) | ubah | title row, tab, lazy import |
-| `frontend/src/app/views/AuditLogTabsNav.svelte` | baru | tab garis bawah |
-| `frontend/src/app/views/auditLogTabs.ts` (+ `.test.ts`) | baru | `activeTab`, `tabHref` |
-| `frontend/src/domain/core/audit-log/listentries/views/ListEntriesView.svelte` | ubah | h1 pindah ke app, tombol muat ulang tetap |
-| `.../listentries/components/AuditTable.svelte` | ubah | klik baris |
+| `frontend/src/app/routes/index.ts` | ubah | route `/dashboard` (meta `roles: ['super_admin']`, `titleKey: 'dashboard.title'`) |
+| `frontend/src/app/views/DashboardView.svelte` (+ `DashboardView.test.ts`) | baru | `PageHeader` "Dashboard", lazy `import()` `SummaryView`, `onquerychange` ke `/dashboard` |
+| `frontend/src/app/layouts/AppLayout.svelte` | ubah | item nav "Dashboard" (ikon `chart`) di blok super_admin |
+| `frontend/src/app/views/app.test.ts` | ubah | item nav Dashboard hanya super_admin; guard `/dashboard` |
+| `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte` | ubah | klik baris |
 | `.../listentries/components/rowClick.ts` (+ tes di `components.test.ts`) | baru | `shouldOpenFromRowClick` |
 | `frontend/src/shared/i18n/{id,en}.json` | ubah | kunci FE-3 no.9 |
 | `frontend/e2e/audit-log-summary.spec.ts` | baru | e2e |
 | `frontend/e2e/audit-log.spec.ts` | ubah | tambah kasus klik baris dan drag-select (AC14) |
 
-Tidak diubah: `app/routes/index.ts` (route dan guard tetap), `shared/components/*`, `app.css`, dan `DESIGN.md`.
+Tidak diubah: `app/views/AuditLogView.svelte` dan `.test.ts`, `listentries/views/ListEntriesView.svelte`, `app/routes/guard.ts` (perilaku `notfound` untuk role tidak cocok sudah ada), `app/views/HomeView.svelte` (`/` tetap daftar project), `shared/components/*`, `app.css`, dan `DESIGN.md`.
 
 ### FE-6. Visual
 
@@ -1029,26 +1039,25 @@ Tidak diubah: `app/routes/index.ts` (route dan guard tetap), `shared/components/
 
 | Layar | Pertanyaan | Blok terbesar yang menjawab |
 |---|---|---|
-| `/audit-log?tab=summary` (tanpa project) | Bagaimana agent memakai MCP pada rentang ini: seberapa banyak, lewat tool apa, dan di mana gagal atau lambat? | Kartu **Trafik** lebar penuh di baris pertama grid (220px), dengan strip angka tepat di atasnya sebagai jawaban satu kalimat ("1.234 panggilan, 2,5% error") |
-| `/audit-log?tab=summary&project=<id>` | Bagaimana agent memakai MCP di project ini, dan apakah pencariannya menemukan yang dicari? | Trafik tetap blok terbesar. Kartu Project teratas hilang, dan blok Kualitas pencarian naik tepat di bawah Trafik |
-| `/audit-log` (tab Log) | Siapa (manusia atau agent) melakukan apa, kapan? (tidak berubah) | Tabel. Baris kini seluruhnya menjadi target klik |
+| `/dashboard` (tanpa project) | Bagaimana agent memakai MCP pada rentang ini: seberapa banyak, lewat tool apa, dan di mana gagal atau lambat? | Kartu **Trafik** lebar penuh di baris pertama grid (220px), dengan strip angka tepat di atasnya sebagai jawaban satu kalimat ("1.234 panggilan, 2,5% error") |
+| `/dashboard?project=<id>` | Bagaimana agent memakai MCP di project ini, dan apakah pencariannya menemukan yang dicari? | Trafik tetap blok terbesar. Kartu Project teratas hilang, dan blok Kualitas pencarian naik tepat di bawah Trafik |
+| `/audit-log` | Siapa (manusia atau agent) melakukan apa, kapan? (tidak berubah) | Tabel. Baris kini seluruhnya menjadi target klik |
 
 **(2) Pola DESIGN.md dan kerangka**
 
-- Kerangka `AppLayout` (sidebar 228px di atas `bg-ground` + sheet putih radius 16). Tidak ada top bar desktop.
-- Title row `PageHeader` (h1 22px "Audit Log" + subtitle abu), dipakai bersama kedua tab. Tidak ada aksi utama hitam di title row.
-- Tab garis bawah 2px `border-accent` selebar label pada rule 1px `border-border`, mengikuti pola "Workspace project" (`WorkspaceTabsNav`).
-- Tab Log: pola `/audit-log` (list + filter bar + panel detail kanan), tanpa perubahan.
-- Tab Ringkasan: pola baru "ringkasan analitik" dari `app-screens.md` 4.4/5/6/11/12, dengan urutan baris filter (cakupan kiri, utilitas kanan), strip angka terbagi garis, grid kartu chart, lalu blok kualitas. DESIGN.md belum punya baris untuk layar ini, sehingga usulannya ada di FE-11.
+- Kerangka `AppLayout` (sidebar 228px di atas `bg-ground` + sheet putih radius 16). Tidak ada top bar desktop. Sidebar mendapat satu item "Dashboard" (ikon outline 16px, pil aktif yang sama dengan item lain) hanya untuk super_admin; ini mengikuti aturan item nav DESIGN.md, bukan komponen baru.
+- Title row `PageHeader` (h1 22px "Dashboard" + satu kalimat abu tentang data: "Pemakaian tool MCP oleh agent, dari audit log."). Tidak ada aksi utama hitam di title row, tidak ada tab.
+- `/dashboard`: pola baru "ringkasan analitik" dari `app-screens.md` 4.3/4.4/5/6/11/12, dengan urutan baris filter (cakupan kiri, utilitas kanan), strip angka terbagi garis, grid kartu chart, lalu blok kualitas. DESIGN.md belum punya baris "Pola per layar" untuk layar ini, sehingga usulannya ada di FE-11.
+- `/audit-log`: pola yang ada (list + filter bar + panel detail kanan), tanpa perubahan selain klik baris.
 - Tata letak: gap 24 vertikal dan horizontal. Grid `lg:grid-cols-2`. Trafik dan Kualitas pencarian `col-span-full`. Bila jumlah kartu setengah lebar ganjil (project dipilih: Tool usage, Status, Latensi), kartu terakhir `col-span-full`.
 
-Urutan dari atas: title row, tab, baris filter (24px ke strip angka), strip angka, Trafik, Project teratas | Tool paling sering dipakai, Status per tool | Latensi per tool, Kualitas pencarian. Bila project dipilih: title row, tab, filter, angka, Trafik, Kualitas pencarian, Tool usage | Status, Latensi (penuh).
+Urutan dari atas: title row, baris filter (24px ke strip angka), strip angka, Trafik, Project teratas | Tool paling sering dipakai, Status per tool | Latensi per tool, Kualitas pencarian. Bila project dipilih: title row, filter, angka, Trafik, Kualitas pencarian, Tool usage | Status, Latensi (penuh).
 
 **(3) Elemen khas produk di layar pertama**
 
-- **Jejak agent**: `AgentChip` (kotak kuning pucat, ikon agent) di depan label "Panggilan tool" pada strip angka. Chip yang sama dengan baris agent di tabel audit menegaskan bahwa seluruh tab ini berisi aktivitas agent, bukan manusia.
+- **Jejak agent**: `AgentChip` (kotak kuning pucat, ikon agent) di depan label "Panggilan tool" pada strip angka. Chip yang sama dengan baris agent di tabel audit menegaskan bahwa seluruh halaman ini berisi aktivitas agent, bukan manusia.
 - **Mono untuk yang dibaca mesin**: nama tool `read_file`, `search_knowledge`, `get_api_endpoint` di sumbu y kartu Tool, Status, dan Latensi, serta di tabel `sr-only`. Nama project tetap sans.
-- **Aksen kuning hanya di data utama**: seri "panggilan" (`chart-1`) di Trafik, Project teratas, Tool usage, segmen ok, p50, dan rank, serta garis bawah tab aktif. Tidak ada kuning di tombol, latar kartu, atau segmented.
+- **Aksen kuning hanya di data utama**: seri "panggilan" (`chart-1`) di Trafik, Project teratas, Tool usage, segmen ok, p50, dan rank, serta ikon item nav aktif (`text-accent-ink`, perilaku `AppLayout` yang ada). Tidak ada kuning di tombol, latar kartu, atau segmented.
 
 **(4) Token dan utility (tanpa hex baru)**
 
@@ -1092,11 +1101,12 @@ Contoh tampilan strip angka (id): `Panggilan tool 1.234` | `Error rate 2,5% 31 e
 | Latensi | skeleton | bar | tidak ada tool: kalimat empty; ada tool tapi semua `null`: "Belum ada data latensi pada rentang ini" | "Data tidak tersedia" | data lama |
 | Kualitas pencarian | skeleton (bila project dipilih) | 3 angka + rank | tanpa project: ajakan pilih project; `searches = 0`: angka `–` + rank empty | `available=false`: kalimat + "Coba lagi" (`retryQuality`) | `qualityRetrying`: hanya blok ini yang menampilkan Spinner kecil di tombol |
 | Pemilih project | select nonaktif + label "Memuat project…" | opsi | 0 project: hanya "Semua project" | nonaktif + "Daftar project gagal dimuat" + "Coba lagi" | - |
-| Chunk tab Ringkasan | `Spinner` di bawah tab | - | - | `ErrorState` + "Coba lagi" (memanggil `import()` lagi) | - |
+| Chunk halaman Dashboard (`DashboardView`) | title row tampil, `Spinner` di bawahnya | - | - | title row tetap + `ErrorState` + "Coba lagi" (memanggil `import()` lagi) | - |
+| Item nav "Dashboard" | - | tampil hanya bila `role === 'super_admin'` | - | - | - |
 
-Kode error HTTP: 400 (URL berisi `range`/`project` yang lolos parse FE tetapi ditolak server, mestinya tidak terjadi) ditampilkan sebagai error strip **tanpa** "Coba lagi", ditambah tombol "Reset filter" yang menjalankan `onquerychange(?tab=summary&range=7d)`. 401 ditangani `http.ts` (redirect login). 403 menampilkan error tanpa coba lagi. 500 atau jaringan menampilkan error dengan coba lagi.
+Kode error HTTP: 400 (URL berisi `range`/`project` yang lolos parse FE tetapi ditolak server, mestinya tidak terjadi) ditampilkan sebagai error strip **tanpa** "Coba lagi", ditambah tombol "Reset filter" yang menjalankan `onquerychange(?range=7d)` (menjadi `/dashboard?range=7d`). 401 ditangani `http.ts` (redirect login). 403 menampilkan error tanpa coba lagi (normalnya guard route sudah mencegah, mis. role berubah di tengah sesi). 500 atau jaringan menampilkan error dengan coba lagi. Non-super-admin tidak pernah sampai ke state mana pun di tabel ini: guard merender not found sebelum `DashboardView` dipasang.
 
-**Ponsel (<640px)**: title row tetap. Tab menggulir menyamping di barisnya sendiri. Baris filter menjadi dua baris (segmented + select di baris 1 dan menjadi penuh di bawah 480px; cap waktu + muat ulang di baris 2 rata kanan). Strip angka tetap dua kolom (genap). Kartu chart satu kolom, tinggi plot 180px, x label maksimal 4 (`maxTicksLimit: 4`), padding kartu 16. Halaman tidak pernah menggulir menyamping. Tablet (641 sampai 1023px) memakai satu kolom kartu.
+**Ponsel (<640px)**: title row tetap. Item "Dashboard" ada di menu ponsel yang sama (sidebar yang dibuka tombol Menu). Baris filter menjadi dua baris (segmented + select di baris 1 dan menjadi penuh di bawah 480px; cap waktu + muat ulang di baris 2 rata kanan). Strip angka tetap dua kolom (genap). Kartu chart satu kolom, tinggi plot 180px, x label maksimal 4 (`maxTicksLimit: 4`), padding kartu 16. Halaman tidak pernah menggulir menyamping. Tablet (641 sampai 1023px) memakai satu kolom kartu.
 
 ### FE-8. Test Scenario (Vitest + Testing Library, jsdom)
 
@@ -1105,8 +1115,7 @@ Kode error HTTP: 400 (URL berisi `range`/`project` yang lolos parse FE tetapi di
 - `types.test.ts`: `mockSummary7d`, `mockSummary24hProject`, `mockSummaryQualityUnavailable`, dan `mockSummaryEmpty` lolos `UsageSummarySchema`; kunci root tambahan `args` ditolak (`.strict()`, penjaga AC10); kunci `query` di dalam `tool_metrics[0]` ditolak; `p50_ms: null` diterima; `search_quality: { available: false }` tanpa `error_code` ditolak; `bucket: 'week'` ditolak.
 - `summary.service.test.ts`: tanpa project, URL `= /api/audit-log/summary?range=7d` (tanpa `project_id`); dengan project ada `project_id=<uuid>`; `signal` diteruskan; respons 400 dengan envelope `INVALID_ARGUMENT` menghasilkan `ApiError` `status 400`, `details.field = 'range'`; respons yang tidak cocok schema menghasilkan error `invalid_response`.
 - `projectOptions.service.test.ts`: URL `limit=100`; hasil diurutkan menurut nama; field tambahan item (`my_role`, `counts`) tidak membuat gagal.
-- `summaryQuery.test.ts`: `?tab=summary` menjadi `{7d, null}`; `range=90d`/`range=custom`/`range=` menjadi `7d`; `project=not-uuid` menjadi `null`; round-trip `{24h, uuid}` menghasilkan tepat `tab=summary&range=24h&project=<uuid>`; `entry`, `project_id`, dan `actor_type` tidak ikut diserialisasi.
-- `auditLogTabs.test.ts`: `activeTab` (tanpa `tab` atau nilai asing menjadi `log`); `tabHref('summary', ?project_id=P&range=90d&entry=E)` menjadi `?tab=summary&range=7d&project=P`; `tabHref('log', ?tab=summary&range=24h&project=P)` menjadi `/audit-log?project_id=P`; `tabHref('log', ?tab=summary)` menjadi `/audit-log`.
+- `summaryQuery.test.ts`: query kosong menjadi `{7d, null}`; `range=90d`/`range=custom`/`range=` menjadi `7d`; `project=not-uuid` menjadi `null`; round-trip `{24h, uuid}` menghasilkan tepat `range=24h&project=<uuid>`; `{7d, null}` menghasilkan tepat `range=7d`; kunci asing di input (`tab`, `entry`, `project_id`, `actor_type`) tidak ikut diserialisasi.
 - `summary.store.test.ts`: `load` dua kali cepat dengan key berbeda membatalkan request pertama (`signal.aborted`), dan respons pertama yang terlambat tidak menimpa; `load` sukses menghasilkan `ready`, `loadedAt = to`; gagal menghasilkan `error` dan `data = null`; `reload` saat `ready` membuat `refreshing = true`, `data` lama tetap, dan saat gagal `refreshError` terisi dengan `status` tetap `ready`; `retryQuality` hanya mengubah `qualityRetrying`, lalu `data` diganti seluruhnya saat sukses.
 - `projectOptions.store.test.ts`: `load` sekali; error lalu `retry` menjadi `ready`.
 - `format.test.ts`: `formatCount(1234,'id') = '1.234'` dan `'en' = '1,234'`; `formatPercent(0.0251,'id') = '2,5%'`; `formatPercent(null) = '–'`; `formatPercent(0) = '0%'` (nol sungguhan tetap `0`); `formatMs(null) = '–'`; `bucketLabel('2026-10-16T00:00:00Z','day','id')` menghasilkan "16 Okt" di zona waktu jsdom mana pun (UTC); `bucketLabel(hour)` mengikuti TZ lokal (tes menyetel `process.env.TZ='Asia/Jakarta'`, `10:00Z` menjadi `17.00`); `truncate` 24 karakter + `…`.
@@ -1128,10 +1137,12 @@ Kode error HTTP: 400 (URL berisi `range`/`project` yang lolos parse FE tetapi di
   - `SearchQualityBlock` tiga keadaan: `null` menampilkan ajakan, dan klik "Pilih project" memanggil `onpickproject`; `available=false` menampilkan kalimat, dan klik "Coba lagi" memanggil `onretry` (tombol `loading` saat `retrying`); `available=true` menampilkan `6,8%`, `4/59`, `56,4%`, `11,9%`; `denominator 0` menampilkan `–`; `legacy_searches 3` menampilkan catatan.
   - `RangeSegmented`: tiga radio, `7 hari` `checked`; panah kanan pada radio terpilih memilih `30 hari` (perilaku native) dan memanggil `onchange('30d')`.
   - `ProjectPicker`: opsi "Semua project" + 5; `projectId` yang tidak ada di opsi disisipkan dengan label dari prop `fallbackLabel`; `total 140` menampilkan hint; status error membuat select `disabled` dan menampilkan tombol coba lagi.
-- `SummaryView.test.ts` (fetch di-stub dengan mock): `?tab=summary` memicu satu fetch `range=7d`; mengganti rentang memanggil `onquerychange` dengan `range=24h`, dan setelah query baru diteruskan terjadi satu fetch baru; dengan `project` kartu Project teratas tidak dirender dan blok kualitas menampilkan angka; respons `mockSummaryQualityUnavailable` membuat chart lain tetap `ready` dan klik "Coba lagi" di blok kualitas menghasilkan tepat satu fetch tambahan; respons 500 menampilkan satu `role=alert` di strip dan lima kartu berstatus error tanpa tombol; respons 400 menampilkan tombol "Reset filter"; daftar project 500 tetap membuat ringkasan tampil.
-- `AuditLogView.test.ts` (tambahan): `/audit-log` merender tab Log `aria-current=page` dan tabel; `/audit-log?tab=summary` merender heading "Audit Log" satu kali, tab Ringkasan `aria-current=page`, dan setelah `import()` selesai terlihat judul kartu "Trafik"; klik tab Ringkasan dari `?project_id=P&entry=E` mengubah `location` menjadi `?tab=summary&range=7d&project=P` dan panel detail tertutup; tes lama `?entry=` dan pengembalian fokus tetap hijau.
+- `SummaryView.test.ts` (fetch di-stub dengan mock): query kosong memicu satu fetch `range=7d`; `SummaryView` tidak merender `h1`; mengganti rentang memanggil `onquerychange` dengan `range=24h`, dan setelah query baru diteruskan terjadi satu fetch baru; dengan `project` kartu Project teratas tidak dirender dan blok kualitas menampilkan angka; respons `mockSummaryQualityUnavailable` membuat chart lain tetap `ready` dan klik "Coba lagi" di blok kualitas menghasilkan tepat satu fetch tambahan; respons 500 menampilkan satu `role=alert` di strip dan lima kartu berstatus error tanpa tombol; respons 400 menampilkan tombol "Reset filter"; daftar project 500 tetap membuat ringkasan tampil.
+- `DashboardView.test.ts` (baru; fetch di-stub dengan mock): `/dashboard` merender h1 "Dashboard" tepat satu kali, `Spinner` selama `import()` belum selesai, lalu judul kartu "Trafik"; mengganti rentang ke "24 jam" mengubah `location` menjadi `/dashboard?range=24h` lewat `replace` (panjang `history` tidak bertambah); `import()` yang gagal (`vi.doMock` modul summary melempar) menampilkan `ErrorState` dengan h1 tetap ada, dan "Coba lagi" memanggil `import()` lagi.
+- `app.test.ts` (ubah tes "users menu and route only for super_admin" atau tambah tes sejajar): developer di `/` tidak melihat link "Dashboard" (selain Users dan Audit Log); super_admin melihat link "Dashboard" di `navigation` "Navigasi utama", urutannya sebelum "Users"; developer yang di-`boot('/dashboard')` mendapat tampilan not found dan `fetch` tidak pernah dipanggil dengan URL `/api/audit-log/summary`; super_admin di `/dashboard` membuat link "Dashboard" `aria-current=page`.
+- `AuditLogView.test.ts`: tidak diubah dan harus tetap hijau (bukti bahwa halaman Audit Log tidak tersentuh).
 - `listentries/components/components.test.ts` (tambahan, AC14): klik `<td>` aktor memanggil `onselect(id)` tepat sekali; klik tombol waktu memanggil tepat sekali (bukan dua); dengan seleksi teks aktif di dalam baris (`window.getSelection` di-stub) klik tidak memanggil; `<tr>` tidak punya `role` maupun `tabindex`; tombol waktu tetap fokusable dan Enter memanggil `onselect`. Unit `shouldOpenFromRowClick` mencakup target `button`, `a`, seleksi di luar baris (tetap membuka), dan seleksi di dalam baris (tidak membuka).
-- Arsitektur: `npm run depcruise` hijau (summary tidak meng-import `listentries`/`getentry`/`project/*`; `app/` hanya meng-import `summary/index.ts`; `domain/` tidak meng-import `app/`).
+- Arsitektur: `npm run depcruise` hijau (summary tidak meng-import `listentries`/`getentry`/`project/*`; `app/` hanya meng-import `summary/index.ts`, dan hanya secara dinamis dari `DashboardView`; `domain/` tidak meng-import `app/`).
 - Bundle: `npm run build && npm run check:chunks` lulus. Tes negatif skrip memakai fixture manifest kecil `scripts/__fixtures__/manifest-bad.json` yang membuat skrip keluar dengan kode 1.
 
 ### FE-9. E2E Scenarios (Playwright, `frontend/e2e/audit-log-summary.spec.ts`, terhadap binary nyata)
@@ -1140,21 +1151,21 @@ Setup per tes memakai helper yang sudah ada: `adminContext(browser)`, `createPro
 
 Positif:
 
-1. **Default (AC1)**: buka `/audit-log?tab=summary` sebagai admin. Tautan tab "Ringkasan" `aria-current=page`, radio "7 hari" `checked`, heading h1 "Audit Log" satu kali, dan 5 `figure` dengan `canvas[role=img][aria-label]` (Trafik, Project teratas, Tool, Status, Latensi). Blok "Kualitas pencarian" menampilkan "Pilih project untuk melihat kualitas pencarian". Request yang terkirim tepat `GET /api/audit-log/summary?range=7d`.
-2. **Ganti rentang (AC11)**: klik "24 jam". URL berisi `tab=summary&range=24h`, request `range=24h` terkirim, dan tabel `sr-only` Trafik punya 24 atau 25 baris. `page.reload()` membuat radio "24 jam" tetap `checked` dan tab tetap Ringkasan.
+1. **Default lewat navigasi (AC1)**: login sebagai admin, buka `/`, klik link "Dashboard" di `navigation` "Navigasi utama". URL menjadi `/dashboard`, link itu `aria-current=page`, radio "7 hari" `checked`, heading h1 "Dashboard" satu kali, dan 5 `figure` dengan `canvas[role=img][aria-label]` (Trafik, Project teratas, Tool, Status, Latensi). Blok "Kualitas pencarian" menampilkan "Pilih project untuk melihat kualitas pencarian". Request yang terkirim tepat `GET /api/audit-log/summary?range=7d`.
+2. **Ganti rentang (AC11)**: klik "24 jam". URL menjadi `/dashboard?range=24h`, request `range=24h` terkirim, dan tabel `sr-only` Trafik punya 24 atau 25 baris. `page.reload()` membuat radio "24 jam" tetap `checked`.
 3. **Pilih project (AC8, AC11)**: pilih project A di select. URL berisi `project=<A.id>`, kartu Project teratas tidak ada, tabel `sr-only` Tool berisi baris `list_files` dengan `5`, strip angka menampilkan `5`, dan blok kualitas menampilkan tiga label angka (Zero-result, Follow-up, Reformulasi) dan chart rank. Reload mempertahankan project.
 4. **Project teratas tanpa filter** (rentang 24 jam): tabel `sr-only` Project teratas memuat baris A (`5`) dan B (`2`), dengan A di atas B bila keduanya masuk 10 besar (assert urutan relatif saja). Klik batang di kanvas tidak diuji di e2e karena koordinat kanvas rapuh. Perilaku `onClick` lalu `onpick(project_id)` dicakup `configs.test.ts`, dan jalur memilih project lewat select dicakup no.3.
-5. **Lazy chunk (AC13)**: `page.on('request')` mencatat URL. Buka `/audit-log` (tab Log) dan tunggu tabel. Tidak ada request ke chunk yang isinya memuat `chart.js`: ambil daftar chunk dari `dist/.vite/manifest.json` (dibaca di tes lewat `fs`, entri `src/domain/core/audit-log/summary/index.ts` dan `node_modules/chart.js/...`), lalu klik tab Ringkasan dan pastikan chunk itu baru diminta.
-6. **Klik baris di tab Log (AC14)** (di `audit-log.spec.ts`): buat entri lewat aksi nyata (pola tes T02), lalu klik sel Aksi pada baris itu. Panel `role=dialog` "Audit entry" terbuka dan URL berisi `entry=`. Tekan tombol tutup, dan fokus berada di tombol waktu baris itu (`data-entry-id`). Tab sampai tombol waktu + Enter membuka detail lagi.
-7. **Tema gelap (AC12)**: `page.emulateMedia({ colorScheme: 'dark' })` dengan `localStorage` kosong pada `?tab=summary`. Kanvas dirender, dan `getComputedStyle` `--color-chart-1` gelap terbaca (nilai token, bukan hex di tes). Screenshot dilampirkan ke artefak (tanpa snapshot pembanding).
+5. **Lazy chunk (AC13)**: `page.on('request')` mencatat URL. Buka `/` (tunggu daftar project), lalu `/audit-log` (tunggu tabel). Tidak ada request ke chunk yang isinya memuat `chart.js`: ambil daftar chunk dari `dist/.vite/manifest.json` (dibaca di tes lewat `fs`, entri `src/domain/core/audit-log/summary/index.ts` dan `node_modules/chart.js/...`), lalu klik link nav "Dashboard" dan pastikan chunk itu baru diminta.
+6. **Klik baris di halaman Audit Log (AC14)** (di `audit-log.spec.ts`): buat entri lewat aksi nyata (pola tes T02), lalu klik sel Aksi pada baris itu. Panel `role=dialog` "Audit entry" terbuka dan URL berisi `entry=`. Tekan tombol tutup, dan fokus berada di tombol waktu baris itu (`data-entry-id`). Tab sampai tombol waktu + Enter membuka detail lagi.
+7. **Tema gelap (AC12)**: `page.emulateMedia({ colorScheme: 'dark' })` dengan `localStorage` kosong pada `/dashboard`. Kanvas dirender, dan `getComputedStyle` `--color-chart-1` gelap terbaca (nilai token, bukan hex di tes). Screenshot dilampirkan ke artefak (tanpa snapshot pembanding).
 8. **Ponsel**: viewport 390x844. `document.documentElement.scrollWidth <= 390`, kartu satu kolom (lebar kartu Trafik dan Tool sama), dan segmented penuh.
 
 Negatif:
 
-9. **Non-super-admin (AC1)**: login sebagai developer (`createReadyUserApi`), buka `/audit-log?tab=summary`. Perilakunya sama dengan T02 (heading "Audit Log" tidak ada, memakai assert yang sama dengan `audit-log.spec.ts` baris 58), dan tidak ada request ke `/api/audit-log/summary`.
+9. **Non-super-admin (AC1)**: login sebagai developer (`createReadyUserApi`). Di `/`, link "Dashboard" tidak ada di sidebar (`toHaveCount(0)`, pola `project-api-key.spec.ts` untuk link Audit Log). Lalu buka `/dashboard` langsung: respons 200 (SPA), perilakunya sama dengan `/audit-log` untuk non-super-admin (heading h1 "Dashboard" tidak ada dan tidak ada `figure`/`canvas`, memakai pola assert `audit-log.spec.ts` baris 58), tidak ada request ke `/api/audit-log/summary` (`page.on('request')`, tunggu 300ms seperti tes T02), dan tidak ada error konsol.
 10. **Kualitas pencarian gagal (AC9)**: `page.route('**/api/audit-log/summary?*project_id=*', ...)` mengembalikan `mockSummaryQualityUnavailable` (disalin sebagai JSON fixture e2e). Lima chart tampil, blok kualitas menampilkan "Kualitas pencarian tidak dapat dimuat." dan "Coba lagi". Klik tombol itu menghasilkan tepat satu request tambahan, dan setelah route dilepas (`unroute`) angka kualitas tampil.
-11. **Server 500**: route summary mengembalikan 500 envelope `INTERNAL`. Strip menampilkan satu `role=alert` dengan trace id dan "Coba lagi", sedangkan kartu chart menampilkan "Data tidak tersedia" tanpa tombol. Klik tab Log membuat tabel tetap tampil normal.
-12. **Parameter URL rusak**: `/audit-log?tab=summary&range=90d&project=bukan-uuid`. FE menormalisasi request menjadi `range=7d` tanpa `project_id` (tidak ada 400), dan select menampilkan "Semua project".
+11. **Server 500**: route summary mengembalikan 500 envelope `INTERNAL`. Strip menampilkan satu `role=alert` dengan trace id dan "Coba lagi", sedangkan kartu chart menampilkan "Data tidak tersedia" tanpa tombol. Klik link nav "Audit Log" membuat tabel tampil normal.
+12. **Parameter URL rusak**: `/dashboard?range=90d&project=bukan-uuid`. FE menormalisasi request menjadi `range=7d` tanpa `project_id` (tidak ada 400), dan select menampilkan "Semua project".
 13. **Daftar project gagal**: route `/api/projects*` mengembalikan 500. Select nonaktif dengan "Daftar project gagal dimuat", sedangkan ringkasan tetap tampil.
 14. **Drag-select tidak membuka detail (AC14)** (di `audit-log.spec.ts`): `page.mouse` drag di sel target sebuah baris. URL tidak berisi `entry=` dan dialog tidak ada.
 
@@ -1216,8 +1227,9 @@ Contoh tabel `sr-only` yang dirender untuk Status per tool (dari `mockSummary7d`
 
 ### FE-11. Catatan dan usulan perubahan DESIGN.md (tidak diterapkan diam-diam)
 
-1. **Tambah baris pola** di tabel "Pola per layar": `/audit-log?tab=summary` | "Bagaimana agent memakai MCP: seberapa banyak, lewat tool apa, di mana gagal atau lambat?" | "title row + tab garis bawah; baris filter (preset kiri, muat ulang + cap waktu kanan); strip angka terbagi garis; grid kartu chart radius 8 tanpa bayangan; seri utama `chart-1`, error `danger` + arsir". Perubahan ini butuh persetujuan manusia sesuai tabel "Penerapan".
+1. **Tambah baris pola** di tabel "Pola per layar": `/dashboard` (khusus Super Admin) | "Bagaimana agent memakai MCP: seberapa banyak, lewat tool apa, di mana gagal atau lambat?" | "title row tanpa tab; baris filter (preset kiri, muat ulang + cap waktu kanan); strip angka terbagi garis; grid kartu chart radius 8 tanpa bayangan; seri utama `chart-1`, error `danger` + arsir". Perubahan ini butuh persetujuan manusia sesuai tabel "Penerapan".
 2. **Arsir untuk seri error** (`CanvasPattern` diagonal) belum disebut DESIGN.md. Usul: "Seri error di chart memakai `danger` + arsir diagonal; swatch legenda memakai arsir yang sama." Tidak ada token baru.
 3. **`AgentChip`** saat ini diduplikasi (markup di `AuditTable` dan `summary/components/AgentChip.svelte`) karena depcruise melarang import internals feature. Usul tiket lanjutan: pindahkan chip agent (dengan prop `label`, tanpa tipe domain) ke `shared/components/ActorChip.svelte`, lalu pakai di keduanya.
-4. **Status di DESIGN.md** ("layar ... audit log ... sudah memakai token ini") perlu ditambah "tab Ringkasan (T15)" setelah merge.
-5. Tidak ada warna, radius, font, shadow, atau komponen dekoratif baru. Semua nilai warna chart dibaca dari token `app.css` saat runtime.
+4. **Status di DESIGN.md** ("layar ... audit log ... sudah memakai token ini") perlu ditambah "dashboard (T15)" setelah merge.
+5. **Ikon nav `chart`** adalah satu cabang ikon outline 16px baru di `AppLayout` (aturan "item navigasi dengan ikon outline 16px" di bagian Kerangka DESIGN.md). Bukan komponen atau token baru; tidak perlu perubahan DESIGN.md.
+6. Tidak ada warna, radius, font, shadow, atau komponen dekoratif baru. Semua nilai warna chart dibaca dari token `app.css` saat runtime.

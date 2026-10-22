@@ -1,4 +1,4 @@
-# T15 — core / audit-log (ringkasan metrik penggunaan MCP + baris tabel bisa diklik)
+# T15 — core / audit-log (dashboard metrik penggunaan MCP + baris tabel bisa diklik)
 
 | | |
 |---|---|
@@ -13,7 +13,7 @@ Halaman Audit Log (T02) hanya berupa tabel entri. Untuk menjawab "project mana y
 
 Tiket ini menambah:
 
-1. **Tab "Ringkasan"** di halaman Audit Log: kumpulan chart dari data `audit_log` pada rentang waktu dan project yang dipilih.
+1. **Halaman "Dashboard"** (`/dashboard`, khusus Super Admin): kumpulan chart dari data `audit_log` pada rentang waktu dan project yang dipilih. Halaman ini berdiri sendiri, dengan item navigasi sendiri di sidebar, dan bukan bagian dari halaman Audit Log.
 2. **Perbaikan kecil di tabel log:** seluruh baris bisa diklik untuk membuka detail. Saat ini hanya teks waktu yang bisa diklik (`AuditTable.svelte`), sehingga pengguna mengira baris tidak interaktif.
 
 ## Tujuan
@@ -29,17 +29,20 @@ Tiket ini menambah:
 ## Non-goals
 
 - Mengubah cara audit dicatat, skema `audit_log`, retensi (90 hari), atau sifat append-only.
-- Dashboard real-time/streaming. Data diambil saat tab dibuka atau filter diubah (ada tombol muat ulang).
+- Dashboard real-time/streaming. Data diambil saat halaman Dashboard dibuka atau filter diubah (ada tombol muat ulang).
 - Rentang tanggal bebas, ekspor CSV/gambar, alert/notifikasi ambang.
 - Ringkasan untuk aksi non-MCP (login, project dibuat, key dicabut, dan sebagainya). Hanya panggilan tool MCP.
-- Tampilan untuk non-Super Admin. Audit log tetap khusus Super Admin.
+- Tampilan untuk non-Super Admin. Dashboard dan audit log tetap khusus Super Admin.
+- Mengubah halaman Audit Log selain klik baris (K9). Audit Log tidak mendapat tab, title row baru, atau tautan ke Dashboard.
+- Mengubah `/` (daftar project, `HomeView`) untuk siapa pun, termasuk Super Admin.
 - Menghitung ulang atau mengubah definisi metrik T11. Tiket ini hanya menampilkan.
 
 ## Anti-tujuan (dianggap gagal walau fitur jalan)
 
 - Query ringkasan membuat halaman atau database lambat secara berarti saat tabel besar (lihat Risiko dan K3).
 - Isi `args`/`result` mentah, query pencarian, atau path file bocor ke respons ringkasan. Ringkasan hanya berisi angka agregat dan label (nama tool, nama project).
-- Bundle halaman lain membengkak karena Chart.js ikut termuat di luar tab Ringkasan.
+- Bundle halaman lain membengkak karena Chart.js ikut termuat di luar `/dashboard`.
+- Item navigasi Dashboard terlihat oleh non-Super Admin, `/dashboard` bisa dibuka non-Super Admin, atau sesi non-Super Admin memicu request ke `/api/audit-log/summary`.
 - Kegagalan mengambil kualitas pencarian (bus T11) menggagalkan seluruh ringkasan.
 - Chart hanya bisa dipahami lewat warna (tidak terbaca pengguna buta warna / pembaca layar).
 - Perubahan klik baris merusak navigasi keyboard atau fokus kembali ke baris saat detail ditutup (perilaku T02).
@@ -48,7 +51,7 @@ Tiket ini menambah:
 
 | Topik | Keputusan |
 |---|---|
-| Penempatan | Tab di halaman Audit Log (Log dan Ringkasan). |
+| Penempatan | Halaman **Dashboard** sendiri, hanya Super Admin yang bisa melihatnya. Mengganti keputusan awal (tab "Ringkasan" di halaman Audit Log), yang dibatalkan. |
 | Library chart | Chart.js. |
 | Rentang waktu | Preset 24 jam / 7 hari / 30 hari, default 7 hari, ditambah filter project. |
 | Metrik tambahan | Error rate + latensi per tool, trafik per jam/hari, kualitas pencarian (T11). Key paling aktif dan auth ditolak **tidak** ikut. |
@@ -61,10 +64,12 @@ Tiket ini menambah:
 - K4. **Satu endpoint** `GET /api/audit-log/summary` mengembalikan semua agregat sekaligus (satu panggilan FE, satu snapshot waktu yang konsisten). Parameter: `range` (`24h|7d|30d`, default `7d`), `project_id` (opsional).
 - K5. **Kualitas pencarian lewat bus.** Usecase ringkasan memanggil `discovery.knowledgetools.search-quality-report` (kontrak T11) hanya bila `project_id` diisi, karena kontrak itu per project. Tanpa project, bagian ini tidak dikembalikan dan UI menampilkan ajakan memilih project. Bila bus gagal, `search_quality` dikembalikan `null` dengan penanda error; sisa ringkasan tetap terkirim. Audit-log menjadi consumer baru kontrak T11 (catat di README, tabel kontrak bus).
 - K6. **Bucket trafik:** jam (UTC, ditampilkan di zona waktu browser) untuk `24h`, hari untuk `7d` dan `30d`. Bucket kosong tetap dikirim dengan nilai 0 agar garis tidak melompat. Dibuat di SQL dengan `generate_series`.
-- K7. **Chart.js** dipasang versi pasti, hanya komponen yang dipakai (`BarController`, `LineController`, `BarElement`, `LineElement`, `PointElement`, `CategoryScale`, `LinearScale`, `Tooltip`, `Legend`) agar tree-shaking efektif. Tab Ringkasan di-import dinamis (`import()`), jadi tab Log tidak membayar ukuran Chart.js. Warna chart mengikuti token tema (terang/gelap) dan tidak hanya membedakan seri lewat warna (label langsung, pola, atau legenda + tooltip).
+- K7. **Chart.js** dipasang versi pasti, hanya komponen yang dipakai (`BarController`, `LineController`, `BarElement`, `LineElement`, `PointElement`, `CategoryScale`, `LinearScale`, `Tooltip`, `Legend`) agar tree-shaking efektif. Feature `summary` (dan Chart.js bersamanya) di-import dinamis (`import()`) oleh `DashboardView`, jadi halaman lain tidak membayar ukuran Chart.js. Warna chart mengikuti token tema (terang/gelap) dan tidak hanya membedakan seri lewat warna (label langsung, pola, atau legenda + tooltip).
 - K8. **Aksesibilitas chart:** tiap chart punya `aria-label` ringkas dan tabel data tersembunyi visual (`sr-only`) berisi angka yang sama. Ini bukan tabel yang tampil di UI, sehingga tetap sesuai permintaan "chart saja" untuk metrik per tool.
 - K9. **Klik baris:** `<tr>` mendapat `onclick` dan `cursor-pointer`, tombol waktu tetap ada sebagai target fokus keyboard (`data-entry-id`, dipakai untuk mengembalikan fokus). Tidak menambah `role="button"` pada `<tr>` agar semantik tabel tidak rusak. Klik pada teks yang sedang diseleksi (drag select) tidak membuka detail.
-- K10. **State di URL:** `?tab=summary&range=7d&project=<id>`, mengikuti pola `?entry=` yang sudah ada di `AuditLogView.svelte`, sehingga tab dan filter bisa dibagikan dan bertahan saat muat ulang. Filter project dan rentang di tab Ringkasan terpisah dari filter tab Log (rentang Log berbentuk tanggal, Ringkasan berbentuk preset), kecuali project yang dibagi lewat query `project`.
+- K10. **State di URL:** `/dashboard?range=24h|7d|30d&project=<uuid>`, sehingga filter bisa dibagikan dan bertahan saat muat ulang. Tidak ada kunci `tab`. Karena Dashboard adalah route sendiri, kuncinya tidak berbagi ruang dengan filter Audit Log (`range`/`project_id` milik `/audit-log` tidak dibaca atau ditulis Dashboard).
+- K11. **Route dan navigasi:** route baru `/dashboard` dengan meta `{ auth: true, roles: ['super_admin'], layout: 'app', titleKey: 'dashboard.title' }` di `frontend/src/app/routes/index.ts`, pola sama dengan `/audit-log` dan `/admin/users`. Non-Super Admin mendapat perlakuan guard yang sama dengan `/audit-log` (`guard.ts`: role tidak cocok menghasilkan `notfound`). Satu item navigasi "Dashboard" ditambahkan di `frontend/src/app/layouts/AppLayout.svelte` di dalam blok `role === 'super_admin'` yang sudah memuat Users dan Audit Log, sebagai item pertama blok itu (urutan: Project, Dashboard, Users, Audit Log), dengan ikon outline 16px baru `chart` di cabang ikon yang ada. `/` tetap daftar project (`HomeView`) untuk semua user. View aplikasi `frontend/src/app/views/DashboardView.svelte` (baru) merender `PageHeader` "Dashboard" lalu `SummaryView` dari feature `summary`.
+- K12. **Endpoint tetap di module audit-log.** Backend tidak berubah karena perpindahan ke Dashboard: endpoint tetap `GET /api/audit-log/summary` (feature `summary` di `core/internal/auditlog`, khusus Super Admin lewat `RequireRole` grup `/audit-log`). Alasannya, datanya milik module audit-log; halaman Dashboard hanya konsumen. Struktur FE tetap `frontend/src/domain/core/audit-log/summary/`. Alternatif `/api/dashboard/...` dicatat di Pertanyaan terbuka.
 
 ## Constraints
 
@@ -73,7 +78,7 @@ Tiket ini menambah:
 - Endpoint khusus `super_admin` lewat grup `/audit-log` yang sudah memasang `middleware.RequireRole`.
 - Spesifikasi API: tambah path di `api/modules/core/audit-log.yml`, lalu `make api-bundle` dan commit `api/openapi.yml`.
 - Teks UI bahasa Indonesia; kunci i18n di `frontend/src/shared/i18n/{id,en}.json`.
-- Frontend mengikuti pola domain: `frontend/src/domain/core/audit-log/summary/{services,stores,components,views,mocks}`; respons divalidasi Zod di service; slicing dengan mock dulu, lalu wiring ke API nyata.
+- Frontend mengikuti pola domain: `frontend/src/domain/core/audit-log/summary/{services,stores,components,views,mocks}`; respons divalidasi Zod di service; slicing dengan mock dulu, lalu wiring ke API nyata. Halaman dirakit di `app/` (`app/views/DashboardView.svelte`), yang hanya meng-import `summary/index.ts`.
 - Chart.js satu-satunya dependensi baru, versi dikunci.
 
 ## Features
@@ -81,7 +86,8 @@ Tiket ini menambah:
 | Folder | Perubahan | Titik masuk | Siapa |
 |---|---|---|---|
 | `summary` (baru, backend) | Agregat top project, pemakaian tool, metrik per tool, trafik; memanggil bus T11 bila `project_id` ada | `GET /api/audit-log/summary` | super_admin |
-| `summary` (baru, frontend) | Tab Ringkasan: filter rentang + project, kartu kosong/error per chart, 5 chart | `/audit-log?tab=summary` | super_admin |
+| `summary` (baru, frontend) | Isi halaman Dashboard: filter rentang + project, kartu kosong/error per chart, 5 chart | `/dashboard` (lewat `DashboardView`) | super_admin |
+| `app` (ubah, frontend) | Route `/dashboard`, `DashboardView` (baru), item nav "Dashboard" khusus super_admin | `/dashboard`, sidebar | super_admin |
 | `listentries` (ubah, frontend) | Baris tabel bisa diklik penuh | `/audit-log` | super_admin |
 
 ## Kontrak respons (ringkas)
@@ -127,21 +133,22 @@ Tidak ada endpoint bus baru. Consumer baru untuk `discovery.knowledgetools.searc
 
 ## UI (Svelte)
 
-- `AuditLogView`: dua tab (Log, Ringkasan) di atas konten; tab aktif dari `?tab=`. Tab Ringkasan di-lazy-load.
-- Tab Ringkasan:
+- Sidebar (`AppLayout`): item "Dashboard" (ikon `chart`) hanya untuk Super Admin, sebelum Users dan Audit Log; aktif (`aria-current="page"`) di `/dashboard`.
+- `/dashboard` (`DashboardView`): title row `PageHeader` "Dashboard" + satu kalimat redup tentang data, lalu isi feature `summary` yang di-lazy-load (Spinner selama chunk dimuat; ErrorState + coba lagi bila chunk gagal).
+- Isi halaman Dashboard:
   - Bar filter: pemilih rentang (3 preset) dan pemilih project (opsional, "Semua project"), tombol muat ulang.
   - Kartu angka kecil: total panggilan, error rate keseluruhan.
   - Chart: Project teratas (bar horizontal), Tool paling sering dipakai (bar), Status per tool (stacked bar ok/error), Latensi per tool (grouped bar p50/p95), Trafik (line, dua seri).
   - Blok Kualitas pencarian: tiga angka + bar distribusi rank. Tanpa project: kartu ajakan "Pilih project untuk melihat kualitas pencarian". Bila `available=false` karena error: pesan singkat dengan tombol coba lagi, tanpa memengaruhi chart lain.
   - Setiap chart punya status sendiri: memuat (skeleton), kosong ("Belum ada panggilan MCP pada rentang ini"), error.
   - Responsif sampai lebar ponsel: chart satu kolom, label sumbu dipotong dengan `title`/tooltip untuk nama panjang.
-- Tab Log: `AuditTable` baris penuh bisa diklik (K9).
+- Halaman Audit Log: tidak berubah kecuali `AuditTable` baris penuh bisa diklik (K9).
 
 ## Titik sentuh
 
 Backend: `backend/internal/domain/core/internal/auditlog/summary/` (baru), `auditlog/base.go` (wiring route + consumer bus), `lib/contracts/core/audit/record` (hanya dibaca untuk konstanta aksi), `api/modules/core/audit-log.yml`, `api/openapi.yml`.
-Frontend: `frontend/src/app/views/AuditLogView.svelte`, `frontend/src/domain/core/audit-log/summary/` (baru), `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte`, `frontend/package.json`, `frontend/src/shared/i18n/{id,en}.json`.
-Lainnya: `docs/mcp-gateway.md` (bagian Audit, satu paragraf rujukan), `docs/search-quality.md` (catatan: metrik juga tampil di tab Ringkasan), `docs/tickets/README.md`.
+Frontend: `frontend/src/app/routes/index.ts` (route `/dashboard`), `frontend/src/app/views/DashboardView.svelte` (baru), `frontend/src/app/layouts/AppLayout.svelte` (item nav), `frontend/src/domain/core/audit-log/summary/` (baru), `frontend/src/domain/core/audit-log/listentries/components/AuditTable.svelte`, `frontend/package.json`, `frontend/src/shared/i18n/{id,en}.json`. `frontend/src/app/views/AuditLogView.svelte` tidak diubah.
+Lainnya: `docs/mcp-gateway.md` (bagian Audit, satu paragraf rujukan ke halaman `/dashboard`), `docs/search-quality.md` (catatan: metrik juga tampil di halaman Dashboard), `docs/tickets/README.md`.
 
 ## Aksi audit baru
 
@@ -149,8 +156,9 @@ Tidak ada.
 
 ## Catatan revisi
 
-- T02: halaman Audit Log kini punya tab Ringkasan; daftar fitur T02 tetap, `summary` ditambahkan oleh tiket ini.
-- T11: pertanyaan terbuka nomor 3 ("tampilkan di UI Super Admin atau cukup CLI?") dijawab sebagian: tampil di tab Ringkasan, CLI tetap ada.
+- T02: halaman Audit Log **tidak** mendapat tab. Satu-satunya perubahan pada layar T02 adalah klik baris penuh (K9). Daftar fitur T02 tetap; `summary` ditambahkan oleh tiket ini dan tampil di halaman Dashboard terpisah.
+- T11: pertanyaan terbuka nomor 3 ("tampilkan di UI Super Admin atau cukup CLI?") dijawab sebagian: tampil di halaman Dashboard Super Admin (`/dashboard`, untuk project terpilih), CLI tetap ada.
+- T15 sendiri: rancangan awal "tab Ringkasan di halaman Audit Log" dibatalkan oleh keputusan pemilik dan diganti halaman Dashboard. Backend tidak terpengaruh (K12).
 
 ## Risiko
 
@@ -158,12 +166,13 @@ Tidak ada.
 - **Latensi dari JSON.** `result->>'duration_ms'` tidak terindeks dan entri lama bisa tidak punya angka itu; percentile dihitung hanya pada entri yang punya nilai.
 - **Kualitas pencarian dibatasi project.** Kontrak T11 per project, jadi tanpa filter project bagian ini tidak bisa menampilkan angka global. Disengaja (K5).
 - **Interpretasi.** Metrik follow-up/reformulasi adalah perkiraan tren (lihat Risiko T11). Dicatat di tooltip atau teks bantuan, bukan klaim mutlak.
-- **Chart.js menambah dependensi** dan permukaan pembaruan keamanan. Dikunci versinya dan dimuat hanya di tab Ringkasan.
+- **Chart.js menambah dependensi** dan permukaan pembaruan keamanan. Dikunci versinya dan dimuat hanya di `/dashboard`.
 - **Zona waktu.** Bucket dihitung UTC di server; batas hari di UI bisa berbeda dari hari lokal pengguna. Ditampilkan apa adanya dengan label zona waktu pada sumbu.
+- **Nama "Dashboard" vs isi.** Halaman bernama umum tetapi saat ini hanya berisi metrik MCP dari audit log. Bila nanti menampung metrik non-audit, penempatan endpoint perlu ditinjau (Pertanyaan terbuka 5).
 
 ## Kriteria penerimaan
 
-1. Super Admin membuka `/audit-log?tab=summary`: terlihat lima chart dan blok kualitas pencarian untuk rentang default 7 hari. Non-Super Admin tetap ditolak seperti T02.
+1. Super Admin melihat item navigasi "Dashboard" di sidebar dan membuka `/dashboard`: terlihat title row "Dashboard", lima chart, dan blok kualitas pencarian untuk rentang default 7 hari. Non-Super Admin tidak melihat item navigasi itu; membuka `/dashboard` langsung diperlakukan sama seperti `/audit-log` (guard router yang sama, halaman tidak tersedia), dan tidak ada request ke `/api/audit-log/summary`.
 2. Data uji: project A 5 panggilan `mcp.read_file`, project B 2 panggilan `mcp.search_knowledge` → `top_projects` berurutan A lalu B; `tool_usage` read_file 5 dan search_knowledge 2.
 3. Entri `mcp.initialize`, `mcp.tools_list`, `mcp.auth_rejected`, `mcp.rate_limited`, `mcp.unknown_tool` tidak ikut `total_calls`, `tool_usage`, maupun `tool_metrics`.
 4. 10 panggilan `read_file` (1 berstatus `error`) → `error_rate` 0.1. Latensi p50/p95 benar terhadap `duration_ms` data uji; entri tanpa `duration_ms` tidak ikut percentile dan tidak membuat error.
@@ -173,11 +182,11 @@ Tidak ada.
 8. Dengan `project_id`, `search_quality` terisi sama dengan keluaran `grimoire search-quality report` untuk project dan rentang yang sama. Tanpa `project_id`, `search_quality` null dan UI menampilkan ajakan pilih project.
 9. Bus T11 gagal (disimulasikan): respons tetap `200`, chart lain tetap tampil, blok kualitas pencarian menampilkan pesan error dengan tombol coba lagi.
 10. Respons tidak memuat `args`, isi `result`, query pencarian, atau path file (tes memeriksa bentuk respons).
-11. Mengganti rentang atau project memperbarui URL (`range`, `project`) dan memuat ulang halaman mengembalikan keadaan yang sama; tab aktif ikut tersimpan di URL.
+11. Mengganti rentang atau project memperbarui URL `/dashboard` (`range`, `project`), dan memuat ulang halaman mengembalikan keadaan yang sama.
 12. Tiap chart punya `aria-label` dan data setara untuk pembaca layar; seri tidak dibedakan hanya dengan warna; tampilan terbaca di tema terang dan gelap.
-13. Memuat tab Log saja tidak mengunduh Chart.js (diverifikasi lewat ukuran chunk atau jaringan); Chart.js hanya dimuat saat tab Ringkasan dibuka.
-14. Di tab Log, klik di mana pun pada baris (bukan hanya teks waktu) membuka panel detail; menutup detail mengembalikan fokus ke tombol waktu baris itu; navigasi keyboard (Tab ke tombol waktu, Enter) tetap berfungsi; menyeleksi teks target dengan drag tidak membuka detail.
-15. Tes: unit untuk perhitungan agregat (repository dengan Postgres tes, bukan mock), tes handler/otorisasi, tes service Zod dan store FE, tes komponen chart (data masuk → konfigurasi Chart.js benar), tes `AuditTable` untuk klik baris, dan e2e Playwright: buka tab Ringkasan, ganti rentang, pilih project.
+13. Membuka halaman selain `/dashboard` (mis. `/`, `/audit-log`) tidak mengunduh Chart.js (diverifikasi lewat ukuran chunk atau jaringan); Chart.js hanya dimuat saat `/dashboard` dibuka.
+14. Di halaman Audit Log, klik di mana pun pada baris (bukan hanya teks waktu) membuka panel detail; menutup detail mengembalikan fokus ke tombol waktu baris itu; navigasi keyboard (Tab ke tombol waktu, Enter) tetap berfungsi; menyeleksi teks target dengan drag tidak membuka detail.
+15. Tes: unit untuk perhitungan agregat (repository dengan Postgres tes, bukan mock), tes handler/otorisasi, tes service Zod dan store FE, tes komponen chart (data masuk → konfigurasi Chart.js benar), tes `AuditTable` untuk klik baris, tes item nav dan guard `/dashboard`, dan e2e Playwright: buka `/dashboard`, ganti rentang, pilih project.
 16. `make api-bundle` bersih; `api/openapi.yml` ter-commit memuat `/audit-log/summary`.
 
 ## Pertanyaan terbuka
@@ -186,3 +195,5 @@ Tidak ada.
 2. Perlu bandingkan dengan periode sebelumnya (mis. "naik 12% dari 7 hari lalu") pada kartu angka? Ditunda.
 3. Bila data audit besar membuat query lambat, apakah kita mau tabel agregat harian (tiket lanjutan) atau cukup membatasi ke 7 hari?
 4. Apakah "key paling aktif" dan "auth ditolak/rate limit" dijadikan tiket lanjutan? Sengaja tidak masuk T15 sesuai keputusan pemilik, tetapi datanya sudah ada.
+5. Endpoint tetap `GET /api/audit-log/summary` (K12). Bila nanti Dashboard menampung metrik non-audit (mis. jumlah file knowledge, spec, key aktif), apakah kita pindah ke namespace `/api/dashboard/...` (module sendiri yang mengagregasi lewat bus) atau tiap module tetap menyediakan endpoint ringkasannya sendiri?
+6. Posisi item "Dashboard" di sidebar (K11: pertama di blok Super Admin) dan apakah Super Admin perlu mendarat di `/dashboard` setelah login. Saat ini `/` tetap daftar project untuk semua user.

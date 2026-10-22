@@ -22,7 +22,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T12](T12-core-invitation-email.md) | infra + core + project | mailer, auth, management (undangan anggota lewat email) | L | T01, T02, T03 | Selesai (`b1b54f0`) |
 | [T13](T13-project-api-key-per-user.md) | project | api-key (kepemilikan key per user per project) | M | T03, T04 | Selesai (`3263fa5`) |
 | [T14](T14-project-git-sync.md) | core + project | git-credential (PAT per user), git-sync (sync knowledge & API spec dari git) | L | T01, T02, T03, T05, T06 | Plan siap |
-| [T15](T15-core-audit-log-summary.md) | core | audit-log (ringkasan metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Plan siap |
+| [T15](T15-core-audit-log-summary.md) | core | audit-log (dashboard metrik MCP + baris tabel bisa diklik) | L | T02, T07, T11 | Plan siap |
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
 
