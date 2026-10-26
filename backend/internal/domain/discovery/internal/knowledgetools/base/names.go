@@ -5,6 +5,11 @@ const (
 	ToolListFiles       = "list_files"
 	ToolReadFile        = "read_file"
 	ToolSearchKnowledge = "search_knowledge"
+
+	// T18.
+	ToolGetFileOutline    = "get_file_outline"
+	ToolReadSection       = "read_section"
+	ToolListRecentChanges = "list_recent_changes"
 )
 
 // ProjectArgAliases adalah nama argumen project yang ditolak dengan pesan khusus (AC5).
