@@ -34,12 +34,12 @@
     {#each items as p (p.id)}
       <li
         data-project-id={p.id}
-        class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule px-4 py-3 transition-colors hover:bg-accent-soft/60 md:grid md:min-h-14 md:grid-cols-[var(--cols)] md:items-center md:gap-4"
+        class="relative flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule px-4 py-3 transition-colors hover:bg-accent-soft/60 md:grid md:min-h-14 md:grid-cols-[var(--cols)] md:items-center md:gap-4"
       >
         <div class="flex w-full min-w-0 items-center gap-3 md:w-auto">
           <Avatar name={p.name} size={34} shape="square" />
           <div class="min-w-0">
-            <a href="/projects/{encodeURIComponent(p.id)}" onclick={(e) => click(e, p.id)} class="text-[15px] font-medium break-words hover:text-accent-ink hover:underline hover:underline-offset-4">{p.name}</a>
+            <a href="/projects/{encodeURIComponent(p.id)}" onclick={(e) => click(e, p.id)} class="text-[15px] font-medium break-words after:absolute after:inset-0 after:content-[''] hover:text-accent-ink hover:underline hover:underline-offset-4 focus-visible:after:rounded-card focus-visible:after:ring-2 focus-visible:after:ring-accent">{p.name}</a>
             {#if p.description}<p class="text-[13px] break-words text-muted">{excerpt(p.description)}</p>{/if}
           </div>
         </div>
