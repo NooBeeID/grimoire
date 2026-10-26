@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from '../../../../../shared/components/IconButton.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
   import type { ApiError } from '../../../../../shared/services/http';
@@ -44,12 +45,8 @@
     <time datetime={g.updated_at}>{formatDateTime(g.updated_at, $locale)}</time>
   {:else}
     <div class="flex items-center justify-end gap-1">
-      <Button size="sm" variant="ghost" ariaLabel={$t('searchSynonym.edit.aria', { terms: label(g) })} onclick={() => onedit(g)}>
-        {$t('searchSynonym.edit.open')}
-      </Button>
-      <Button size="sm" variant="ghost" ariaLabel={$t('searchSynonym.delete.aria', { terms: label(g) })} onclick={() => ondelete(g)}>
-        {$t('searchSynonym.delete.open')}
-      </Button>
+      <IconButton icon="edit" label={$t('searchSynonym.edit.open')} ariaLabel={$t('searchSynonym.edit.aria', { terms: label(g) })} onclick={() => onedit(g)} />
+      <IconButton icon="delete" tone="danger" label={$t('searchSynonym.delete.open')} ariaLabel={$t('searchSynonym.delete.aria', { terms: label(g) })} onclick={() => ondelete(g)} />
     </div>
   {/if}
 {/snippet}

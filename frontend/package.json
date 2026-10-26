@@ -25,6 +25,7 @@
     "chart.js": "4.5.1",
     "codemirror": "6.0.2",
     "dompurify": "3.4.16",
+    "heroicons": "^2.2.0",
     "marked": "17.0.6",
     "mermaid": "11.17.2",
     "svelte": "5.57.2",

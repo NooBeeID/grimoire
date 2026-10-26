@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from '../../../../../shared/components/IconButton.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
   import type { ApiError } from '../../../../../shared/services/http';
@@ -59,19 +60,10 @@
     {#if canEdit}
       <div class="flex justify-end gap-1">
         {#if onsave}
-          <Button
-            variant="ghost"
-            size="sm"
-            ariaLabel={$t(r.saved ? 'gitCredential.action.replace.aria' : 'gitCredential.action.save.aria', { provider: prov(r), host: r.host })}
-            onclick={() => onsave?.(r)}
-          >
-            {$t(r.saved ? 'gitCredential.action.replace' : 'gitCredential.action.save')}
-          </Button>
+          <IconButton icon={r.saved ? 'replace' : 'send'} label={$t(r.saved ? 'gitCredential.action.replace' : 'gitCredential.action.save')} ariaLabel={$t(r.saved ? 'gitCredential.action.replace.aria' : 'gitCredential.action.save.aria', { provider: prov(r), host: r.host })} onclick={() => onsave?.(r)} />
         {/if}
         {#if ondelete && r.saved}
-          <Button variant="ghost" size="sm" ariaLabel={$t('gitCredential.action.delete.aria', { provider: prov(r), host: r.host })} onclick={() => ondelete?.(r)}>
-            <span class="text-danger">{$t('gitCredential.action.delete')}</span>
-          </Button>
+          <IconButton icon="delete" tone="danger" label={$t('gitCredential.action.delete')} ariaLabel={$t('gitCredential.action.delete.aria', { provider: prov(r), host: r.host })} onclick={() => ondelete?.(r)} />
         {/if}
       </div>
     {/if}

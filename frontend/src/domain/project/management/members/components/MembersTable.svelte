@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from '../../../../../shared/components/IconButton.svelte';
   import Avatar from '../../../../../shared/components/Avatar.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
@@ -64,21 +65,16 @@
     <div class="flex flex-wrap justify-end gap-1">
       {#if isSelf}
         {#if canManage && m.role === 'owner'}
-          <Button size="sm" variant="ghost" loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'member')}>{$t('project.members.makeMember')}</Button>
+          <IconButton icon="demote" label={$t('project.members.makeMember')} loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'member')} />
         {/if}
-        <Button size="sm" variant="ghost" disabled={busy || otherBusy} onclick={() => onrequestleave(m)}>{$t('project.members.leave')}</Button>
+        <IconButton icon="leave" tone="danger" label={$t('project.members.leave')} disabled={busy || otherBusy} onclick={() => onrequestleave(m)} />
       {:else if canManage}
         {#if m.role === 'member'}
-          <Button size="sm" variant="ghost" loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'owner')}>{$t('project.members.makeOwner')}</Button>
+          <IconButton icon="promote" label={$t('project.members.makeOwner')} loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'owner')} />
         {:else}
-          <Button size="sm" variant="ghost" loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'member')}>{$t('project.members.makeMember')}</Button>
+          <IconButton icon="demote" label={$t('project.members.makeMember')} loading={busy} disabled={otherBusy} onclick={() => onrequestrole(m, 'member')} />
         {/if}
-        <Button
-          size="sm"
-          variant="ghost"
-          ariaLabel={$t('project.members.removeAria', { name: displayName(m) })}
-          disabled={busy || otherBusy}
-          onclick={() => onrequestremove(m)}>{$t('project.members.remove')}</Button>
+        <IconButton icon="removeMember" tone="danger" label={$t('project.members.remove')} ariaLabel={$t('project.members.removeAria', { name: displayName(m) })} disabled={busy || otherBusy} onclick={() => onrequestremove(m)} />
       {/if}
     </div>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from '../../../../../shared/components/IconButton.svelte';
   import Avatar from '../../../../../shared/components/Avatar.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
@@ -74,9 +75,7 @@
         >
       {/if}
       {#if k.status === 'active'}
-        <Button size="sm" variant="ghost" ariaLabel={$t('project.apikey.revoke.aria', { name: k.name })} onclick={() => onrevoke(k)}>
-          {$t('project.apikey.revoke.open')}
-        </Button>
+        <IconButton icon="revoke" tone="danger" label={$t('project.apikey.revoke.open')} ariaLabel={$t('project.apikey.revoke.aria', { name: k.name })} onclick={() => onrevoke(k)} />
       {/if}
     </div>
   {/if}

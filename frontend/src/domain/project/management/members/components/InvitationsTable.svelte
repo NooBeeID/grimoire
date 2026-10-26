@@ -1,4 +1,5 @@
 <script lang="ts">
+  import IconButton from '../../../../../shared/components/IconButton.svelte';
   import Avatar from '../../../../../shared/components/Avatar.svelte';
   import Button from '../../../../../shared/components/Button.svelte';
   import Table from '../../../../../shared/components/Table.svelte';
@@ -53,8 +54,8 @@
     {@const busy = busyUserId === i.user_id}
     {@const otherBusy = busyUserId !== null && !busy}
     <div class="flex flex-wrap justify-end gap-1">
-      <Button size="sm" variant="ghost" loading={busy} disabled={otherBusy} ariaLabel={$t('project.invitations.resendAria', { email: i.email })} onclick={() => onrequestresend(i)}>{$t('project.invitations.resend')}</Button>
-      <Button size="sm" variant="ghost" disabled={busy || otherBusy} ariaLabel={$t('project.invitations.revokeAria', { email: i.email })} onclick={() => onrequestrevoke(i)}>{$t('project.invitations.revoke')}</Button>
+      <IconButton icon="resend" label={$t('project.invitations.resend')} loading={busy} disabled={otherBusy} ariaLabel={$t('project.invitations.resendAria', { email: i.email })} onclick={() => onrequestresend(i)} />
+      <IconButton icon="revoke" tone="danger" label={$t('project.invitations.revoke')} disabled={busy || otherBusy} ariaLabel={$t('project.invitations.revokeAria', { email: i.email })} onclick={() => onrequestrevoke(i)} />
     </div>
   {/if}
 {/snippet}
