@@ -3,6 +3,7 @@ package base
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -125,7 +126,7 @@ func TestToolActions_Completeness(t *testing.T) {
 			t.Fatalf("missing %s", a)
 		}
 	}
-	if len(ToolActions()) != 6 {
+	if len(ToolActions()) != 9 || !slices.Contains(ToolActions(), "mcp.read_section") {
 		t.Fatalf("tools=%v", ToolActions())
 	}
 	if ToolName("mcp.read_file") != "read_file" {

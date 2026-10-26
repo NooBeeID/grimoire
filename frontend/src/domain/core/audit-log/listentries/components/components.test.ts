@@ -203,6 +203,6 @@ describe('katalog aksi T08', () => {
 describe('katalog aksi T09', () => {
   it('grup mcp memuat tiga aksi api-spec-tools', () => {
     const mcp = ACTION_GROUPS.find((g) => g.key === 'mcp');
-    expect(mcp?.actions).toEqual(expect.arrayContaining(['mcp.list_api_specs', 'mcp.list_api_endpoints', 'mcp.get_api_endpoint']));
+    expect(mcp?.actions).toEqual(expect.arrayContaining(['mcp.list_api_specs', 'mcp.list_api_endpoints', 'mcp.get_api_endpoint', 'mcp.get_file_outline', 'mcp.read_section', 'mcp.list_recent_changes']));
   });
 });

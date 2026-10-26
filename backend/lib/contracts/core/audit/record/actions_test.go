@@ -11,7 +11,8 @@ var actionRe = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
 // catalog adalah salinan literal katalog di docs/tickets/README.md.
 var catalog = []string{
 	"mcp.list_files", "mcp.read_file", "mcp.search_knowledge", "mcp.list_api_specs",
-	"mcp.list_api_endpoints", "mcp.get_api_endpoint", "mcp.auth.rejected", "mcp.rate_limited",
+	"mcp.list_api_endpoints", "mcp.get_api_endpoint", "mcp.get_file_outline", "mcp.read_section",
+	"mcp.list_recent_changes", "mcp.auth.rejected", "mcp.rate_limited",
 	"mcp.initialize", "mcp.tools_list", "mcp.unknown_tool",
 	"auth.login.success", "auth.login.failed", "auth.logout", "auth.password.changed",
 	"auth.password.reset", "user.created", "user.updated", "user.deactivated", "user.activated",
@@ -28,8 +29,8 @@ var catalog = []string{
 
 func TestActions_UniqueAndWellFormed(t *testing.T) {
 	got := Actions()
-	if len(got) != 46 {
-		t.Fatalf("want 46 actions, got %d", len(got))
+	if len(got) != 49 {
+		t.Fatalf("want 49 actions, got %d", len(got))
 	}
 	seen := map[string]bool{}
 	for _, a := range got {

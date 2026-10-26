@@ -3,17 +3,20 @@ package record
 // Katalog aksi audit (lihat docs/tickets/README.md). Aksi baru: tambah konstanta
 // di sini, di Actions(), dan di katalog README.
 const (
-	ActionMCPListFiles        = "mcp.list_files"
-	ActionMCPReadFile         = "mcp.read_file"
-	ActionMCPSearchKnowledge  = "mcp.search_knowledge"
-	ActionMCPListAPISpecs     = "mcp.list_api_specs"
-	ActionMCPListAPIEndpoints = "mcp.list_api_endpoints"
-	ActionMCPGetAPIEndpoint   = "mcp.get_api_endpoint"
-	ActionMCPAuthRejected     = "mcp.auth.rejected"
-	ActionMCPRateLimited      = "mcp.rate_limited"
-	ActionMCPInitialize       = "mcp.initialize"
-	ActionMCPToolsList        = "mcp.tools_list"
-	ActionMCPUnknownTool      = "mcp.unknown_tool"
+	ActionMCPListFiles         = "mcp.list_files"
+	ActionMCPReadFile          = "mcp.read_file"
+	ActionMCPSearchKnowledge   = "mcp.search_knowledge"
+	ActionMCPListAPISpecs      = "mcp.list_api_specs"
+	ActionMCPListAPIEndpoints  = "mcp.list_api_endpoints"
+	ActionMCPGetAPIEndpoint    = "mcp.get_api_endpoint"
+	ActionMCPGetFileOutline    = "mcp.get_file_outline"
+	ActionMCPReadSection       = "mcp.read_section"
+	ActionMCPListRecentChanges = "mcp.list_recent_changes"
+	ActionMCPAuthRejected      = "mcp.auth.rejected"
+	ActionMCPRateLimited       = "mcp.rate_limited"
+	ActionMCPInitialize        = "mcp.initialize"
+	ActionMCPToolsList         = "mcp.tools_list"
+	ActionMCPUnknownTool       = "mcp.unknown_tool"
 
 	ActionAuthLoginSuccess    = "auth.login.success"
 	ActionAuthLoginFailed     = "auth.login.failed"
@@ -62,6 +65,7 @@ func Actions() []string {
 	return []string{
 		ActionMCPListFiles, ActionMCPReadFile, ActionMCPSearchKnowledge,
 		ActionMCPListAPISpecs, ActionMCPListAPIEndpoints, ActionMCPGetAPIEndpoint,
+		ActionMCPGetFileOutline, ActionMCPReadSection, ActionMCPListRecentChanges,
 		ActionMCPAuthRejected, ActionMCPRateLimited,
 		ActionMCPInitialize, ActionMCPToolsList, ActionMCPUnknownTool,
 		ActionAuthLoginSuccess, ActionAuthLoginFailed, ActionAuthLogout,
