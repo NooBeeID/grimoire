@@ -23,10 +23,10 @@
 {#if items.length === 0}
   <p class="rounded-card border border-border p-6 text-center text-sm text-muted">{$t('gitSync.report.empty')}</p>
 {:else}
-  <div class="max-h-[360px] overflow-auto rounded-card border border-border bg-surface shadow-panel" data-testid="report-table">
+  <div class="max-h-[360px] overflow-auto outlined rounded-card bg-surface shadow-panel" data-testid="report-table">
     <table class="w-full border-collapse text-left text-sm">
       <thead class="sticky top-0 z-10">
-        <tr class="bg-raised">
+        <tr class="border-b border-outline bg-raised text-muted">
           <th scope="col" class="h-10 px-3 text-[13px] font-medium text-muted">{$t('gitSync.report.repoPath')}</th>
           <th scope="col" class="h-10 px-3 text-[13px] font-medium text-muted max-sm:hidden">{$t('gitSync.report.target')}</th>
           <th scope="col" class="h-10 px-3 text-[13px] font-medium text-muted">{$t('gitSync.report.status')}</th>
@@ -89,7 +89,7 @@
             </td>
           </tr>
           {#if expandable && open[i.repo_path]}
-            <tr class="bg-raised">
+            <tr class="border-b border-outline bg-raised text-muted">
               <td colspan="4" class="px-3 py-2">
                 <p class="mb-1 text-xs text-muted">{$t('gitSync.report.issues')}</p>
                 <ul class="flex flex-col gap-1 text-[13px]">

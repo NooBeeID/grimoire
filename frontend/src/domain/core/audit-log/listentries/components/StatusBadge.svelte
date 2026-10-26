@@ -9,6 +9,6 @@
   };
 </script>
 
-<span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {cls[status]}">
+<span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium {cls[status]}">
   {$t(`auditLog.status.${status}`)}
 </span>

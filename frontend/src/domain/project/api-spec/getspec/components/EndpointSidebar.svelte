@@ -44,7 +44,7 @@
   </li>
 {/snippet}
 
-<div class="flex flex-col overflow-hidden rounded-card border border-border bg-surface shadow-panel md:max-h-[calc(100vh-9rem)]">
+<div class="flex flex-col overflow-hidden outlined rounded-card bg-surface shadow-panel md:max-h-[calc(100vh-9rem)]">
   <div class="flex items-center gap-2 bg-raised px-3 py-2">
     <input
       type="search"

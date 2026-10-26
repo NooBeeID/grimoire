@@ -6,16 +6,16 @@
 </script>
 
 <!-- Link (bukan role="tablist") karena tiap tab adalah URL sendiri. -->
-<nav aria-label={$t('project.tab.label')} class="overflow-x-auto border-b border-border">
-  <ul class="flex gap-6 whitespace-nowrap">
+<nav aria-label={$t('project.tab.label')} class="overflow-x-auto py-1">
+  <ul class="glass inline-flex gap-1 rounded-full p-1 whitespace-nowrap shadow-xs">
     {#each tabs as tab (tab.key)}
       <li>
         <a
           href="/projects/{encodeURIComponent(projectId)}/{tab.key}"
           aria-current={tab.key === active ? 'page' : undefined}
-          class="-mb-px inline-block border-b-2 py-2.5 text-sm focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none {tab.key === active
-            ? 'border-accent font-semibold text-fg'
-            : 'border-transparent text-muted hover:text-fg'}"
+          class="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium {tab.key === active
+            ? 'bg-primary text-primary-fg shadow-button'
+            : 'text-muted hover:bg-surface/70 hover:text-fg'}"
         >
           {$t(tab.labelKey)}
         </a>

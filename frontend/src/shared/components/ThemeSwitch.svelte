@@ -11,9 +11,9 @@
   aria-label={label}
   title={label}
   onclick={toggleTheme}
-  class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-base border border-control bg-surface text-fg shadow-xs hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
+  class="outlined inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface/70 text-muted hover:bg-raised hover:text-fg"
 >
-  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     {#if $theme === 'dark'}
       <circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
     {:else}

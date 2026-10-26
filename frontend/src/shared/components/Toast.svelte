@@ -3,9 +3,9 @@
   import { t } from '../stores/i18n';
 
   const tone = {
-    success: 'border-positive',
-    error: 'border-danger',
-    info: 'border-control',
+    success: 'bg-pill-positive-bg text-pill-positive-ink',
+    error: 'bg-pill-negative-bg text-pill-negative-ink',
+    info: 'bg-surface text-fg',
   };
 </script>
 
@@ -13,7 +13,7 @@
   {#each $toasts as item (item.id)}
     <div
       role={item.type === 'error' ? 'alert' : undefined}
-      class="flex items-start gap-2 rounded-card border bg-surface p-3 shadow-pop {tone[item.type]}"
+      class="outlined flex items-start gap-2 rounded-card p-3.5 font-semibold shadow-pop {tone[item.type]}"
     >
       <div class="flex-1 text-sm">
         <p>{item.message}</p>
@@ -23,7 +23,7 @@
         type="button"
         aria-label={$t('toast.close')}
         onclick={() => toast.dismiss(item.id)}
-        class="rounded px-1 hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
+        class="rounded-base px-1.5 hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
       >
         <span aria-hidden="true">&times;</span>
       </button>

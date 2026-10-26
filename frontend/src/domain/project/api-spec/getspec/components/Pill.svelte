@@ -10,4 +10,4 @@
   };
 </script>
 
-<span class="inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap {cls[tone]}">{@render children()}</span>
+<span class="inline-flex h-5 shrink-0 items-center rounded-base px-2 text-xs font-medium whitespace-nowrap {cls[tone]}">{@render children()}</span>

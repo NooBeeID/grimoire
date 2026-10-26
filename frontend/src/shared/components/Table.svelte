@@ -42,13 +42,13 @@
     Object.fromEntries(Object.entries(rowAttrs?.(row) ?? {}).filter(([k]) => k.startsWith('data-')));
 </script>
 
-<div class="overflow-hidden rounded-card border border-border bg-surface shadow-panel">
+<div class="outlined overflow-hidden rounded-card bg-surface/85 shadow-panel">
 <table class="w-full border-collapse text-left text-sm" aria-busy={loading}>
   {#if caption}<caption class="sr-only">{caption}</caption>{/if}
   <thead>
-    <tr class="bg-raised">
+    <tr class="border-b border-outline bg-raised text-muted">
       {#each columns as col (col.key)}
-        <th scope="col" class="h-10 px-4 text-[13px] font-medium text-muted {col.class ?? ''}">{col.header}</th>
+        <th scope="col" class="h-10 px-4 text-xs font-medium {col.class ?? ''}">{col.header}</th>
       {/each}
     </tr>
   </thead>
@@ -61,7 +61,7 @@
       <tr><td colspan={columns.length}><EmptyState title={emptyText ?? $t('table.empty')} /></td></tr>
     {:else}
       {#each rows as row (rowKey(row))}
-        <tr class="h-12 border-t border-rule transition-colors hover:bg-raised/60 {rowClass?.(row) ?? ''}" {...dataAttrs(row)}>
+        <tr class="h-12 border-t border-rule transition-colors hover:bg-accent-soft/60 {rowClass?.(row) ?? ''}" {...dataAttrs(row)}>
           {#each columns as col (col.key)}
             <td class="px-4 py-2 {col.class ?? ''}">
               {#if cell}{@render cell(row, col)}{:else}{(row as Record<string, unknown>)[col.key] ?? ''}{/if}

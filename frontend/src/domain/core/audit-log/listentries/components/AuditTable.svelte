@@ -53,13 +53,13 @@
   const hideSm: Record<string, string> = { project: 'hidden sm:table-cell', target: 'hidden sm:table-cell' };
 </script>
 
-<div class="overflow-x-auto rounded-card border border-border bg-surface shadow-panel" aria-busy={loading}>
+<div class="overflow-x-auto outlined rounded-card bg-surface shadow-panel" aria-busy={loading}>
   <table class="w-full border-collapse text-left text-sm">
     <caption class="sr-only">{$t('auditLog.title')}</caption>
     <thead>
-      <tr class="bg-raised">
+      <tr class="border-b border-outline bg-raised text-muted">
         {#each cols as c (c)}
-          <th scope="col" class="h-10 px-4 text-left text-[13px] font-medium text-muted {hideSm[c] ?? ''}">{$t(`auditLog.columns.${c}`)}</th>
+          <th scope="col" class="h-10 px-4 text-left text-xs font-medium {hideSm[c] ?? ''}">{$t(`auditLog.columns.${c}`)}</th>
         {/each}
       </tr>
     </thead>
@@ -112,7 +112,7 @@
             </td>
             <td class="px-4 py-2">
               <span class="inline-flex items-center gap-2">
-                <span class="grid h-6 w-6 shrink-0 place-items-center {r.actor_type === 'user' ? 'rounded-full bg-raised text-muted' : 'rounded-card bg-accent/20 text-accent-ink'}"><ActorIcon type={r.actor_type} /></span>
+                <span class="grid h-6 w-6 shrink-0 place-items-center {r.actor_type === 'user' ? 'rounded-base bg-raised text-muted' : 'rounded-card bg-accent/20 text-accent-ink'}"><ActorIcon type={r.actor_type} /></span>
                 <span class={r.actor_type === 'user' ? '' : 'font-mono text-[13px]'}>{r.actor_label}</span>
               </span>
             </td>

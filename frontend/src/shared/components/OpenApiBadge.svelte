@@ -8,7 +8,7 @@
 </script>
 
 <span
-  class="inline-flex h-5 items-center rounded-full bg-pill-neutral-bg px-2 text-xs font-medium text-pill-neutral-ink"
+  class="inline-flex h-5 items-center rounded-base bg-pill-neutral-bg px-2 text-xs font-medium text-pill-neutral-ink"
   title={swagger2 ? 'Swagger 2.0' : version}
   aria-label={swagger2 ? 'Swagger 2.0' : `${$t('apispec.openapiVersion')} ${version}`}>{swagger2 ? 'Swagger 2.0' : short}</span
 >

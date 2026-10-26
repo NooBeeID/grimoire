@@ -36,7 +36,7 @@
     onchange={() => onchange?.(value)}
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={describedBy}
-    class="h-8 rounded-base border bg-surface px-2.5 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none {error ? 'border-danger' : 'border-control'}"
+    class="outlined h-10 rounded-full bg-surface/80 px-4 text-sm shadow-xs {error ? '!border-danger' : ''}"
   >
     {#each options as o (o.value)}
       <option value={o.value}>{o.label}</option>

@@ -12,8 +12,8 @@
     fill="none"
     aria-hidden="true"
   >
-    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="4" />
-    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+    <path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5Z" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" stroke-linejoin="round" />
+    <path d="M12 2.5 20.2 7.25v4.2" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
   </svg>
   <span class="sr-only">{label ?? $t('common.loading')}</span>
 </span>

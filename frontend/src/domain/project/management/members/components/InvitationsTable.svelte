@@ -39,7 +39,7 @@
       <span class="min-w-0"><span class="block break-words">{i.name}</span><span class="block break-all text-xs text-muted">{i.email}</span></span>
     </span>
   {:else if col.key === 'role'}
-    <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {i.role === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted'}">{i.role === 'owner' ? $t('project.role.owner') : $t('project.role.member')}</span>
+    <span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium {i.role === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted'}">{i.role === 'owner' ? $t('project.role.owner') : $t('project.role.member')}</span>
   {:else if col.key === 'status'}
     <InvitationStatusPill invitation={i} />
   {:else if col.key === 'sent'}

@@ -42,6 +42,7 @@
   "nav.menu": "Menu",
   "nav.logout": "Sign out",
   "auth.login.title": "Sign in",
+  "auth.login.greeting": "Sign in to open your project knowledge base.",
   "auth.login.email": "Email",
   "auth.login.password": "Password",
   "auth.login.submit": "Sign in",

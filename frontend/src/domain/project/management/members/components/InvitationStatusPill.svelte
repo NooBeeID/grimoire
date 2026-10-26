@@ -15,4 +15,4 @@
   );
 </script>
 
-<span class="inline-flex h-5 flex-none items-center rounded-full px-2 text-xs font-medium whitespace-nowrap {tone}">{$t(`project.invitations.status.${status}`)}</span>
+<span class="inline-flex h-5 flex-none items-center rounded-base px-2 text-xs font-medium whitespace-nowrap {tone}">{$t(`project.invitations.status.${status}`)}</span>

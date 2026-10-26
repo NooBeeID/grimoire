@@ -76,7 +76,7 @@
     role="menu"
     tabindex="-1"
     {onkeydown}
-    class="absolute top-full right-1 z-10 mt-1 flex min-w-44 flex-col rounded-card border border-border bg-surface p-1 shadow-pop"
+    class="absolute top-full right-1 z-10 mt-1 flex min-w-44 flex-col glass rounded-card p-1.5 shadow-pop"
   >
     {#each actions as a (a)}
       <button

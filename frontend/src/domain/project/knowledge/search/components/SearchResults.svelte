@@ -26,7 +26,7 @@
           <span class="font-medium break-words">{it.title || baseName(it.path)}</span>
           <span class="font-mono text-xs break-all text-muted">{it.path}</span>
           <span class="text-[13px] break-words text-muted">
-            {#each it.snippet as s, i (i)}{#if s.highlight}<mark class="rounded-base bg-accent/30 text-fg">{s.text}</mark>{:else}{s.text}{/if}{/each}
+            {#each it.snippet as s, i (i)}{#if s.highlight}<mark class="rounded-base bg-brand/40 text-fg">{s.text}</mark>{:else}{s.text}{/if}{/each}
           </span>
         </button>
       </li>

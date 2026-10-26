@@ -42,6 +42,7 @@
   "nav.menu": "Menu",
   "nav.logout": "Keluar",
   "auth.login.title": "Masuk",
+  "auth.login.greeting": "Masuk untuk membuka knowledge base project Anda.",
   "auth.login.email": "Email",
   "auth.login.password": "Password",
   "auth.login.submit": "Masuk",

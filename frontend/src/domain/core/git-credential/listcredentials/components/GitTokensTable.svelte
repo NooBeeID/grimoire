@@ -43,11 +43,11 @@
   {:else if col.key === 'status'}
     {#if r.saved}
       <span class="inline-flex items-center gap-2">
-        <span class="inline-flex h-5 items-center rounded-full bg-pill-positive-bg px-2 text-xs font-medium whitespace-nowrap text-pill-positive-ink">{$t('gitCredential.status.saved')}</span>
+        <span class="inline-flex h-5 items-center rounded-base bg-pill-positive-bg px-2 text-xs font-medium whitespace-nowrap text-pill-positive-ink">{$t('gitCredential.status.saved')}</span>
         <code class="font-mono text-[13px] text-muted">{maskLast4(r.saved.last4)}</code>
       </span>
     {:else}
-      <span class="inline-flex h-5 items-center rounded-full bg-pill-neutral-bg px-2 text-xs font-medium whitespace-nowrap text-pill-neutral-ink">{$t('gitCredential.status.none')}</span>
+      <span class="inline-flex h-5 items-center rounded-base bg-pill-neutral-bg px-2 text-xs font-medium whitespace-nowrap text-pill-neutral-ink">{$t('gitCredential.status.none')}</span>
     {/if}
   {:else if col.key === 'updated'}
     {#if r.saved}

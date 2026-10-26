@@ -10,7 +10,7 @@
   const percent = $derived(progress.phase === 'listing' ? null : progress.phase === 'saving' ? 100 : total === null ? null : percentOf(done, total));
   const path = $derived(progress.phase === 'fetching' || progress.phase === 'waiting' ? progress.path : '');
   const seconds = $derived(progress.phase === 'waiting' ? remainingSeconds(progress.until, now) : 0);
-  const fill = $derived(progress.phase === 'waiting' ? 'bg-border' : 'bg-accent');
+  const fill = $derived(progress.phase === 'waiting' ? 'bg-border' : 'bg-accent bg-accent-ink!');
   const leftLabel = $derived(
     progress.phase === 'listing' || (progress.phase === 'waiting' && total === null)
       ? $t('gitSync.progress.listing')

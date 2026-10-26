@@ -23,12 +23,12 @@
   } = $props();
 
   const variants = {
-    primary: 'bg-primary text-primary-fg shadow-button hover:opacity-90',
-    secondary: 'border border-control bg-surface text-fg shadow-xs hover:bg-raised',
-    danger: 'bg-danger text-white shadow-button hover:opacity-90',
-    ghost: 'bg-transparent text-fg hover:bg-raised',
+    primary: 'border border-primary bg-primary text-primary-fg shadow-button sticker-press',
+    secondary: 'outlined bg-surface/80 text-fg shadow-xs backdrop-blur hover:bg-surface',
+    danger: 'border border-danger bg-danger text-on-danger shadow-button sticker-press',
+    ghost: 'border border-transparent bg-transparent text-fg hover:bg-raised',
   };
-  const sizes = { sm: 'h-7 px-2.5 text-[13px]', md: 'h-8 px-3.5 text-sm' };
+  const sizes = { sm: 'h-8 px-4 text-[13px]', md: 'h-10 px-5 text-sm' };
 </script>
 
 <button
@@ -37,7 +37,7 @@
   aria-busy={loading}
   aria-label={ariaLabel}
   {onclick}
-  class="inline-flex shrink-0 items-center justify-center gap-2 rounded-base font-medium whitespace-nowrap focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 {variants[variant]} {sizes[size]}"
+  class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none {variants[variant]} {sizes[size]}"
 >
   {#if loading}<Spinner size={14} />{/if}
   {@render children?.()}

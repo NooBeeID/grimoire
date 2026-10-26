@@ -76,16 +76,16 @@
   onclose={handleClose}
   oncancel={onCancel}
   onclick={onBackdrop}
-  class="m-auto w-full {size === 'lg' ? 'max-w-2xl' : 'max-w-lg'} rounded-sheet border border-border bg-surface p-0 text-fg shadow-pop backdrop:bg-black/40"
+  class="m-auto w-full {size === 'lg' ? 'max-w-2xl' : 'max-w-lg'} glass rounded-sheet p-0 text-fg shadow-pop backdrop:bg-black/30 backdrop:backdrop-blur-sm"
 >
-  <div class="flex items-start justify-between gap-4 border-b border-rule p-5">
-    <h2 id={titleId} class="text-base font-semibold">{title}</h2>
+  <div class="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
+    <h2 id={titleId} class="text-lg font-semibold">{title}</h2>
     <button
       type="button"
       aria-label={$t('common.close')}
       onclick={onCross}
       disabled={!dismissible && !onrequestclose}
-      class="rounded-base px-2 py-1 hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none disabled:opacity-40"
+      class="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-raised hover:text-fg disabled:opacity-40"
     >
       <span aria-hidden="true">&times;</span>
     </button>

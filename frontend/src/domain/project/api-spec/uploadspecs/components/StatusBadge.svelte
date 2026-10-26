@@ -14,4 +14,4 @@
   );
 </script>
 
-<span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {tone}">{$t(`apispec.status.${status}`)}</span>
+<span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium {tone}">{$t(`apispec.status.${status}`)}</span>

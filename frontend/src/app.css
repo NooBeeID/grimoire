@@ -1,70 +1,76 @@
-/* Token dan aturan di sini mengikuti /DESIGN.md (arah "framed-sheet"). Ubah DESIGN.md dulu, baru file ini. */
-@import "@fontsource/ibm-plex-sans/400.css";
-@import "@fontsource/ibm-plex-sans/500.css";
-@import "@fontsource/ibm-plex-sans/600.css";
+/* Token dan aturan di sini mengikuti /DESIGN.md (arah "developer portal": putih bersih, border tipis, satu aksen). Ubah DESIGN.md dulu, baru file ini. */
+@import "@fontsource-variable/inter/index.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 @import "tailwindcss";
 
 @theme {
-  /* Nama lama (T00) dipertahankan sebagai alias agar komponen yang ada tetap jalan. */
-  --color-primary: #131416;
+  /* Nama lama dipertahankan sebagai alias agar komponen yang ada tetap jalan. */
+  --color-primary: #0f1216;
   --color-primary-fg: #ffffff;
-  --color-danger: #c4242a;
+  --color-danger: #c4283f;
+  --color-on-danger: #ffffff;
   --color-surface: #ffffff;
-  --color-fg: #131416;
-  --color-muted: #5d5f60;
-  --color-border: #dbe3e7;
+  --color-fg: #0f1216;
+  --color-muted: #5b6270;
+  --color-border: #e1e4ea;
 
-  --color-ground: #e8eff2;
-  --color-raised: #f3f6f8;
-  --color-active: #e3eaee;
-  --color-rule: #ebf0f2;
-  --color-control: #c3ccd1;
-  /* Kuning: --color-accent untuk isian/garis (tile logo, garis tab, chip agent); --color-accent-ink untuk teks, ikon, dan fokus (kontras >= 4.5:1 di atas putih). */
-  --color-accent: #f2b705;
-  --color-accent-ink: #7a5600;
-  --color-on-accent: #1d1600;
-  --color-positive: #1e7b4f;
-  --color-warning: #92400e;
-  --color-pill-positive-bg: #dcfae5;
-  --color-pill-positive-ink: #04250e;
-  --color-pill-negative-bg: #ffedea;
-  --color-pill-negative-ink: #831c1e;
-  --color-pill-warning-bg: #fffbeb;
-  --color-pill-warning-ink: #92400e;
-  --color-pill-neutral-bg: #ebedee;
-  --color-pill-neutral-ink: #353736;
-  --color-chart-1: #c98f00;
-  --color-chart-2: #2f70bb;
-  --color-chart-3: #1b6c80;
+  --color-ground: #f1f3f8;
+  --color-raised: #f3f4f7;
+  --color-active: #eceef3;
+  --color-rule: #eaecf0;
+  --color-control: #b9bec8;
+  /* Garis luar objek: satu hairline netral. */
+  --color-outline: rgb(16 18 22 / 0.09);
+  /* Accent = isian netral untuk item terpilih. Aksi utama memakai ink. Biru (accent-ink) hanya tautan dan fokus; madu hanya tanda logo. */
+  --color-accent: #eceef3;
+  --color-accent-soft: #f4f5f8;
+  --color-accent-ink: #3358d4;
+  --color-on-accent: #0f1216;
+  --color-brand: #ffcf26;
+  /* Madu untuk teks: lebih dalam di terang agar kontras >= 4,5:1. */
+  --color-brand-ink: #946400;
+  --color-positive: #0b7a49;
+  --color-warning: #8a4b00;
+  --color-pill-positive-bg: #e2f5ea;
+  --color-pill-positive-ink: #0a5a36;
+  --color-pill-negative-bg: #fde8eb;
+  --color-pill-negative-ink: #96192e;
+  --color-pill-warning-bg: #fbefd2;
+  --color-pill-warning-ink: #7a4a00;
+  --color-pill-neutral-bg: #eef0f4;
+  --color-pill-neutral-ink: #2f3540;
+  --color-chart-1: #3358d4;
+  --color-chart-2: #0b7a49;
+  --color-chart-3: #b86e00;
 
-  /* Bayangan berlapis: kontak tipis + hamparan lembut, warna dari ink produk (bukan hitam murni). */
-  --shadow-xs: 0 1px 1px rgb(14 38 48 / 0.06);
-  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 1px 2px rgb(14 38 48 / 0.28);
-  --shadow-panel: 0 1px 2px rgb(14 38 48 / 0.05), 0 6px 16px -6px rgb(14 38 48 / 0.09);
-  --shadow-sheet: 0 1px 2px rgb(14 38 48 / 0.05), 0 14px 36px -14px rgb(14 38 48 / 0.16);
-  --shadow-pop: 0 2px 4px rgb(14 38 48 / 0.08), 0 18px 44px -10px rgb(14 38 48 / 0.28);
+  /* Bayangan: hanya untuk yang benar-benar melayang (menu, dialog). Objek diam dibedakan oleh border dan tone. */
+  --shadow-xs: 0 1px 2px rgb(16 18 22 / 0.05);
+  --shadow-button: 0 1px 2px rgb(16 18 22 / 0.08);
+  --shadow-panel: 0 1px 2px rgb(16 18 22 / 0.04), 0 12px 32px -16px rgb(16 18 22 / 0.14);
+  --shadow-sheet: 0 1px 2px rgb(16 18 22 / 0.04), 0 24px 56px -24px rgb(16 18 22 / 0.2);
+  --shadow-pop: 0 12px 32px -8px rgb(16 18 22 / 0.2), 0 2px 6px rgb(16 18 22 / 0.06);
 
-  --radius-base: 6px;
-  --radius-card: 8px;
-  --radius-sheet: 16px;
+  --radius-base: 14px;
+  --radius-card: 22px;
+  --radius-sheet: 30px;
 
-  --font-sans: "IBM Plex Sans", Inter, system-ui, sans-serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-display: "Inter Variable", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 :root {
-  --sheet-inset: 8px;
-  --sidebar-width: 228px;
-  --topbar-height: 48px;
+  --outline-width: 1px;
+  --sidebar-width: 244px;
+  --topbar-height: 56px;
   --row-height: 48px;
-  --control-height: 32px;
+  --control-height: 36px;
   --gap: 24px;
   --pad: 24px;
-}
-
-:root {
+  --glass-bg: rgb(255 255 255 / 0.62);
+  --glass-edge: rgb(255 255 255 / 0.85);
+  --ambient: radial-gradient(60rem 40rem at 8% -10%, rgb(110 140 255 / 0.4), transparent 60%), radial-gradient(50rem 36rem at 100% 0%, rgb(255 207 38 / 0.3), transparent 60%), radial-gradient(50rem 40rem at 70% 110%, rgb(190 150 255 / 0.34), transparent 60%);
   color-scheme: light;
 }
 
@@ -72,52 +78,80 @@
    supaya toggle pengguna menang atas preferensi sistem. Override variabel; @theme hanya boleh di level atas. */
 :root[data-theme='dark'] {
     color-scheme: dark;
-    --color-primary: #f1f2f3;
-    --color-primary-fg: #131416;
-    --color-danger: #f0777b;
-    --color-surface: #141a1e;
-    --color-fg: #eceef0;
-    --color-muted: #9a9ea2;
-    --color-border: #283138;
-    --color-ground: #0a0d0f;
-    --color-raised: #1a2126;
-    --color-active: #232c32;
-    --color-rule: #20282d;
-    --color-control: #3a444b;
-    --color-accent: #f5c518;
-    --color-accent-ink: #f5c518;
-    --color-on-accent: #1d1600;
-    --color-positive: #5fc592;
-    --color-warning: #e0a45c;
-    --color-pill-positive-bg: #12301f;
-    --color-pill-positive-ink: #b6f0cd;
-    --color-pill-negative-bg: #3a1618;
-    --color-pill-negative-ink: #ffc9cb;
-    --color-pill-warning-bg: #3a2a10;
-    --color-pill-warning-ink: #f4cf9a;
-    --color-pill-neutral-bg: #272a2e;
-    --color-pill-neutral-ink: #d4d7da;
-    --color-chart-1: #f5c518;
-    --color-chart-2: #7ba7e0;
-    --color-chart-3: #5fb4c8;
-    --shadow-xs: 0 1px 1px rgb(0 0 0 / 0.4);
-    --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 1px 2px rgb(0 0 0 / 0.5);
-    --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.35), 0 6px 16px -6px rgb(0 0 0 / 0.5);
-    --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.4), 0 14px 36px -14px rgb(0 0 0 / 0.7);
-    --shadow-pop: 0 2px 4px rgb(0 0 0 / 0.5), 0 18px 44px -10px rgb(0 0 0 / 0.8);
+    --color-primary: #ecedf0;
+    --color-primary-fg: #0f1216;
+    --color-danger: #ff8a98;
+    --color-on-danger: #14161a;
+    --color-surface: #101216;
+    --color-fg: #ecedf0;
+    --color-muted: #9aa1ad;
+    --color-border: #262a32;
+    --color-ground: #0a0b0e;
+    --color-raised: #171a20;
+    --color-active: #1d2128;
+    --color-rule: #1e2127;
+    --color-control: #3a404b;
+    --color-outline: rgb(255 255 255 / 0.1);
+    --color-accent: #1d2128;
+    --color-accent-soft: #15181d;
+    --color-accent-ink: #8aa6ff;
+    --color-brand-ink: #ffd43b;
+    --color-on-accent: #ecedf0;
+    --color-positive: #5fe0a6;
+    --color-warning: #ffc266;
+    --color-pill-positive-bg: #0f3a29;
+    --color-pill-positive-ink: #b5f0d1;
+    --color-pill-negative-bg: #4a1522;
+    --color-pill-negative-ink: #ffd0d8;
+    --color-pill-warning-bg: #4a3208;
+    --color-pill-warning-ink: #ffe0a3;
+    --color-pill-neutral-bg: #232730;
+    --color-pill-neutral-ink: #dfe2e8;
+    --color-chart-1: #8aa6ff;
+    --color-chart-2: #5fe0a6;
+    --color-chart-3: #ffc266;
+    --shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.65);
+    --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+    --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 56px -24px rgb(0 0 0 / 0.7);
+    --glass-bg: rgb(20 23 30 / 0.48);
+    --glass-edge: rgb(255 255 255 / 0.1);
+    --ambient: radial-gradient(60rem 40rem at 8% -10%, rgb(70 105 255 / 0.5), transparent 62%), radial-gradient(50rem 36rem at 100% 0%, rgb(255 190 30 / 0.24), transparent 62%), radial-gradient(50rem 40rem at 70% 110%, rgb(150 90 255 / 0.42), transparent 62%);
 }
 
 body {
-  background: var(--color-ground);
+  background-color: var(--color-ground);
+  background-image: var(--ambient);
+  background-attachment: fixed;
   color: var(--color-fg);
   font-family: var(--font-sans);
   font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-feature-settings: "cv11", "ss03";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+th {
+  font-weight: 500;
+}
+td,
+time,
+.tabular {
   font-variant-numeric: tabular-nums;
 }
 
 /* Permukaan bawaan browser diberi desain: seleksi, caret, scrollbar, fokus. */
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--color-accent-ink) 22%, transparent);
+  color: var(--color-fg);
 }
 input,
 textarea {
@@ -132,12 +166,13 @@ a,
 select,
 input,
 textarea {
-  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 120ms;
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
-button:active:not(:disabled) {
-  transform: translateY(0.5px);
+:focus-visible {
+  outline: 2px solid var(--color-accent-ink);
+  outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
   button,
@@ -147,19 +182,41 @@ button:active:not(:disabled) {
   textarea {
     transition: none;
   }
-  button:active:not(:disabled) {
-    transform: none;
+}
+
+@layer components {
+  /* Kaca: panel tembus pandang di atas latar ambient. Dipakai untuk kerangka (sidebar, panel kerja), menu, dialog. */
+  .glass {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--shadow-sheet);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass { background: var(--color-surface); }
+  }
+  .outlined {
+    border: var(--outline-width) solid var(--color-outline);
+  }
+  /* Umpan balik tombol: ganti tone, bukan bergerak. */
+  .sticker-press:hover:not(:disabled) {
+    filter: brightness(0.96);
+  }
+  .sticker-press:active:not(:disabled) {
+    filter: brightness(0.92);
   }
 }
 
 /* Identitas orang/objek: nada pucat stabil per nama (hue dari hash), bukan data. */
 .avatar {
-  background: oklch(0.93 0.045 var(--h, 220));
-  color: oklch(0.36 0.09 var(--h, 220));
+  background: oklch(0.94 0.02 var(--h, 220));
+  color: #14161a;
+  font-weight: 600;
 }
 :root[data-theme='dark'] .avatar {
-  background: oklch(0.32 0.06 var(--h, 220));
-  color: oklch(0.9 0.05 var(--h, 220));
+  background: oklch(0.34 0.025 var(--h, 220));
+  color: #fff;
 }
 
 /* Prosa Markdown (shared/components/MarkdownView). Hanya token; tanpa warna mentah. */

@@ -7,7 +7,7 @@
     shape = 'circle',
   }: { name: string; size?: number; shape?: 'circle' | 'square' } = $props();
 
-  const HUES = [205, 265, 330, 25, 85, 150];
+  const HUES = [205, 175, 330, 25, 85, 150];
   const hue = $derived.by(() => {
     let h = 0;
     for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -18,6 +18,6 @@
 
 <span
   aria-hidden="true"
-  class="avatar inline-grid shrink-0 place-items-center font-semibold select-none {shape === 'circle' ? 'rounded-full' : 'rounded-card'}"
+  class="avatar inline-grid shrink-0 place-items-center font-semibold select-none {shape === 'circle' ? 'rounded-full' : 'rounded-xl'}"
   style="--h: {hue}; width: {size}px; height: {size}px; font-size: {Math.round(size * 0.42)}px"
 >{initial}</span>

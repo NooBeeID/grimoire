@@ -12,7 +12,7 @@ COMPOSE := docker compose -f docker-compose.dev.yml
 DIST    := backend/internal/infra/static/dist
 REDOCLY := @redocly/cli@1.34.5
 # DB test TERPISAH dari DB dev: test migrasi menjalankan DROP TABLE schema_migrations di schema public.
-TEST_DATABASE_URL ?= postgres://grimoire:grimoire@localhost:5432/grimoire_test?sslmode=disable
+TEST_DATABASE_URL ?= postgres://grimoire:grimoire@localhost:5433/grimoire_test?sslmode=disable
 
 .PHONY: help db-up db-down dev dev-db dev-test-db dev-backend dev-frontend build test vet test-integration test-search-eval search-eval-baseline test-e2e lint migrate
 

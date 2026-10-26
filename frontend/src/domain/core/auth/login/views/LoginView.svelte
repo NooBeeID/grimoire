@@ -47,7 +47,10 @@
 </script>
 
 <section class="flex flex-col gap-4">
-  <h1 class="text-[22px] leading-8 font-semibold">{$t('auth.login.title')}</h1>
+  <div class="flex flex-col gap-1 text-center">
+    <h1 class="text-xl leading-tight font-semibold">{$t('auth.login.title')}</h1>
+    <p class="text-[15px] text-muted">{$t('auth.login.greeting')}</p>
+  </div>
   <LoginForm {submitting} {error} cooldownSeconds={cooldown} {onsubmit} />
   <p class="text-[13px] text-muted">{$t('auth.login.invitationHint')}</p>
 </section>

@@ -46,13 +46,13 @@
   {:else if col.key === 'email'}
     <span class="break-all">{m.email ?? '-'}</span>
   {:else if col.key === 'role'}
-    <span class="inline-flex h-5 items-center rounded-full px-2 text-xs font-medium {m.role === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted'}">{m.role === 'owner' ? $t('project.role.owner') : $t('project.role.member')}</span>
+    <span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium {m.role === 'owner' ? 'bg-pill-neutral-bg text-pill-neutral-ink' : 'bg-raised text-muted'}">{m.role === 'owner' ? $t('project.role.owner') : $t('project.role.member')}</span>
   {:else if col.key === 'status'}
     {#if !m.found}<span class="text-danger">{$t('project.members.status.notFound')}</span>
     {:else if !m.is_active}<span class="text-muted">{$t('project.members.status.inactive')}</span>
     {:else if m.invitation_pending}
       {@const expired = m.invitation_expires_at !== null && new Date(m.invitation_expires_at) <= now}
-      <span class="inline-flex h-5 flex-none items-center rounded-full px-2 text-xs font-medium whitespace-nowrap {expired ? 'bg-pill-warning-bg text-pill-warning-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{expired ? $t('project.members.status.invitedExpired') : $t('project.members.status.invited')}</span>
+      <span class="inline-flex h-5 flex-none items-center rounded-base px-2 text-xs font-medium whitespace-nowrap {expired ? 'bg-pill-warning-bg text-pill-warning-ink' : 'bg-pill-neutral-bg text-pill-neutral-ink'}">{expired ? $t('project.members.status.invitedExpired') : $t('project.members.status.invited')}</span>
     {/if}
   {:else if col.key === 'added'}
     <time datetime={m.added_at}>{formatDateTime(m.added_at, $locale)}</time>
