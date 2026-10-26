@@ -1,10 +1,10 @@
 <script lang="ts">
   import { t } from '../../../../../shared/stores/i18n';
 
-  type Tab = 'documents' | 'search';
+  type Tab = 'top' | 'unread' | 'search';
   let { value, onchange }: { value: Tab; onchange: (v: Tab) => void } = $props();
   const uid = $props.id();
-  const tabs: Tab[] = ['documents', 'search'];
+  const tabs: Tab[] = ['top', 'unread', 'search'];
 
   function onkeydown(e: KeyboardEvent) {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;

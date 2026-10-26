@@ -59,12 +59,12 @@ describe('usage tables', () => {
 });
 
 describe('InsightTabs', () => {
-  it('ArrowRight moves to Pencarian', async () => {
+  it('ArrowRight moves to the next tab', async () => {
     const onchange = vi.fn();
-    render(InsightTabs, { value: 'documents', onchange });
-    screen.getByRole('tab', { name: 'Dokumen' }).focus();
+    render(InsightTabs, { value: 'top', onchange });
+    screen.getByRole('tab', { name: 'Paling sering dibaca' }).focus();
     await userEvent.keyboard('{ArrowRight}');
-    expect(onchange).toHaveBeenCalledWith('search');
+    expect(onchange).toHaveBeenCalledWith('unread');
   });
   it('marks active tab', () => {
     render(InsightTabs, { value: 'search', onchange: () => {} });

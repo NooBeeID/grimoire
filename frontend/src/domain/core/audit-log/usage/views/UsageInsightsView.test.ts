@@ -25,7 +25,7 @@ describe('UsageInsightsView', () => {
     render(UsageInsightsView, { query: new URLSearchParams() });
     expect(await screen.findByText('ci-review-agent')).toBeInTheDocument();
     expect(urls().some((u) => u.includes('section=top_files') || u.includes('section=unread_files'))).toBe(false);
-    expect(screen.getAllByText('Pilih project')).toHaveLength(2);
+    expect(screen.getAllByText('Pilih project')).toHaveLength(1);
   });
   it('with project: four requests, one failing keeps others', async () => {
     stub(['keys']);
