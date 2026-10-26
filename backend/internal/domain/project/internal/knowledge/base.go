@@ -2,6 +2,7 @@
 package knowledge
 
 import (
+	"grimoire/internal/domain/project/internal/knowledge/buslistchanges"
 	"grimoire/internal/domain/project/internal/knowledge/buslistfiles"
 	"grimoire/internal/domain/project/internal/knowledge/busreadfile"
 	"grimoire/internal/domain/project/internal/knowledge/bussearch"
@@ -24,6 +25,7 @@ func Register(d app.Deps) {
 	// Handler bus.
 	countfiles.Init(d)
 	buslistfiles.Init(d)
+	buslistchanges.Init(d)
 	busreadfile.Init(d)
 	bussearch.Init(d)
 	busupsertfiles.Init(d)

@@ -41,6 +41,10 @@ const BUS_PROJECT_KNOWLEDGE_LIST_FILES = "project.knowledge.list-files"
 // Offset/Limit dalam BYTE, dipotong pada batas karakter UTF-8. Tidak ketemu -> Found=false + Similar.
 const BUS_PROJECT_KNOWLEDGE_READ_FILE = "project.knowledge.read-file"
 
+// Provider: T18 project/knowledge (buslistchanges). Consumer: T18 discovery/knowledgetools (list_recent_changes).
+// Kontrak: lib/contracts/project/knowledge/listchanges. Baca-saja, dibatasi ProjectID (rule 6.10).
+const BUS_PROJECT_KNOWLEDGE_LIST_CHANGES = "project.knowledge.list-changes"
+
 // Provider: T05. Consumer: T08. Kontrak: lib/contracts/project/knowledge/search. Snippet bersorot **term**.
 const BUS_PROJECT_KNOWLEDGE_SEARCH = "project.knowledge.search"
 

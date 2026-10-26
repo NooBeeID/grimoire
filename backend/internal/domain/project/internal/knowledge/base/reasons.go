@@ -31,6 +31,7 @@ const (
 	ReasonVersionConflict    Reason = "version_conflict"   // 409
 	ReasonInvalidProjectID   Reason = "invalid_project_id" // bus
 	ReasonNotMultipart       Reason = "not_multipart"
+	ReasonInvalidSince       Reason = "invalid_since" // bus list-changes (T18)
 )
 
 var reasonMessages = map[Reason]string{
@@ -59,6 +60,7 @@ var reasonMessages = map[Reason]string{
 	ReasonVersionConflict:    "file sudah diubah orang lain; muat ulang sebelum menyimpan",
 	ReasonInvalidProjectID:   "ProjectID tidak valid",
 	ReasonNotMultipart:       "body harus multipart/form-data dengan field files",
+	ReasonInvalidSince:       "since wajib diisi",
 }
 
 // Message mengembalikan pesan Indonesia yang memandu (dipakai HTTP dan bus).
