@@ -2,6 +2,7 @@
   import ErrorState from '../../shared/components/ErrorState.svelte';
   import PageHeader from '../../shared/components/PageHeader.svelte';
   import Spinner from '../../shared/components/Spinner.svelte';
+  import { UsageInsightsView } from '../../domain/core/audit-log/usage';
   import { t } from '../../shared/stores/i18n';
   import { current, navigate } from '../routes/router';
 
@@ -32,3 +33,5 @@
 {:catch e}
   <ErrorState error={e} onretry={reloadChunk} />
 {/await}
+
+<div class="mt-8"><UsageInsightsView {query} /></div>

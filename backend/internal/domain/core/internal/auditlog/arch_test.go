@@ -52,7 +52,7 @@ func TestAppendOnlySources(t *testing.T) {
 	}
 }
 
-// AC7 T02 + T15: hanya tiga rute GET di bawah /audit-log (daftar, summary, detail).
+// AC7 T02 + T15 + T19: hanya empat rute GET di bawah /audit-log (daftar, summary, usage, detail).
 func TestOnlyGetRoutes(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	api := chi.NewRouter()
@@ -83,16 +83,18 @@ func TestOnlyGetRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 3 {
-		t.Fatalf("rute GET /audit-log = %v, ingin tepat 3", routes)
+	if len(routes) != 4 {
+		t.Fatalf("rute GET /audit-log = %v, ingin tepat 4", routes)
 	}
-	found := false
-	for _, r := range routes {
-		if r == "/audit-log/summary" {
-			found = true
+	for _, want := range []string{"/audit-log/summary", "/audit-log/usage"} {
+		found := false
+		for _, r := range routes {
+			if r == want {
+				found = true
+			}
 		}
-	}
-	if !found {
-		t.Fatalf("rute GET /audit-log/summary tidak terdaftar: %v", routes)
+		if !found {
+			t.Fatalf("rute GET %s tidak terdaftar: %v", want, routes)
+		}
 	}
 }

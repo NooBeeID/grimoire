@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Grimoire Audit Log
-  version: 0.2.0
+  version: 0.3.0
 paths:
   /api/audit-log:
     get:
@@ -149,6 +149,67 @@ paths:
         "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
         "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
         "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/audit-log/usage:
+    get:
+      operationId: getAuditUsage
+      tags: [audit-log]
+      summary: Insight pemakaian agent (dokumen, query kosong, per API key)
+      description: >
+        Khusus super_admin, baca-saja. Rentang [from, to) mundur dari waktu request. Pembacaan =
+        mcp.read_file dan mcp.read_section berstatus ok. top_files dan unread_files butuh project_id;
+        tanpa itu keduanya available=false, error_code=PROJECT_REQUIRED. unread_files membandingkan
+        daftar file project (maks 2000 dipindai, truncated=true bila terpotong) dengan audit. zero_queries
+        = pencarian ok dengan total 0, query dinormalisasi (huruf kecil, spasi tunggal). per_key
+        dikelompokkan per API key. section diisi: hanya bagian itu berisi objek, lainnya null. Bagian
+        yang gagal available=false, error_code=UNAVAILABLE, respons tetap 200. project_id yang tak
+        dikenal menghasilkan 404. Tidak memuat isi file, cuplikan, atau args/result mentah. Pemanggilan
+        tidak dicatat ke audit.
+      parameters:
+        - name: range
+          in: query
+          schema: { type: string, enum: ["24h", "7d", "30d"], default: "7d" }
+        - name: project_id
+          in: query
+          description: Kosong berarti semua project (hanya zero_queries dan per_key yang tersedia).
+          schema: { type: string, format: uuid }
+        - name: section
+          in: query
+          description: Kosong berarti semua bagian.
+          schema: { type: string, enum: [top_files, unread_files, zero_queries, keys] }
+      responses:
+        "200":
+          description: Bagian insight dalam satu respons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditUsage"
+              example:
+                range: 7d
+                from: "2026-10-19T10:30:15Z"
+                to: "2026-10-26T10:30:15Z"
+                project_id: null
+                top_files: { available: false, error_code: PROJECT_REQUIRED, items: [] }
+                unread_files: { available: false, error_code: PROJECT_REQUIRED, items: [], truncated: false }
+                zero_queries:
+                  available: true
+                  items:
+                    - { query: rate limit, count: 3, keys: 2, last_at: "2026-10-25T09:00:00Z" }
+                per_key:
+                  available: true
+                  items:
+                    - { key_id: 0192f5a0-2222-7aaa-8bbb-000000000001, label: ci-bot, calls: 40, errors: 1, searches: 12, reads: 20, last_used_at: "2026-10-26T10:00:00Z", top_tool: read_file }
+        "400":
+          description: range, project_id, atau section tidak valid (INVALID_ARGUMENT, details.field berisi nama parameter)
+          content:
+            application/json:
+              schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+              example:
+                error: { code: INVALID_ARGUMENT, message: section tidak valid, details: { field: section } }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "../infra/foundation.yml#/components/responses/Forbidden" }
+        "404": { $ref: "../infra/foundation.yml#/components/responses/NotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
   /api/audit-log/{id}:
     get:
       operationId: getAuditEntry
@@ -280,6 +341,106 @@ components:
           oneOf:
             - type: "null"
             - $ref: "#/components/schemas/AuditSummarySearchQuality"
+    AuditUsage:
+      type: object
+      additionalProperties: false
+      required: [range, from, to, project_id, top_files, unread_files, zero_queries, per_key]
+      properties:
+        range: { type: string, enum: ["24h", "7d", "30d"] }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time, description: Eksklusif. }
+        project_id: { type: [string, "null"], format: uuid }
+        top_files:
+          oneOf: [{ type: "null" }, { $ref: "#/components/schemas/AuditUsageTopFiles" }]
+        unread_files:
+          oneOf: [{ type: "null" }, { $ref: "#/components/schemas/AuditUsageUnreadFiles" }]
+        zero_queries:
+          oneOf: [{ type: "null" }, { $ref: "#/components/schemas/AuditUsageZeroQueries" }]
+        per_key:
+          oneOf: [{ type: "null" }, { $ref: "#/components/schemas/AuditUsagePerKey" }]
+    AuditUsageTopFiles:
+      type: object
+      additionalProperties: false
+      required: [available, items]
+      properties:
+        available: { type: boolean }
+        error_code: { type: string, enum: [UNAVAILABLE, PROJECT_REQUIRED], description: Hanya ada bila available=false. }
+        items:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/AuditUsageFileRead" }
+    AuditUsageUnreadFiles:
+      type: object
+      additionalProperties: false
+      required: [available, items, truncated]
+      properties:
+        available: { type: boolean }
+        error_code: { type: string, enum: [UNAVAILABLE, PROJECT_REQUIRED], description: Hanya ada bila available=false. }
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/AuditUsageUnreadFile" }
+        truncated: { type: boolean, description: "true bila unread > 50 atau pemindaian file berhenti di batas 2000." }
+    AuditUsageZeroQueries:
+      type: object
+      additionalProperties: false
+      required: [available, items]
+      properties:
+        available: { type: boolean }
+        error_code: { type: string, enum: [UNAVAILABLE, PROJECT_REQUIRED], description: Hanya ada bila available=false. }
+        items:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/AuditUsageZeroQuery" }
+    AuditUsagePerKey:
+      type: object
+      additionalProperties: false
+      required: [available, items]
+      properties:
+        available: { type: boolean }
+        error_code: { type: string, enum: [UNAVAILABLE, PROJECT_REQUIRED], description: Hanya ada bila available=false. }
+        items:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/AuditUsageKeyUsage" }
+    AuditUsageFileRead:
+      type: object
+      additionalProperties: false
+      required: [path, reads, keys, last_read_at]
+      properties:
+        path: { type: string }
+        reads: { type: integer, minimum: 1 }
+        keys: { type: integer, minimum: 0, description: Jumlah API key berbeda. }
+        last_read_at: { type: string, format: date-time }
+    AuditUsageUnreadFile:
+      type: object
+      additionalProperties: false
+      required: [path, updated_at]
+      properties:
+        path: { type: string }
+        updated_at: { type: string, format: date-time }
+    AuditUsageZeroQuery:
+      type: object
+      additionalProperties: false
+      required: [query, count, keys, last_at]
+      properties:
+        query: { type: string, description: Dinormalisasi (huruf kecil, spasi tunggal). }
+        count: { type: integer, minimum: 1 }
+        keys: { type: integer, minimum: 0 }
+        last_at: { type: string, format: date-time }
+    AuditUsageKeyUsage:
+      type: object
+      additionalProperties: false
+      required: [key_id, label, calls, errors, searches, reads, last_used_at, top_tool]
+      properties:
+        key_id: { type: string, format: uuid }
+        label: { type: string, description: Label audit terbaru. }
+        calls: { type: integer, minimum: 0 }
+        errors: { type: integer, minimum: 0 }
+        searches: { type: integer, minimum: 0 }
+        reads: { type: integer, minimum: 0 }
+        last_used_at: { type: string, format: date-time }
+        top_tool: { type: string, example: read_file }
     AuditSummaryTopProject:
       type: object
       additionalProperties: false

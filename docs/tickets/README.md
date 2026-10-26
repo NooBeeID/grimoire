@@ -27,6 +27,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T16](T16-project-notification.md)      | project                | notification (siaran email manual ke anggota project)                            | M      | T01, T02, T03, T12      | Tiket baru                                                                 |
 | [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Selesai (`4c9043b`)                                                        |
 | [T18](T18-discovery-mcp-outline-tools.md) | discovery              | knowledge-tools (outline, section, perubahan terbaru)                            | M      | T07, T08, T09           | Diimplementasi (menunggu review)                                           |
+| [T19](T19-core-audit-log-usage-insights.md) | core                   | audit-log (insight pemakaian agent: dokumen, query kosong, per API key)          | M      | T02, T11, T15, T18      | Plan siap                                                                  |
 
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -46,6 +47,7 @@ T00 foundation (ROOT)
 │       │       │   ├── T18 discovery outline/section/recent-changes   + butuh T09
 │       │       │   └── T11 discovery/search-quality    + butuh T02, T05
 │       │       │       └── T15 core/audit-log summary   + butuh T02
+│       │       │       └── T19 core/audit-log usage insights   + butuh T18
 │       │       └── T09 discovery/api-spec-tools    + butuh T06
 │       ├── T05 project/knowledge
 │       │   └── T14 git-sync (PAT + sync knowledge/api-spec)   + butuh T06
@@ -71,7 +73,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 7         | T10, T11, T12      |
 | 8         | T13, T14, T15, T16 |
 | 9         | T17                |
-| 10        | T18                |
+| 10        | T18, T19           |
 
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
@@ -184,13 +186,13 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `core.auth.find-developers`                      | Call                                                                                        | T01                                       | T03                                               |
 | `core.audit.record`                              | Call / Publish (satu handler untuk keduanya)                                                | T02                                       | T01, T03, T04, T05, T06, T07                      |
 | `project.management.check-access`                | Call                                                                                        | T03                                       | T04, T05, T06                                     |
-| `project.management.get-project`                 | Call                                                                                        | T03                                       | T07                                               |
+| `project.management.get-project`                 | Call                                                                                        | T03                                       | T07, T19 (core/auditlog usage)                    |
 | `project.knowledge.count-files`                  | Call                                                                                        | T05                                       | T03                                               |
 | `project.apispec.count-specs`                    | Call                                                                                        | T06                                       | T03                                               |
 | `project.apikey.count-keys`                      | Call                                                                                        | T04                                       | T03                                               |
 | `project.apikey.verify`                          | Call                                                                                        | T04                                       | T07                                               |
 | `project.apikey.touch`                           | Publish                                                                                     | T04                                       | T07                                               |
-| `project.knowledge.list-files`                   | Call                                                                                        | T05                                       | T08                                               |
+| `project.knowledge.list-files`                   | Call                                                                                        | T05                                       | T08, T19 (core/auditlog usage)                    |
 | `project.knowledge.read-file`                    | Call                                                                                        | T05                                       | T08, T18                                          |
 | `project.knowledge.search`                       | Call                                                                                        | T05                                       | T08                                               |
 | `project.knowledge.list-changes`                 | Call (baca-saja)                                                                            | T18                                       | T18 (knowledgetools `listrecentchanges`)          |
@@ -231,6 +233,8 @@ Kontrak T12: `lib/contracts/core/auth/{invitation,inviteuser,resendinvitation}` 
 Kontrak T14: `lib/contracts/core/gitcredential/gettoken` (`BUS_CORE_GITCREDENTIAL_GET_TOKEN`), `lib/contracts/project/knowledge/upsertfiles` (`BUS_PROJECT_KNOWLEDGE_UPSERT_FILES`), `lib/contracts/project/apispec/upsertspecs` (`BUS_PROJECT_APISPEC_UPSERT_SPECS`). `get-token` mengembalikan `Token secret.String` (tipe tersamar di `lib/common/secret`): token tidak boleh di-log, diaudit, di-Publish, atau dikirim ke klien; pemanggil wajib mengisi `UserID` dari identity request. Dua handler upsert menulis tanpa cek keanggotaan: consumer wajib `check-access` lebih dulu; query selalu dibatasi `ProjectID` request. Orkestrasi tulis upload dipakai bersama lewat `knowledge/base/ingest` dan `apispec/base/ingest`. Kode error bersama baru di `lib/common/errs`: `HOST_NOT_ALLOWED` (422), `GIT_UPSTREAM_ERROR` (502), `GIT_FEATURE_DISABLED` (503). Env baru: `GIT_CREDENTIAL_KEY`, `GIT_SYNC_ALLOWED_HOSTS`, `GIT_SYNC_TIMEOUT`, `GIT_SYNC_INSECURE_TEST_HOSTS`, `GIT_SYNC_GITHUB_API_BASE` (lihat `docs/configuration.md`).
 
 Kontrak T18: `lib/contracts/project/knowledge/listchanges` (`BUS_PROJECT_KNOWLEDGE_LIST_CHANGES`; urut `updated_at DESC, path`, `Since` wajib, `Limit` maks 50, indeks `knowledge_files_project_updated_idx`). Perubahan aditif: `read-file` menerima `Request.Whole` (isi utuh, Offset 0) dan mengembalikan `Response.UpdatedAt`; `list-specs` mengembalikan `Spec.CreatedAt` dan `Spec.SizeBytes`. Parser heading bersama di `lib/util/mdoutline`.
+
+Revisi T19: `GET /api/audit-log/usage` (feature `core/auditlog/usage`) hanya membaca `audit_log` dan memakai dua endpoint bus yang sudah ada (`project.management.get-project`, `project.knowledge.list-files`); kontrak `list-files` tidak diubah karena `Item.UpdatedAt` sudah ada. Project tak dikenal pada `/usage` menghasilkan 404 (berbeda dari `/summary` yang 200 kosong). Maksimal 50 file tak-pernah-dibaca per respons (bukan 200), dipindai maks 2000 file lewat bus.
 
 ### Pola fail-open penulisan audit
 

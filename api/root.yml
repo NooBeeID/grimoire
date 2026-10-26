@@ -13,6 +13,8 @@ paths:
     $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log
   /api/audit-log/summary:
     $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log~1summary
+  /api/audit-log/usage:
+    $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log~1usage
   /api/audit-log/{id}:
     $ref: ./modules/core/audit-log.yml#/paths/~1api~1audit-log~1{id}
   /api/auth/login:
@@ -99,6 +101,8 @@ components:
       $ref: ./modules/core/audit-log.yml#/components/schemas/AuditEntryDetail
     AuditSummary:
       $ref: ./modules/core/audit-log.yml#/components/schemas/AuditSummary
+    AuditUsage:
+      $ref: ./modules/core/audit-log.yml#/components/schemas/AuditUsage
     Me:
       $ref: ./modules/core/auth.yml#/components/schemas/Me
     User:

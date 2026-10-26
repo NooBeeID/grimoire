@@ -10,6 +10,28 @@ import { resetSession, setIdentity, type Role } from '../../shared/stores/sessio
 
 vi.mock('chart.js', async () => (await import('../../test-stubs/chartjs')).chartJsMock());
 
+const usageItems: Record<string, unknown> = {
+  top_files: { available: true, items: [{ path: 'docs/payments/refund-flow.md', reads: 48, keys: 3, last_read_at: '2026-10-26T09:12:00Z' }] },
+  unread_files: { available: true, truncated: false, items: [] },
+  zero_queries: { available: true, items: [] },
+  per_key: {
+    available: true,
+    items: [
+      { key_id: 'k1', label: 'ci-review-agent', calls: 412, errors: 9, searches: 120, reads: 260, last_used_at: '2026-10-26T10:02:00Z', top_tool: 'read_file' },
+      { key_id: 'k2', label: 'support-triage', calls: 96, errors: 0, searches: 70, reads: 20, last_used_at: '2026-10-25T16:30:00Z', top_tool: 'search_knowledge' },
+    ],
+  },
+};
+const usageResponse = (url: string) => {
+  const section = new URL(url, 'http://x').searchParams.get('section') ?? 'keys';
+  const key = section === 'keys' ? 'per_key' : section;
+  const body = {
+    range: '7d', from: '2026-10-19T10:30:15Z', to: '2026-10-26T10:30:15Z', project_id: null,
+    top_files: null, unread_files: null, zero_queries: null, per_key: null,
+    [key]: usageItems[key],
+  };
+  return new Response(JSON.stringify(body), { status: 200 });
+};
 const mockProjectOptions = { items: [], total: 0 };
 const mockSummary7d = {
   range: '7d',
@@ -31,9 +53,11 @@ let stop: () => void;
 let fetchMock: ReturnType<typeof vi.fn>;
 function boot(path: string, role: Role) {
   fetchMock = vi.fn(async (url: string) =>
-    url.startsWith('/api/audit-log/summary')
-      ? new Response(JSON.stringify(mockSummary7d), { status: 200 })
-      : new Response(JSON.stringify(mockProjectOptions), { status: 200 }),
+    url.startsWith('/api/audit-log/usage')
+      ? usageResponse(url)
+      : url.startsWith('/api/audit-log/summary')
+        ? new Response(JSON.stringify(mockSummary7d), { status: 200 })
+        : new Response(JSON.stringify(mockProjectOptions), { status: 200 }),
   );
   vi.stubGlobal('fetch', fetchMock);
   history.replaceState({}, '', path);
@@ -75,7 +99,7 @@ describe('DashboardView / route /dashboard', () => {
     history.replaceState({}, '', '/dashboard');
     render(DashboardView, { load: () => new Promise<never>(() => {}) });
     expect(screen.getByTestId('dashboard-title')).toHaveTextContent('Dashboard');
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getAllByRole('status')[0]).toBeInTheDocument();
   });
   it('changing the range replaces the URL and keeps history length', async () => {
     boot('/dashboard', 'super_admin');
@@ -87,12 +111,45 @@ describe('DashboardView / route /dashboard', () => {
   });
 });
 
+describe('DashboardView agent insights', () => {
+  it('renders Wawasan agent below the header for super_admin', async () => {
+    boot('/dashboard', 'super_admin');
+    expect(await screen.findByRole('heading', { name: 'Wawasan agent' })).toBeInTheDocument();
+    expect(await screen.findByText('ci-review-agent')).toBeInTheDocument();
+  });
+  it('still renders when the summary chunk fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => usageResponse(url)));
+    history.replaceState({}, '', '/dashboard');
+    render(DashboardView, { load: async () => { throw new Error('chunk gagal'); } });
+    expect(await screen.findByRole('heading', { name: 'Wawasan agent' })).toBeInTheDocument();
+    expect(await screen.findByText('support-triage')).toBeInTheDocument();
+  });
+  it('developer triggers no usage request', async () => {
+    boot('/dashboard', 'developer');
+    await screen.findByTestId('notfound-title');
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/audit-log/usage'))).toBe(false);
+  });
+  it('usage feature does not import chart.js', () => {
+    const files = import.meta.glob('../../domain/core/audit-log/usage/**/*.{ts,svelte}', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
+    for (const [path, src] of Object.entries(files)) {
+      if (path.endsWith('.test.ts')) continue;
+      expect(src, path).not.toMatch(/from ['"]chart\.js/);
+    }
+  });
+});
+
 describe('DashboardView chunk failure', () => {
   it('keeps the h1, shows ErrorState, and "Coba lagi" imports again', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) =>
-        new Response(JSON.stringify(url.startsWith('/api/audit-log/summary') ? mockSummary7d : mockProjectOptions), { status: 200 }),
+        url.startsWith('/api/audit-log/usage')
+          ? usageResponse(url)
+          : new Response(JSON.stringify(url.startsWith('/api/audit-log/summary') ? mockSummary7d : mockProjectOptions), { status: 200 }),
       ),
     );
     history.replaceState({}, '', '/dashboard');
