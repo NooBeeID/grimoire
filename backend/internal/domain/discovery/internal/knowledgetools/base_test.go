@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,12 +36,12 @@ func newTools(t *testing.T, maxBytes int) []toolkit.Tool {
 	return tools
 }
 
-func TestRegister_ThreeReadOnlyTools(t *testing.T) {
+func TestRegister_ReadOnlyTools(t *testing.T) {
 	tools := newTools(t, 102400)
-	if len(tools) != 3 {
-		t.Fatalf("jumlah tool = %d, want 3", len(tools))
+	if len(tools) != 6 {
+		t.Fatalf("jumlah tool = %d, want 6", len(tools))
 	}
-	want := []string{"list_files", "read_file", "search_knowledge"}
+	want := []string{"get_file_outline", "list_files", "list_recent_changes", "read_file", "read_section", "search_knowledge"}
 	seen := map[string]bool{}
 	for i, tl := range tools {
 		if tl.Name != want[i] {
@@ -130,7 +131,9 @@ func validateSchema(t *testing.T, name string, raw []byte) map[string]any {
 			t.Errorf("%s: properti terlarang %q", name, banned)
 		}
 	}
-	allowed := map[string]bool{"type": true, "description": true, "default": true, "minimum": true, "maximum": true, "minLength": true, "maxLength": true}
+	allowed := map[string]bool{"type": true, "description": true, "default": true, "minimum": true, "maximum": true, "minLength": true, "maxLength": true,
+		"enum": true, // T18: kind pada list_recent_changes
+	}
 	for pn, pv := range props {
 		p, _ := pv.(map[string]any)
 		typ, _ := p["type"].(string)
@@ -148,6 +151,15 @@ func validateSchema(t *testing.T, name string, raw []byte) map[string]any {
 		for _, k := range []string{"minimum", "maximum"} {
 			if _, ok := p[k]; ok && typ != "integer" {
 				t.Errorf("%s.%s: %s hanya untuk integer", name, pn, k)
+			}
+		}
+		if en, ok := p["enum"]; ok {
+			vals, _ := en.([]any)
+			if typ != "string" || len(vals) == 0 {
+				t.Errorf("%s.%s: enum hanya untuk string dan tidak boleh kosong", name, pn)
+			}
+			if def, ok := p["default"]; ok && !slices.Contains(vals, def) {
+				t.Errorf("%s.%s: default bukan anggota enum", name, pn)
 			}
 		}
 		for _, k := range []string{"minLength", "maxLength"} {

@@ -1,5 +1,25 @@
 [
   {
+    "name": "get_file_outline",
+    "title": "Kerangka file knowledge",
+    "description": "Daftar heading satu file Markdown knowledge (read-only). Isi: level, teks, nomor baris, dan rentang byte tiap heading, beserta ukuran dan waktu diperbarui. Pakai ini sebelum read_file untuk file panjang, lalu baca satu bagian dengan read_section. File bukan Markdown mengembalikan outline kosong dengan ukurannya.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "path file Markdown, mis. docs/guides/a.md",
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
     "name": "list_files",
     "title": "Daftar file knowledge",
     "description": "Daftar file knowledge project (read-only). Mulai dari akar (tanpa path) untuk memahami struktur sebelum membaca. Default hanya satu tingkat: subfolder tampil sebagai entri [folder]; panggil lagi dengan path=<folder> untuk masuk, atau recursive=true untuk semua file di bawah path. Lanjutkan daftar yang terpotong dengan offset. Baca isi dengan read_file, cari berdasarkan isi dengan search_knowledge.",
@@ -35,6 +55,48 @@
     }
   },
   {
+    "name": "list_recent_changes",
+    "title": "Perubahan terbaru",
+    "description": "Daftar file knowledge dan spec API yang berubah sejak waktu tertentu (read-only). Terbaru dulu; since wajib: RFC3339 atau durasi 24h, 7d, 30d (maks 90 hari). Setiap baris menandai dibuat atau diperbarui, tanpa isi dan tanpa identitas pengubah; file yang dihapus tidak muncul. Baca file yang berubah dengan get_file_outline atau read_file.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "default": "all",
+          "description": "files = file knowledge, specs = spec API, all = keduanya",
+          "enum": [
+            "files",
+            "specs",
+            "all"
+          ],
+          "type": "string"
+        },
+        "limit": {
+          "default": 20,
+          "description": "jumlah perubahan maksimal",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "description": "prefix path file knowledge (hanya untuk kind files atau all)",
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "since": {
+          "description": "batas waktu awal: RFC3339 (2026-10-20T00:00:00Z) atau durasi relatif 24h, 7d, 30d; maksimal 90 hari ke belakang",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "since"
+      ],
+      "type": "object"
+    }
+  },
+  {
     "name": "read_file",
     "title": "Baca file knowledge",
     "description": "Baca isi satu file knowledge (read-only). path persis seperti dari list_files atau search_knowledge. File besar dikembalikan per potongan: bila ada penanda [terpotong: ... offset=N ...], panggil lagi dengan offset=N untuk lanjutan tanpa duplikat. offset dan limit dalam byte.",
@@ -64,6 +126,47 @@
       },
       "required": [
         "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "read_section",
+    "title": "Baca satu bagian file knowledge",
+    "description": "Baca satu bagian file Markdown knowledge (read-only), dari heading sampai sebelum heading selevel atau lebih tinggi. heading adalah teks persis dari get_file_outline (tanpa #); bila ada beberapa heading bernama sama, pakai occurrence. limit dalam byte; bagian yang terpotong diberi penanda read_file offset untuk lanjutan.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "heading": {
+          "description": "teks heading persis seperti di get_file_outline, tanpa tanda #",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "limit": {
+          "default": 40000,
+          "description": "jumlah byte maksimal yang dikembalikan",
+          "maximum": 101888,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "occurrence": {
+          "default": 1,
+          "description": "kemunculan ke-n bila ada beberapa heading bernama sama",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "description": "path file Markdown, mis. docs/guides/a.md",
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "heading"
       ],
       "type": "object"
     }
