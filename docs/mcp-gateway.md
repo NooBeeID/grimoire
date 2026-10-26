@@ -116,13 +116,16 @@ Katalog tidak valid membuat server panic saat start dengan pesan berawalan `mcpg
 
 ## Tool knowledge
 
-Module `discovery/knowledge-tools` (T08) mendaftarkan tiga tool read-only. Project selalu dari API key; tidak ada argumen `project_id` (argumen itu ditolak). Argumen ketat (`additionalProperties: false`): field tak dikenal atau tipe salah menghasilkan `isError` dengan penjelasan field yang salah. Nilai di luar rentang ditolak, bukan dipotong. Hasil sukses membawa teks, `structuredContent` (object JSON), dan metadata audit tanpa isi file (path hasil pencarian dicatat sebagai `result_paths`, lihat Audit).
+Module `discovery/knowledge-tools` (T08) mendaftarkan enam tool read-only (tiga terakhir ditambah T18). Project selalu dari API key; tidak ada argumen `project_id` (argumen itu ditolak). Argumen ketat (`additionalProperties: false`): field tak dikenal atau tipe salah menghasilkan `isError` dengan penjelasan field yang salah. Nilai di luar rentang ditolak, bukan dipotong. Hasil sukses membawa teks, `structuredContent` (object JSON), dan metadata audit tanpa isi file (path hasil pencarian dicatat sebagai `result_paths`, lihat Audit).
 
 | Tool | Argumen | Keterangan |
 |---|---|---|
 | `list_files` | `path` (string, maks 1024, kosong = akar), `recursive` (boolean, default `false`), `limit` (1-500, default 200), `offset` (0-1000000, default 0) | Tanpa `recursive`, satu tingkat dengan subfolder sebagai entri `[folder]`. Terpotong: `[ada N file lagi, panggil list_files dengan offset=...]`. |
 | `read_file` | `path` (wajib, 1-1024), `offset` (0-2147483647, default 0), `limit` (1 sampai `MCP_MAX_RESPONSE_BYTES-512`, default 40000) | `offset` dan `limit` dalam BYTE (bukan karakter), dipotong pada batas UTF-8. Terpotong: `[terpotong: lanjutkan dengan offset=N dari total M byte]`. File tidak ada: `isError` dengan saran path mirip. |
 | `search_knowledge` | `query` (wajib, 1-200), `path` (prefix opsional), `limit` (1-20, default 10) | Full-text, bukan semantik. Frasa dalam kutip dicari utuh. Kata kunci di cuplikan bertanda `**...**`. |
+| `get_file_outline` | `path` (wajib, 1-1024) | Daftar heading satu file Markdown (`.md`, `.markdown`): `L<baris> <#> <teks> [<start>-<end>]` (rentang byte), `size_bytes`, dan `updated_at`. File non-Markdown mengembalikan outline kosong dengan ukurannya, bukan error. Heading di dalam fenced code, blok HTML, dan front matter diabaikan; Setext didukung. Terpotong (ribuan heading): `[outline terpotong: menampilkan N dari M heading; sisanya mulai byte B, baca dengan read_file offset=B]`. `structuredContent` hanya memuat heading yang ditampilkan. |
+| `read_section` | `path` (wajib, 1-1024), `heading` (wajib, 1-500 byte, teks persis tanpa `#`), `occurrence` (1-1000, default 1), `limit` (1 sampai `MCP_MAX_RESPONSE_BYTES-512`, default 40000) | Isi satu bagian: dari heading sampai sebelum heading berikutnya yang selevel atau lebih tinggi. `limit` dalam BYTE, dipotong pada batas UTF-8. Terpotong: `[bagian terpotong: lanjutkan dengan read_file offset=N; bagian berakhir di byte E]`. Heading tak ditemukan: `isError` dengan daftar heading mirip dan saran `get_file_outline`; `occurrence` melebihi jumlah heading bernama sama: `isError` dengan jumlahnya. File non-Markdown: `isError`. |
+| `list_recent_changes` | `since` (wajib: RFC3339 atau `<n>h`/`<n>d`, maks 90 hari ke belakang, tidak boleh di masa depan), `kind` (`files`, `specs`, `all`; default `all`), `path` (prefix file; tidak untuk `kind: specs`), `limit` (1-50, default 20) | File knowledge dan spec API yang berubah sejak `since`, terbaru dulu (seri: file sebelum spec, lalu nama). Baris: `- [file] <path> · dibuat\|diperbarui · <ukuran> · <waktu>`; `dibuat` bila `created_at == updated_at`. Terpotong: `[ada N perubahan lagi; persempit since/path/kind atau naikkan limit (maks 50)]`. |
 
 Contoh `tools/call`:
 
@@ -137,6 +140,20 @@ Contoh `tools/call`:
 ```json
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"search_knowledge","arguments":{"query":"\"rate limit\"","path":"docs","limit":5}}}
 ```
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_file_outline","arguments":{"path":"docs/guides/a.md"}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"read_section","arguments":{"path":"docs/guides/a.md","heading":"Setup","occurrence":2}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"list_recent_changes","arguments":{"since":"7d","kind":"files","path":"docs","limit":20}}}
+```
+
+Ketiga tool baru read-only dan menulis audit `mcp.get_file_outline`, `mcp.read_section`, `mcp.list_recent_changes` dengan `result` `count` (plus `total` untuk `get_file_outline` dan `list_recent_changes`), `bytes`/`truncated`, tanpa isi file; target audit `file` + path untuk dua tool pertama dan kosong untuk `list_recent_changes`. Ketiganya otomatis masuk agregat Dashboard. `list_recent_changes` tidak melaporkan file/spec yang dihapus (hard delete, rules 8.2) dan tidak mengembalikan identitas pengubah. Data diambil lewat bus `project.knowledge.read-file` (`Whole`), `project.knowledge.list-changes`, dan `project.apispec.list-specs`.
 
 Kontrak `tools/list` dibekukan di `backend/internal/domain/discovery/internal/knowledgetools/testdata/tools_list.golden.json` (perbarui dengan `go test ./internal/domain/discovery/internal/knowledgetools/ -update` lalu periksa diff).
 

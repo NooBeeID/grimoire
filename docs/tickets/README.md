@@ -26,6 +26,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T15](T15-core-audit-log-summary.md)    | core                   | audit-log (ringkasan metrik MCP + baris tabel bisa diklik)                       | L      | T02, T07, T11           | Selesai (`0ccf83f`)                                                        |
 | [T16](T16-project-notification.md)      | project                | notification (siaran email manual ke anggota project)                            | M      | T01, T02, T03, T12      | Tiket baru                                                                 |
 | [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Selesai (`4c9043b`)                                                        |
+| [T18](T18-discovery-mcp-outline-tools.md) | discovery              | knowledge-tools (outline, section, perubahan terbaru)                            | M      | T07, T08, T09           | Diimplementasi (menunggu review)                                           |
 
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -42,6 +43,7 @@ T00 foundation (ROOT)
 │       │   ├── T13 project/api-key per user   (revisi T04)
 │       │   └── T07 discovery/mcp-gateway  + butuh T02
 │       │       ├── T08 discovery/knowledge-tools   + butuh T05
+│       │       │   ├── T18 discovery outline/section/recent-changes   + butuh T09
 │       │       │   └── T11 discovery/search-quality    + butuh T02, T05
 │       │       │       └── T15 core/audit-log summary   + butuh T02
 │       │       └── T09 discovery/api-spec-tools    + butuh T06
@@ -69,6 +71,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 7         | T10, T11, T12      |
 | 8         | T13, T14, T15, T16 |
 | 9         | T17                |
+| 10        | T18                |
 
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
@@ -188,9 +191,10 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.apikey.verify`                          | Call                                                                                        | T04                                       | T07                                               |
 | `project.apikey.touch`                           | Publish                                                                                     | T04                                       | T07                                               |
 | `project.knowledge.list-files`                   | Call                                                                                        | T05                                       | T08                                               |
-| `project.knowledge.read-file`                    | Call                                                                                        | T05                                       | T08                                               |
+| `project.knowledge.read-file`                    | Call                                                                                        | T05                                       | T08, T18                                          |
 | `project.knowledge.search`                       | Call                                                                                        | T05                                       | T08                                               |
-| `project.apispec.list-specs`                     | Call                                                                                        | T06                                       | T09                                               |
+| `project.knowledge.list-changes`                 | Call (baca-saja)                                                                            | T18                                       | T18 (knowledgetools `listrecentchanges`)          |
+| `project.apispec.list-specs`                     | Call                                                                                        | T06                                       | T09, T18                                          |
 | `project.apispec.list-endpoints`                 | Call                                                                                        | T06                                       | T09                                               |
 | `project.apispec.get-endpoint`                   | Call                                                                                        | T06                                       | T09                                               |
 | `discovery.mcpgateway.register-tool`             | wiring (`lib/contracts/discovery/mcpgateway/toolkit` + `internal/domain/discovery/base.go`) | T07                                       | T08, T09                                          |
@@ -226,6 +230,8 @@ Kontrak T12: `lib/contracts/core/auth/{invitation,inviteuser,resendinvitation}` 
 
 Kontrak T14: `lib/contracts/core/gitcredential/gettoken` (`BUS_CORE_GITCREDENTIAL_GET_TOKEN`), `lib/contracts/project/knowledge/upsertfiles` (`BUS_PROJECT_KNOWLEDGE_UPSERT_FILES`), `lib/contracts/project/apispec/upsertspecs` (`BUS_PROJECT_APISPEC_UPSERT_SPECS`). `get-token` mengembalikan `Token secret.String` (tipe tersamar di `lib/common/secret`): token tidak boleh di-log, diaudit, di-Publish, atau dikirim ke klien; pemanggil wajib mengisi `UserID` dari identity request. Dua handler upsert menulis tanpa cek keanggotaan: consumer wajib `check-access` lebih dulu; query selalu dibatasi `ProjectID` request. Orkestrasi tulis upload dipakai bersama lewat `knowledge/base/ingest` dan `apispec/base/ingest`. Kode error bersama baru di `lib/common/errs`: `HOST_NOT_ALLOWED` (422), `GIT_UPSTREAM_ERROR` (502), `GIT_FEATURE_DISABLED` (503). Env baru: `GIT_CREDENTIAL_KEY`, `GIT_SYNC_ALLOWED_HOSTS`, `GIT_SYNC_TIMEOUT`, `GIT_SYNC_INSECURE_TEST_HOSTS`, `GIT_SYNC_GITHUB_API_BASE` (lihat `docs/configuration.md`).
 
+Kontrak T18: `lib/contracts/project/knowledge/listchanges` (`BUS_PROJECT_KNOWLEDGE_LIST_CHANGES`; urut `updated_at DESC, path`, `Since` wajib, `Limit` maks 50, indeks `knowledge_files_project_updated_idx`). Perubahan aditif: `read-file` menerima `Request.Whole` (isi utuh, Offset 0) dan mengembalikan `Response.UpdatedAt`; `list-specs` mengembalikan `Spec.CreatedAt` dan `Spec.SizeBytes`. Parser heading bersama di `lib/util/mdoutline`.
+
 ### Pola fail-open penulisan audit
 
 Bila audit gagal ditulis, error di-log level error dan permintaan tetap dilayani (keputusan T02). Consumer:
@@ -248,7 +254,7 @@ Tambah konstanta di `backend/lib/contracts/core/audit/record/actions.go` (dan di
 
 Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 
-- Agent: `mcp.list_files`, `mcp.read_file`, `mcp.search_knowledge`, `mcp.list_api_specs`, `mcp.list_api_endpoints`, `mcp.get_api_endpoint`, `mcp.auth.rejected`, `mcp.rate_limited`, `mcp.initialize`, `mcp.tools_list`, `mcp.unknown_tool`.
+- Agent: `mcp.list_files`, `mcp.read_file`, `mcp.search_knowledge`, `mcp.list_api_specs`, `mcp.list_api_endpoints`, `mcp.get_api_endpoint`, `mcp.get_file_outline`, `mcp.read_section`, `mcp.list_recent_changes`, `mcp.auth.rejected`, `mcp.rate_limited`, `mcp.initialize`, `mcp.tools_list`, `mcp.unknown_tool`.
 - Auth/user: `auth.login.success`, `auth.login.failed`, `auth.logout`, `auth.password.changed`, `auth.password.reset`, `user.created`, `user.updated`, `user.deactivated`, `user.activated`, `user.invited`, `user.invitation.resent`, `user.invitation.accepted`, `user.invitation.email_failed` (T12).
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`, `project.member.invited`, `project.invitation.revoked` (T12).
 - Key: `apikey.created`, `apikey.revoked`.
