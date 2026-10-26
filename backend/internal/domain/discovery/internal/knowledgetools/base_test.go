@@ -241,6 +241,8 @@ func TestT08_AC7_ImportAllowlist(t *testing.T) {
 		"grimoire/lib/contracts/core/audit/scanentries":                 true,
 		"grimoire/lib/contracts/discovery/knowledgetools/searchquality": true,
 		"grimoire/lib/util/mdoutline":                                   true, // T18
+		"grimoire/lib/contracts/project/knowledge/listchanges":          true, // T18
+		"grimoire/lib/contracts/project/apispec/listspecs":              true, // T18
 	}
 	const self = "grimoire/internal/domain/discovery/internal/knowledgetools"
 	const recordPkg = "grimoire/lib/contracts/core/audit/record"
