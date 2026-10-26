@@ -1,0 +1,250 @@
+openapi: 3.1.0
+info:
+  title: Grimoire Project Search Synonyms
+  version: 0.1.0
+paths:
+  /api/projects/{projectID}/search/synonyms:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+    get:
+      operationId: listSynonymGroups
+      tags: [project-search-synonyms]
+      summary: Daftar kelompok sinonim project
+      description: >
+        Anggota (owner/member) dan super_admin. Urut `created_at`, lalu `id`. Tanpa paginasi (maksimal
+        500 kelompok per project). Project yang tidak ada, id bukan uuid, atau bukan milik pemanggil
+        dijawab 404 yang identik.
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Daftar kelompok (items selalu array, [] bila kosong)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SynonymGroupList" }
+              example:
+                items:
+                  - id: 0192f5a0-3333-7aaa-8bbb-000000000001
+                    terms: [login, autentikasi, masuk]
+                    created_at: "2026-10-26T09:00:00Z"
+                    updated_at: "2026-10-26T09:30:00Z"
+                    created_by_label: a@tim.id
+                    updated_by_label: b@tim.id
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    post:
+      operationId: createSynonymGroup
+      tags: [project-search-synonyms]
+      summary: Buat kelompok sinonim
+      description: >
+        Anggota (owner/member) dan super_admin. 2-10 term, tiap term maksimal 64 karakter; term
+        dinormalisasi (huruf kecil, spasi diringkas). Satu term hanya boleh ada di satu kelompok per
+        project. Maksimal 500 kelompok per project. Field tak dikenal ditolak 400.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SynonymGroupRequest" }
+            example: { terms: [login, autentikasi, masuk] }
+      responses:
+        "201":
+          description: Kelompok dibuat
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SynonymGroup" }
+              example:
+                id: 0192f5a0-3333-7aaa-8bbb-000000000001
+                terms: [login, autentikasi, masuk]
+                created_at: "2026-10-26T09:00:00Z"
+                updated_at: "2026-10-26T09:00:00Z"
+                created_by_label: a@tim.id
+                updated_by_label: a@tim.id
+        "400": { $ref: "#/components/responses/InvalidTerms" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "409": { $ref: "#/components/responses/SynonymConflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+  /api/projects/{projectID}/search/synonyms/{groupID}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectID"
+      - $ref: "#/components/parameters/GroupID"
+    put:
+      operationId: updateSynonymGroup
+      tags: [project-search-synonyms]
+      summary: Ganti term kelompok sinonim
+      description: >
+        Anggota (owner/member) dan super_admin. Mengganti seluruh daftar term kelompok. Aturan term
+        sama dengan createSynonymGroup; term milik kelompok ini sendiri tidak dianggap bentrok.
+        `groupID` bukan uuid dijawab 400 reason `invalid_group_id`. Project atau kelompok yang tidak
+        ada/bukan milik project dijawab 404 NOT_FOUND.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SynonymGroupRequest" }
+            example: { terms: [login, autentikasi, masuk, sign-in] }
+      responses:
+        "200":
+          description: Kelompok setelah diubah
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SynonymGroup" }
+              example:
+                id: 0192f5a0-3333-7aaa-8bbb-000000000001
+                terms: [login, autentikasi, masuk, sign-in]
+                created_at: "2026-10-26T09:00:00Z"
+                updated_at: "2026-10-26T10:00:00Z"
+                created_by_label: a@tim.id
+                updated_by_label: b@tim.id
+        "400": { $ref: "#/components/responses/InvalidTerms" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/SynonymNotFound" }
+        "409": { $ref: "#/components/responses/SynonymConflict" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+    delete:
+      operationId: deleteSynonymGroup
+      tags: [project-search-synonyms]
+      summary: Hapus kelompok sinonim
+      description: >
+        Anggota (owner/member) dan super_admin. `groupID` bukan uuid dijawab 400 reason
+        `invalid_group_id`. Project atau kelompok yang tidak ada/bukan milik project dijawab 404.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XRequestedWith"
+      responses:
+        "204": { description: Kelompok dihapus (tanpa body) }
+        "400": { $ref: "#/components/responses/InvalidTerms" }
+        "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/SynonymNotFound" }
+        "500": { $ref: "../infra/foundation.yml#/components/responses/Internal" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grimoire_session
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: Wajib untuk request mutasi (nilai grimoire); tanpa itu 403 CSRF_REQUIRED.
+      schema: { type: string, example: grimoire }
+    ProjectID:
+      name: projectID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GroupID:
+      name: groupID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    ProjectNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND). Juga untuk project yang bukan milik pemanggil atau id bukan
+        uuid (tidak bocor).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: project tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    SynonymNotFound:
+      description: >
+        Tidak ditemukan (NOT_FOUND): project tidak ada/bukan milik pemanggil, atau kelompok tidak ada
+        di project ini.
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: kelompok sinonim tidak ditemukan, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    CsrfRequired:
+      description: Header X-Requested-With tidak ada (CSRF_REQUIRED)
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error: { code: CSRF_REQUIRED, message: header X-Requested-With wajib untuk request mutasi, details: null }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    InvalidTerms:
+      description: >
+        Validasi gagal (INVALID_ARGUMENT). details.reason salah satu dari too_few_terms (kurang dari 2),
+        too_many_terms (lebih dari 10), term_empty, term_too_long (lebih dari 64 karakter),
+        term_invalid_char, duplicate_term (duplikat setelah normalisasi), invalid_group_id (groupID
+        bukan uuid). Body tak valid atau field tak dikenal juga 400.
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          example:
+            error:
+              code: INVALID_ARGUMENT
+              message: kelompok sinonim minimal berisi 2 term
+              details: { reason: too_few_terms }
+            trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+    SynonymConflict:
+      description: >
+        Konflik (CONFLICT). details.reason `term_in_use` (term sudah dipakai kelompok lain; details.terms
+        berisi term yang bentrok) atau `group_limit` (batas 500 kelompok per project tercapai).
+      content:
+        application/json:
+          schema: { $ref: "../infra/foundation.yml#/components/schemas/Error" }
+          examples:
+            termInUse:
+              value:
+                error:
+                  code: CONFLICT
+                  message: term sudah dipakai kelompok lain
+                  details: { reason: term_in_use, terms: [login] }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+            groupLimit:
+              value:
+                error:
+                  code: CONFLICT
+                  message: batas kelompok sinonim per project tercapai
+                  details: { reason: group_limit }
+                trace_id: 4f6c2a1e-8d3b-4c55-9a1f-2b7e0d9c1a33
+  schemas:
+    SynonymGroup:
+      type: object
+      additionalProperties: false
+      required: [id, terms, created_at, updated_at, created_by_label, updated_by_label]
+      properties:
+        id: { type: string, format: uuid }
+        terms:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items: { type: string, minLength: 1, maxLength: 64 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        created_by_label: { type: string }
+        updated_by_label: { type: string }
+    SynonymGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [terms]
+      properties:
+        terms:
+          type: array
+          description: Dinormalisasi server; jumlah dan isi divalidasi (lihat reason 400).
+          items: { type: string }
+    SynonymGroupList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SynonymGroup" }

@@ -28,6 +28,7 @@ import (
 	"grimoire/internal/domain/project/internal/knowledge/buslistfiles"
 	"grimoire/internal/domain/project/internal/knowledge/busreadfile"
 	"grimoire/internal/domain/project/internal/knowledge/bussearch"
+	"grimoire/internal/domain/project/internal/knowledge/busupsertfiles"
 	"grimoire/internal/domain/project/internal/knowledge/countfiles"
 	"grimoire/internal/domain/project/internal/knowledge/createfile"
 	"grimoire/internal/domain/project/internal/knowledge/deletefile"
@@ -48,6 +49,7 @@ import (
 	"grimoire/lib/contracts/project/knowledge/listfiles"
 	"grimoire/lib/contracts/project/knowledge/readfile"
 	ksearch "grimoire/lib/contracts/project/knowledge/search"
+	"grimoire/lib/contracts/project/knowledge/upsertfiles"
 	"grimoire/lib/contracts/project/management/checkaccess"
 	"grimoire/lib/contracts/project/management/contentcount"
 	"grimoire/lib/contracts/project/management/getproject"
@@ -84,6 +86,7 @@ func registerAll(d app.Deps) {
 	buslistfiles.Init(d)
 	busreadfile.Init(d)
 	bussearch.Init(d)
+	busupsertfiles.Init(d)
 }
 
 func testConfig(maxProjectFiles int) config.Config {
@@ -1054,5 +1057,84 @@ FROM (
 	t.Logf("p95=%s max=%s (n=%d)", p95, ds[len(ds)-1], len(ds))
 	if p95 > 200*time.Millisecond {
 		t.Errorf("p95 %s > 200ms", p95)
+	}
+}
+
+// Task 10 (T20): setiap writer mengisi kolom sections (tidak NULL, offset rune).
+func TestWritersFillSections(t *testing.T) {
+	e := newEnv(t, 5000)
+	u := newUser()
+	pid := e.newProject("Sec", u)
+	ctx := context.Background()
+	const doc = "😀 pra\n# Judul\nisi\n## Sub\nlagi"
+
+	sectionsOf := func(path string) (n int, first string) {
+		t.Helper()
+		var raw []byte
+		if err := e.db.GetContext(ctx, &raw, `SELECT sections FROM knowledge_files WHERE project_id=$1 AND path=$2`, pid, path); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if raw == nil {
+			t.Fatalf("%s: sections NULL", path)
+		}
+		var secs []struct {
+			H string `json:"h"`
+			S int    `json:"s"`
+		}
+		if err := json.Unmarshal(raw, &secs); err != nil {
+			t.Fatal(err)
+		}
+		if len(secs) == 0 {
+			return 0, ""
+		}
+		return len(secs), secs[len(secs)-1].H
+	}
+
+	// create
+	if r := e.create(u, pid, "c.md", doc); r.Code != 201 {
+		t.Fatalf("create %d %s", r.Code, r.Body)
+	}
+	if n, last := sectionsOf("c.md"); n != 3 || last != "Sub" {
+		t.Fatalf("create sections n=%d last=%q", n, last)
+	}
+
+	// update: sections ikut berubah
+	_, f := e.getFile(u, pid, "c.md")
+	if r := e.update(u, pid, "c.md", "# Baru\nsatu", f.Version); r.Code != 200 {
+		t.Fatalf("update %d %s", r.Code, r.Body)
+	}
+	if n, last := sectionsOf("c.md"); n != 1 || last != "Baru" {
+		t.Fatalf("update sections n=%d last=%q", n, last)
+	}
+
+	// upload (create dan update)
+	e.mustUpload(u, pid, part{"up.md", doc})
+	if n, _ := sectionsOf("up.md"); n != 3 {
+		t.Fatalf("upload create sections n=%d", n)
+	}
+	e.mustUpload(u, pid, part{"up.md", "# Ganti\nx"})
+	if n, last := sectionsOf("up.md"); n != 1 || last != "Ganti" {
+		t.Fatalf("upload update sections n=%d last=%q", n, last)
+	}
+
+	// upsert-files (bus git sync): created lalu updated
+	upsert := func(content string) {
+		t.Helper()
+		res, err := bus.CallTyped[upsertfiles.Response](ctx, e.bus, constants.BUS_PROJECT_KNOWLEDGE_UPSERT_FILES, upsertfiles.Request{
+			ProjectID: pid, Actor: upsertfiles.Actor{UserID: u, Role: "developer", Label: "U"},
+			Source: upsertfiles.SourceGitSync,
+			Items:  []upsertfiles.Item{{Index: 0, Path: "g.md", Content: []byte(content)}},
+		})
+		if err != nil || len(res.Items) != 1 || (res.Items[0].Status != "created" && res.Items[0].Status != "updated") {
+			t.Fatalf("upsert %+v %v", res, err)
+		}
+	}
+	upsert(doc)
+	if n, _ := sectionsOf("g.md"); n != 3 {
+		t.Fatalf("upsert create sections n=%d", n)
+	}
+	upsert("# Git\nbaru")
+	if n, last := sectionsOf("g.md"); n != 1 || last != "Git" {
+		t.Fatalf("upsert update sections n=%d last=%q", n, last)
 	}
 }

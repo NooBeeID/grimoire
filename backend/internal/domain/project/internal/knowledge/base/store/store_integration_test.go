@@ -138,66 +138,13 @@ func TestListPaths(t *testing.T) {
 	}
 }
 
-func TestSearch_RankTotalPrefixPhrase(t *testing.T) {
-	d, s := setup(t)
-	a, b := newProject(t, d, "Alpha"), newProject(t, d, "Bravo")
-	insertFile(t, d, a, "docs/auth/login.md", "# Login\n\nSingkat.")
-	insertFile(t, d, a, "docs/guide.md", "# Panduan\n\n"+strings.Repeat("kata lain ", 200)+" login sekali di sini")
-	insertFile(t, d, a, "other/notes.md", "# Catatan\n\nreset password lewat email")
-	insertFile(t, d, b, "login.md", "# Login B uniqueB")
-
-	hits, total, err := s.Search(ctx, a, `"login"`, "%", 10)
-	if err != nil || total != 2 || len(hits) != 2 {
-		t.Fatalf("%v total=%d err=%v", hits, total, err)
-	}
-	if hits[0].Path != "docs/auth/login.md" || hits[0].Score <= hits[1].Score {
-		t.Fatalf("rank order: %+v", hits)
-	}
-	if !strings.Contains(hits[0].Headline, base.HighlightStart) {
-		t.Fatalf("headline: %q", hits[0].Headline)
-	}
-
-	hits, total, _ = s.Search(ctx, a, `"login"`, base.LikePrefix("docs/auth"), 10)
-	if total != 1 || len(hits) != 1 || hits[0].Path != "docs/auth/login.md" {
-		t.Fatalf("prefix: %v %d", hits, total)
-	}
-	hits, total, _ = s.Search(ctx, a, `"reset password"`, "%", 10)
-	if total != 1 || hits[0].Path != "other/notes.md" {
-		t.Fatalf("phrase: %v %d", hits, total)
-	}
-	hits, total, _ = s.Search(ctx, a, `"login"`, "%", 1)
-	if total != 2 || len(hits) != 1 {
-		t.Fatalf("limit keeps total: %v %d", hits, total)
-	}
-	hits, total, err = s.Search(ctx, a, `"tidakada"`, "%", 10)
-	if err != nil || total != 0 || hits == nil || len(hits) != 0 {
-		t.Fatalf("no hit: %v %d %v", hits, total, err)
-	}
-	if hits, total, _ := s.Search(ctx, a, `"uniqueb"`, "%", 10); total != 0 || len(hits) != 0 {
-		t.Fatalf("isolation: %v", hits)
-	}
-	if hits, total, err := s.Search(ctx, "bukan-uuid", `"login"`, "%", 10); err != nil || total != 0 || len(hits) != 0 {
-		t.Fatalf("non-uuid: %v %v", hits, err)
-	}
-}
-
-func TestSearch_PathAndTitleMatch(t *testing.T) {
-	d, s := setup(t)
-	a := newProject(t, d, "Alpha")
-	insertFile(t, d, a, "docs/deploy.md", "tidak ada kata itu")
-	hits, total, err := s.Search(ctx, a, `"deploy"`, "%", 5)
-	if err != nil || total != 1 || hits[0].Path != "docs/deploy.md" {
-		t.Fatalf("path match: %v %d %v", hits, total, err)
-	}
-}
-
 func TestSearch_ContentWithMarkerBytes(t *testing.T) {
 	d, s := setup(t)
 	a := newProject(t, d, "Alpha")
-	insertFile(t, d, a, "m.md", "awal \x01 palsu \x02 login akhir")
-	hits, _, err := s.Search(ctx, a, `"login"`, "%", 5)
-	if err != nil || len(hits) != 1 {
-		t.Fatalf("%v %v", hits, err)
+	put(t, s, a, "m.md", "awal \x01 palsu \x02 login akhir")
+	hits, _ := runSearch(t, s, a, "login", nil)
+	if len(hits) != 1 {
+		t.Fatalf("%v", hits)
 	}
 	segs := base.ParseHeadline(hits[0].Headline)
 	n := 0

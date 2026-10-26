@@ -14,7 +14,7 @@ import (
 	"grimoire/lib/contracts/project/knowledge/search"
 )
 
-func newReg(s searcher) *bus.Registry {
+func newReg(s runner) *bus.Registry {
 	reg := bus.NewRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	h := &Handler{uc: NewUsecase(s)}
 	reg.Register(constants.BUS_PROJECT_KNOWLEDGE_SEARCH, h.Handle)

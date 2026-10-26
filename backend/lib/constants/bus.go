@@ -86,3 +86,7 @@ const BUS_PROJECT_KNOWLEDGE_UPSERT_FILES = "project.knowledge.upsert-files"
 // Provider: T14 project/apispec (feature busupsertspecs). Consumer: project/gitsync runsync.
 // Kontrak: lib/contracts/project/apispec/upsertspecs. Menulis; tanpa cek keanggotaan (consumer wajib check-access).
 const BUS_PROJECT_APISPEC_UPSERT_SPECS = "project.apispec.upsert-specs"
+
+// Provider: T20 project/searchsynonym (feature buslistgroups). Consumer: project/knowledge (pencarian, fail-soft).
+// Kontrak: lib/contracts/project/searchsynonym/listgroups. Baca-saja, dibatasi ProjectID; tanpa cek akses.
+const BUS_PROJECT_SEARCHSYNONYM_LIST_GROUPS = "project.searchsynonym.list-groups"

@@ -85,8 +85,15 @@ func TestT08_Int_AC4_PrefixFilter(t *testing.T) {
 func TestT08_Int_AC5_SearchProjectIsolation(t *testing.T) {
 	k := setupKnowledgeTools(t)
 	r := k.mcpCall(k.rawKey, "search_knowledge", map[string]any{"query": "SECRET-B"})
-	if r.IsError || len(ktItems(t, r)) != 0 {
-		t.Fatalf("A melihat B: %s", r.Raw)
+	// Query terurai jadi term "secret" dan "b"; docs/guides/b.md milik A boleh cocok parsial lewat path
+	// (aturan cakupan D3). Yang diuji adalah isolasi: tidak ada item milik project B.
+	if r.IsError {
+		t.Fatalf("%s", r.Raw)
+	}
+	for _, it := range ktItems(t, r) {
+		if p, _ := it["path"].(string); p == "secret/b.md" || strings.HasPrefix(p, "secret/") {
+			t.Fatalf("A melihat B: %s", r.Raw)
+		}
 	}
 	if strings.Contains(strings.Replace(r.Text, `"SECRET-B"`, "", 1), "SECRET-B") {
 		t.Fatalf("teks bocor: %s", r.Text)

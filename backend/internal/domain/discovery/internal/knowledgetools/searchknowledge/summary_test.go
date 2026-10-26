@@ -251,3 +251,14 @@ func TestSummary_ErrorResultHasNoResultPaths(t *testing.T) {
 		t.Fatalf("%v", r.Summary)
 	}
 }
+
+func TestSummary_ExpandedOnlyWhenTrue(t *testing.T) {
+	s := summaryFor(t, search.Response{Items: items(1), Total: 1, Expanded: true}, `{"query":"q"}`)
+	if s["expanded"] != true || len(s) != 4 {
+		t.Fatalf("%v", s)
+	}
+	s = summaryFor(t, search.Response{Items: items(1), Total: 1}, `{"query":"q"}`)
+	if _, has := s["expanded"]; has {
+		t.Fatalf("%v", s)
+	}
+}

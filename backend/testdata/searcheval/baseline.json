@@ -1,8 +1,8 @@
 {
   "pairs": 40,
-  "recall_at_1": 0.5875,
-  "recall_at_5": 0.5875,
-  "mrr": 0.6,
+  "recall_at_1": 0.9875,
+  "recall_at_5": 1,
+  "mrr": 1,
   "per_kind": {
     "exact-name": {
       "pairs": 8,
@@ -18,21 +18,21 @@
     },
     "synonym": {
       "pairs": 8,
-      "recall_at_1": 0.0625,
-      "recall_at_5": 0.0625,
-      "mrr": 0.125
+      "recall_at_1": 0.9375,
+      "recall_at_5": 1,
+      "mrr": 1
     },
     "typo": {
       "pairs": 7,
-      "recall_at_1": 0,
-      "recall_at_5": 0,
-      "mrr": 0
+      "recall_at_1": 1,
+      "recall_at_5": 1,
+      "mrr": 1
     },
     "phrase": {
       "pairs": 7,
-      "recall_at_1": 0.7143,
-      "recall_at_5": 0.7143,
-      "mrr": 0.7143
+      "recall_at_1": 1,
+      "recall_at_5": 1,
+      "mrr": 1
     }
   }
 }

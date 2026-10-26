@@ -1,0 +1,12 @@
+# Kamus sinonim fixture untuk golden set pencarian. Ditulis dari istilah tim,
+# bukan dari keluaran pencarian. TestSearchEval mengirimnya lewat REST sebelum mencari.
+groups:
+  - [rollback, kembalikan versi, revert]
+  - [rate limit, batas permintaan, throttling]
+  - [refund, pengembalian dana]
+  - [invoice, tagihan, faktur]
+  - [customer, pelanggan]
+  - [api key, kredensial akses, kunci api]
+  - [password, kata sandi, sandi]
+  - [webhook, callback]
+  - [onboarding, karyawan baru, new hire]

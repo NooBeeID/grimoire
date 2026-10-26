@@ -174,7 +174,7 @@
   {
     "name": "search_knowledge",
     "title": "Cari knowledge",
-    "description": "Cari file knowledge berdasarkan kata kunci (full-text, read-only, bukan semantik). Frasa dalam tanda kutip dicari utuh. Hasil berisi path, skor, dan cuplikan dengan kata kunci bertanda **...**; baca file utuh dengan read_file(path). Persempit dengan path=<folder>.",
+    "description": "Cari file knowledge berdasarkan kata kunci (full-text, read-only, bukan semantik). Toleran terhadap sinonim, salah ketik, dan imbuhan kata. Frasa dalam tanda kutip dicari utuh. Hasil berisi path, skor, cuplikan dengan kata kunci bertanda **...**, dan field section (heading bagian cuplikan) yang bisa dipakai untuk read_section(path, heading); baca file utuh dengan read_file(path). Persempit dengan path=<folder>.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

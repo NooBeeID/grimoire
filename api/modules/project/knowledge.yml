@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Grimoire Project Knowledge
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /api/projects/{projectID}/knowledge/upload:
     parameters:
@@ -324,11 +324,13 @@ paths:
                   - path: docs/auth/login.md
                     title: Login
                     score: 0.83
+                    section: Alur autentikasi
                     snippet:
                       - { text: "Alur ", highlight: false }
                       - { text: login, highlight: true }
                       - { text: " memakai email dan password", highlight: false }
                 total: 1
+                expanded: false
         "400": { $ref: "../infra/foundation.yml#/components/responses/BadRequest" }
         "401": { $ref: "../infra/foundation.yml#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/ProjectNotFound" }
@@ -502,22 +504,28 @@ components:
         highlight: { type: boolean }
     KnowledgeSearchItem:
       type: object
-      required: [path, title, score, snippet]
+      required: [path, title, score, snippet, section]
       properties:
         path: { type: string }
         title: { type: string }
         score: { type: number }
+        section:
+          type: string
+          description: Judul heading tempat cuplikan berada; string kosong bila di luar heading.
         snippet:
           type: array
           items: { $ref: "#/components/schemas/KnowledgeSnippetSegment" }
     KnowledgeSearchResult:
       type: object
-      required: [items, total]
+      required: [items, total, expanded]
       properties:
         items:
           type: array
           items: { $ref: "#/components/schemas/KnowledgeSearchItem" }
         total: { type: integer }
+        expanded:
+          type: boolean
+          description: true bila hasil diperluas (sinonim, varian kata, atau toleransi typo).
     KnowledgeConflictDetails:
       type: object
       required: [reason, current]

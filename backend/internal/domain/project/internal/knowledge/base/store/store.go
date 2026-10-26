@@ -32,24 +32,6 @@ const (
 	codeUniqueViolation = "23505"
 )
 
-const searchSQL = `
-WITH q AS (SELECT websearch_to_tsquery('simple', $2) AS q),
-hits AS (
-  SELECT f.id, f.path, f.title,
-         ts_rank_cd(f.search, q.q, 1)::float8 AS score,
-         count(*) OVER () AS total
-  FROM knowledge_files f, q
-  WHERE f.project_id = $1 AND f.search @@ q.q AND f.path LIKE $3 ESCAPE '\'
-  ORDER BY score DESC, f.path COLLATE "C"
-  LIMIT $4
-)
-SELECT h.path, h.title, h.score, h.total,
-       ts_headline('simple',
-         replace(replace(left(f.content, 200000), E'\x01', ''), E'\x02', ''),
-         q.q, $5) AS headline
-FROM hits h JOIN knowledge_files f ON f.id = h.id, q
-ORDER BY h.score DESC, h.path COLLATE "C"`
-
 type fileRow struct {
 	ID             string    `db:"id"`
 	ProjectID      string    `db:"project_id"`
@@ -79,14 +61,6 @@ type metaRow struct {
 	Path      string    `db:"path"`
 	SizeBytes int       `db:"size_bytes"`
 	UpdatedAt time.Time `db:"updated_at"`
-}
-
-type hitRow struct {
-	Path     string  `db:"path"`
-	Title    string  `db:"title"`
-	Score    float64 `db:"score"`
-	Total    int     `db:"total"`
-	Headline string  `db:"headline"`
 }
 
 // Store membungkus *db.DB (di luar tx) atau tx (di dalam InTx).
@@ -184,25 +158,6 @@ func (s *Store) ListPaths(ctx context.Context, projectID string) ([]string, erro
 	err := s.q.SelectContext(ctx, &paths,
 		`SELECT path FROM knowledge_files WHERE project_id = $1 ORDER BY path COLLATE "C"`, projectID)
 	return paths, err
-}
-
-// Search menjalankan pencarian full-text. tsq berasal dari base.ParseQuery (sudah aman), likePrefix dari
-// base.LikePrefix. Mengembalikan hit teratas (maks limit) dan total dokumen cocok (0 bila tidak ada).
-func (s *Store) Search(ctx context.Context, projectID, tsq, likePrefix string, limit int) ([]base.SearchHit, int, error) {
-	if !ValidUUID(projectID) || tsq == "" {
-		return []base.SearchHit{}, 0, nil
-	}
-	var rows []hitRow
-	if err := s.q.SelectContext(ctx, &rows, searchSQL, projectID, tsq, likePrefix, limit, HeadlineOptions); err != nil {
-		return nil, 0, err
-	}
-	hits := make([]base.SearchHit, 0, len(rows))
-	total := 0
-	for _, r := range rows {
-		total = r.Total
-		hits = append(hits, base.SearchHit{Path: r.Path, Title: r.Title, Score: r.Score, Headline: r.Headline})
-	}
-	return hits, total, nil
 }
 
 // IsUniqueViolation: err (atau yang dibungkusnya) adalah pelanggaran unik Postgres (23505).

@@ -57,6 +57,8 @@ func testDBURL(t *testing.T) (dbURL, schema string, admin *sql.DB) {
 	q := u.Query()
 	// public ikut di search_path: ekstensi citext (migrasi auth) dipasang di sana.
 	_, _ = admin.Exec("CREATE EXTENSION IF NOT EXISTS citext SCHEMA public")
+	// pg_trgm: migrasi T20 (koreksi typo pencarian knowledge).
+	_, _ = admin.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public")
 	q.Set("search_path", schema+",public")
 	u.RawQuery = q.Encode()
 	return u.String(), schema, admin
@@ -334,7 +336,7 @@ func TestMigrateUp_PrintsApplied(t *testing.T) {
 	dbURL, _, _ := testDBURL(t)
 	cfg := testCfg(t, dbURL, nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: core/20261021233706157_create_user_invitations.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105258455_create_api_specs.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\nditerapkan: project/20261022160000000_api_keys_owner_scope.sql\nditerapkan: core/20261022163418271_create_git_credentials.sql\nditerapkan: project/20261022163418846_create_git_sync_configs.sql\nditerapkan: project/20261026090000000_knowledge_files_updated_idx.sql\n", "tidak ada migrasi baru\n"} {
+	for i, want := range []string{"diterapkan: core/20261021090000000_create_audit_log.sql\nditerapkan: core/20261021100000000_create_auth_tables.sql\nditerapkan: core/20261021233706157_create_user_invitations.sql\nditerapkan: project/20261022090000000_create_projects.sql\nditerapkan: project/20261022095716034_create_api_keys.sql\nditerapkan: project/20261022105258455_create_api_specs.sql\nditerapkan: project/20261022105305340_create_knowledge_files.sql\nditerapkan: project/20261022160000000_api_keys_owner_scope.sql\nditerapkan: core/20261022163418271_create_git_credentials.sql\nditerapkan: project/20261022163418846_create_git_sync_configs.sql\nditerapkan: project/20261026090000000_knowledge_files_updated_idx.sql\nditerapkan: project/20261026232231168_knowledge_search_recall.sql\nditerapkan: project/20261026232232190_create_knowledge_synonym_groups.sql\n", "tidak ada migrasi baru\n"} {
 		var out bytes.Buffer
 		if err := MigrateUp(context.Background(), cfg, log, &out); err != nil {
 			t.Fatal(err)

@@ -2,6 +2,7 @@
 package knowledge
 
 import (
+	"grimoire/internal/domain/project/internal/knowledge/backfillsections"
 	"grimoire/internal/domain/project/internal/knowledge/buslistchanges"
 	"grimoire/internal/domain/project/internal/knowledge/buslistfiles"
 	"grimoire/internal/domain/project/internal/knowledge/busreadfile"
@@ -29,6 +30,9 @@ func Register(d app.Deps) {
 	busreadfile.Init(d)
 	bussearch.Init(d)
 	busupsertfiles.Init(d)
+
+	// Job terjadwal (tanpa route).
+	backfillsections.Init(d)
 
 	// Route REST /api/projects/{projectID}/knowledge/...
 	uploadfiles.Init(d)

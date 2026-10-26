@@ -13,17 +13,18 @@ const writeChunkSize = 100
 
 const insertFilesSQL = `INSERT INTO knowledge_files
   (project_id, path, title, content, content_hash, size_bytes,
-   created_by, created_by_label, updated_by, updated_by_label)
+   created_by, created_by_label, updated_by, updated_by_label, sections)
 SELECT $1, u.path, u.title, u.content, decode(u.hash, 'hex'), u.size,
-       $2::uuid, $3, $2::uuid, $3
-FROM unnest($4::text[], $5::text[], $6::text[], $7::text[], $8::int[])
-     AS u(path, title, content, hash, size)`
+       $2::uuid, $3, $2::uuid, $3, u.sections::jsonb
+FROM unnest($4::text[], $5::text[], $6::text[], $7::text[], $8::int[], $9::text[])
+     AS u(path, title, content, hash, size, sections)`
 
 const updateFilesSQL = `UPDATE knowledge_files f
 SET title = u.title, content = u.content, content_hash = decode(u.hash, 'hex'),
-    size_bytes = u.size, updated_at = now(), updated_by = $2::uuid, updated_by_label = $3
-FROM unnest($4::text[], $5::text[], $6::text[], $7::text[], $8::int[])
-     AS u(path, title, content, hash, size)
+    size_bytes = u.size, sections = u.sections::jsonb,
+    updated_at = now(), updated_by = $2::uuid, updated_by_label = $3
+FROM unnest($4::text[], $5::text[], $6::text[], $7::text[], $8::int[], $9::text[])
+     AS u(path, title, content, hash, size, sections)
 WHERE f.project_id = $1 AND f.path = u.path`
 
 type hashRow struct {
@@ -51,6 +52,7 @@ func (s *Store) ExistingHashes(ctx context.Context, projectID string, paths []st
 
 type writeColumns struct {
 	paths, titles, contents, hashes []string
+	sections                        []string // array JSON per file (kolom sections jsonb)
 	sizes                           []int32
 }
 
@@ -62,6 +64,11 @@ func toWriteColumns(files []base.File) writeColumns {
 		c.contents = append(c.contents, f.Content)
 		c.hashes = append(c.hashes, hex.EncodeToString(f.Hash))
 		c.sizes = append(c.sizes, int32(f.SizeBytes))
+		sec := f.SectionsJSON
+		if len(sec) == 0 {
+			sec = base.SectionsJSON(f.Content)
+		}
+		c.sections = append(c.sections, string(sec))
 	}
 	return c
 }
@@ -72,7 +79,7 @@ func (s *Store) writeFiles(ctx context.Context, query, op string, files []base.F
 		chunk := files[start:end]
 		c := toWriteColumns(chunk)
 		res, err := s.q.ExecContext(ctx, query, chunk[0].ProjectID, chunk[0].UpdatedBy, chunk[0].UpdatedByLabel,
-			c.paths, c.titles, c.contents, c.hashes, c.sizes)
+			c.paths, c.titles, c.contents, c.hashes, c.sizes, c.sections)
 		if err != nil {
 			return err
 		}

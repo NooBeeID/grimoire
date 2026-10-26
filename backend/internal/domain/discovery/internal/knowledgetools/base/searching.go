@@ -16,6 +16,8 @@ type SearchHits struct {
 	Prefix string // "" = seluruh project
 	Items  []search.Item
 	Total  int // jumlah dokumen cocok sebelum limit; selalu >= len(Items)
+	// Expanded true bila pencarian memakai sinonim atau koreksi typo (T20).
+	Expanded bool
 }
 
 // NewSearchHits membangun hasil; Total = max(resp.Total, len(resp.Items)).
@@ -23,7 +25,7 @@ func NewSearchHits(query, prefix string, resp search.Response) SearchHits {
 	return SearchHits{
 		Query: query, Prefix: prefix,
 		Items: append([]search.Item(nil), resp.Items...),
-		Total: max(resp.Total, len(resp.Items)),
+		Total: max(resp.Total, len(resp.Items)), Expanded: resp.Expanded,
 	}
 }
 
@@ -43,16 +45,25 @@ func (h SearchHits) Text() string {
 		}, "\n")
 	}
 	lines := []string{fmt.Sprintf("%d dari %d hasil untuk \"%s\"%s", len(h.Items), h.Total, h.Query, h.scope())}
+	hasSection := false
 	for i, it := range h.Items {
 		lines = append(lines, fmt.Sprintf("%d. %s  (skor %.3f)", i+1, it.Path, it.Score))
 		if sn := strings.TrimSpace(OneLine(it.Snippet)); sn != "" {
 			lines = append(lines, "   "+sn)
 		}
+		if it.Section != "" {
+			hasSection = true
+			lines = append(lines, "   bagian: "+OneLine(it.Section))
+		}
 	}
 	if h.Total > len(h.Items) {
 		lines = append(lines, fmt.Sprintf("[ada %d hasil lain; persempit query atau path, atau naikkan limit (maks 20)]", h.Total-len(h.Items)))
 	}
-	lines = append(lines, "Baca isi lengkap dengan read_file(path).")
+	if hasSection {
+		lines = append(lines, "Baca isi lengkap dengan read_file(path), atau satu bagian dengan read_section(path, heading).")
+	} else {
+		lines = append(lines, "Baca isi lengkap dengan read_file(path).")
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -60,7 +71,11 @@ func (h SearchHits) Text() string {
 func (h SearchHits) Structured() map[string]any {
 	items := make([]map[string]any, 0, len(h.Items))
 	for _, it := range h.Items {
-		items = append(items, map[string]any{"path": it.Path, "score": it.Score, "snippet": it.Snippet})
+		m := map[string]any{"path": it.Path, "score": it.Score, "snippet": it.Snippet}
+		if it.Section != "" {
+			m["section"] = it.Section
+		}
+		items = append(items, m)
 	}
 	return map[string]any{"items": items, "total": h.Total, "query": h.Query}
 }
@@ -108,6 +123,9 @@ func (h SearchHits) Summary() map[string]any {
 	m := map[string]any{"count": len(h.Items), "total": h.Total, "result_paths": paths}
 	if truncated {
 		m["result_paths_truncated"] = true
+	}
+	if h.Expanded {
+		m["expanded"] = true
 	}
 	return m
 }

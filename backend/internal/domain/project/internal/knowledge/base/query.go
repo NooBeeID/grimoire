@@ -12,10 +12,16 @@ const (
 
 func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' }
 
-// ParseQuery membersihkan kueri user menjadi masukan aman untuk websearch_to_tsquery('simple', $q).
-// Kata dan frasa ("...") menjadi term berkutip, sehingga or, -, &, :, ! tidak pernah menjadi operator.
-// Tanpa term -> ("", false); caller mengembalikan hasil kosong tanpa query DB.
-func ParseQuery(q string) (string, bool) {
+// Term adalah satu unit query: kata tunggal, atau frasa berkutip (Quoted). Words huruf kecil dan hanya
+// berisi rune kata (isWordRune); operator tsquery/trigram tidak pernah lolos ke sini.
+type Term struct {
+	Words  []string
+	Quoted bool
+}
+
+// tokenize membersihkan q (kontrol dibuang, dipotong MaxQueryRunes) lalu memecahnya menjadi term
+// (maks MaxQueryTerms). Huruf besar dipertahankan; pemanggil yang menormalkan.
+func tokenize(q string) []Term {
 	q = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return -1
@@ -27,22 +33,22 @@ func ParseQuery(q string) (string, bool) {
 		q = string(r[:MaxQueryRunes])
 	}
 
-	var terms []string
-	add := func(words []string) {
+	var terms []Term
+	add := func(words []string, quoted bool) {
 		if len(words) > 0 && len(terms) < MaxQueryTerms {
-			terms = append(terms, strings.Join(words, " "))
+			terms = append(terms, Term{Words: words, Quoted: quoted})
 		}
 	}
 	var word, phrase strings.Builder
 	inQuote := false
 	flushWord := func() {
 		if word.Len() > 0 {
-			add([]string{word.String()})
+			add([]string{word.String()}, false)
 			word.Reset()
 		}
 	}
 	flushPhrase := func() {
-		add(strings.FieldsFunc(phrase.String(), func(r rune) bool { return !isWordRune(r) }))
+		add(strings.FieldsFunc(phrase.String(), func(r rune) bool { return !isWordRune(r) }), true)
 		phrase.Reset()
 	}
 	for _, r := range q {
@@ -65,11 +71,20 @@ func ParseQuery(q string) (string, bool) {
 	if inQuote {
 		flushPhrase()
 	}
+	return terms
+}
+
+// ParseTerms menguraikan kueri user menjadi term huruf kecil. Tanpa term -> (nil, false); caller
+// mengembalikan hasil kosong tanpa query DB. Batas MaxQueryRunes dan MaxQueryTerms berlaku.
+func ParseTerms(q string) ([]Term, bool) {
+	terms := tokenize(q)
 	if len(terms) == 0 {
-		return "", false
+		return nil, false
 	}
 	for i, t := range terms {
-		terms[i] = `"` + t + `"`
+		for j, w := range t.Words {
+			terms[i].Words[j] = strings.ToLower(w)
+		}
 	}
-	return strings.Join(terms, " "), true
+	return terms, true
 }

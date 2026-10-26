@@ -35,6 +35,13 @@ var snapCases = []snapCase{
 			{Path: "b/a.md", Score: 0.5, Snippet: "**a** dua"},
 		}},
 	},
+	{
+		name: "section_expanded", query: "login", prefix: "",
+		resp: search.Response{Total: 2, Expanded: true, Items: []search.Item{
+			{Path: "auth/autentikasi.md", Score: 0.8, Snippet: "alur **autentikasi**", Section: "Alur login"},
+			{Path: "auth/lain.md", Score: 0.3, Snippet: "tanpa bagian"},
+		}},
+	},
 	{name: "no_hits", query: "x", prefix: "docs/guides", resp: search.Response{}},
 }
 

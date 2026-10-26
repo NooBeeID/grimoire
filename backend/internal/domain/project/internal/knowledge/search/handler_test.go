@@ -53,7 +53,7 @@ func TestHandler_PassesParams(t *testing.T) {
 func TestHandler_NoQ(t *testing.T) {
 	f := &fakeExec{res: base.SearchResultDTO{Items: []base.SearchItemDTO{}}}
 	w := serve(f, "/projects/p1/knowledge/search")
-	if w.Code != 200 || strings.TrimSpace(w.Body.String()) != `{"items":[],"total":0}` {
+	if w.Code != 200 || strings.TrimSpace(w.Body.String()) != `{"items":[],"total":0,"expanded":false}` {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 }
@@ -108,5 +108,24 @@ func TestHandler_Errors(t *testing.T) {
 		if name == "400" && m.Error.Details["reason"] != "invalid_limit" {
 			t.Fatalf("details: %v", m.Error.Details)
 		}
+	}
+}
+
+func TestHandler_JSONSectionAndExpanded(t *testing.T) {
+	f := &fakeExec{res: base.SearchResultDTO{
+		Items:    []base.SearchItemDTO{{Path: "a.md", Section: "Alur login", Snippet: []base.Segment{{Text: "x"}}}},
+		Total:    1,
+		Expanded: true,
+	}}
+	w := serve(f, "/projects/p1/knowledge/search?q=login")
+	var m struct {
+		Items    []map[string]any `json:"items"`
+		Expanded bool             `json:"expanded"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Expanded || m.Items[0]["section"] != "Alur login" {
+		t.Fatalf("%s", w.Body.String())
 	}
 }

@@ -3,10 +3,12 @@ package search
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	"grimoire/internal/domain/project/internal/knowledge/base"
+	"grimoire/internal/domain/project/internal/knowledge/base/searchrun"
 )
 
 type fakeAccess struct{ err error }
@@ -16,19 +18,20 @@ func (f fakeAccess) Require(context.Context, string) (base.Actor, error) {
 }
 
 type fakeRepo struct {
-	calls int
-	tsq   string
-	like  string
-	limit int
-	hits  []base.SearchHit
-	total int
-	err   error
+	calls    int
+	terms    []base.Term
+	like     string
+	limit    int
+	hits     []base.SearchHit
+	total    int
+	expanded bool
+	err      error
 }
 
-func (f *fakeRepo) Search(_ context.Context, _, tsq, like string, limit int) ([]base.SearchHit, int, error) {
+func (f *fakeRepo) Run(_ context.Context, _ string, terms []base.Term, like string, limit int) (searchrun.Outcome, error) {
 	f.calls++
-	f.tsq, f.like, f.limit = tsq, like, limit
-	return f.hits, f.total, f.err
+	f.terms, f.like, f.limit = terms, like, limit
+	return searchrun.Outcome{Hits: f.hits, Total: f.total, Expanded: f.expanded}, f.err
 }
 
 func run(r *fakeRepo, in Input) (base.SearchResultDTO, error) {
@@ -66,7 +69,7 @@ func TestExecute_Defaults(t *testing.T) {
 	if _, err := run(r, Input{ProjectID: "p", Query: "login"}); err != nil {
 		t.Fatal(err)
 	}
-	if r.tsq != `"login"` || r.like != "%" || r.limit != 20 || r.calls != 1 {
+	if len(r.terms) != 1 || r.terms[0].Words[0] != "login" || r.like != "%" || r.limit != 20 || r.calls != 1 {
 		t.Fatalf("%+v", r)
 	}
 }
@@ -76,8 +79,8 @@ func TestExecute_LongQueryTruncated(t *testing.T) {
 	if _, err := run(r, Input{ProjectID: "p", Query: strings.Repeat("a", 300)}); err != nil {
 		t.Fatal(err)
 	}
-	if r.tsq != `"`+strings.Repeat("a", 200)+`"` {
-		t.Fatalf("len=%d", len(r.tsq))
+	if len(r.terms) != 1 || r.terms[0].Words[0] != strings.Repeat("a", 200) {
+		t.Fatalf("terms=%+v", r.terms)
 	}
 }
 
@@ -87,8 +90,9 @@ func TestExecute_WeirdQueriesQuoted(t *testing.T) {
 		if _, err := run(r, Input{ProjectID: "p", Query: q}); err != nil || r.calls != 1 {
 			t.Fatalf("%q: %v", q, err)
 		}
-		if !strings.HasPrefix(r.tsq, `"`) || !strings.HasSuffix(r.tsq, `"`) {
-			t.Fatalf("%q -> %q", q, r.tsq)
+		want, _ := base.ParseTerms(q)
+		if !reflect.DeepEqual(r.terms, want) {
+			t.Fatalf("%q -> %+v want %+v", q, r.terms, want)
 		}
 	}
 }
@@ -160,5 +164,13 @@ func TestExecute_MapsHits(t *testing.T) {
 	}
 	if res.Items[1].Snippet == nil {
 		t.Fatal("snippet nil")
+	}
+}
+
+func TestExecute_SectionAndExpanded(t *testing.T) {
+	r := &fakeRepo{total: 1, expanded: true, hits: []base.SearchHit{{Path: "a.md", Title: "A", Headline: "x", Section: "Alur"}}}
+	res, err := run(r, Input{ProjectID: "p", Query: "login"})
+	if err != nil || !res.Expanded || res.Items[0].Section != "Alur" {
+		t.Fatalf("%+v %v", res, err)
 	}
 }

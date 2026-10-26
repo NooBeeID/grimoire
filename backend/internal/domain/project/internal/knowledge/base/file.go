@@ -7,6 +7,7 @@ type File struct {
 	ID, ProjectID, Path string
 	Title, Content      string
 	Hash                []byte
+	SectionsJSON        []byte // array JSON bagian per heading (offset rune); lihat Sections
 	SizeBytes           int
 	CreatedAt           time.Time
 	CreatedBy           string
@@ -20,7 +21,7 @@ type File struct {
 func NewFile(projectID, path, content string, actor Actor) File {
 	return File{
 		ProjectID: projectID, Path: path,
-		Title: Title(content), Content: content, Hash: Hash(content), SizeBytes: len(content),
+		Title: Title(content), Content: content, Hash: Hash(content), SizeBytes: len(content), SectionsJSON: SectionsJSON(content),
 		CreatedBy: actor.ID, CreatedByLabel: actor.Label,
 		UpdatedBy: actor.ID, UpdatedByLabel: actor.Label,
 	}
@@ -32,6 +33,7 @@ func (f File) WithContent(content string, actor Actor) File {
 	f.Content = content
 	f.Hash = Hash(content)
 	f.SizeBytes = len(content)
+	f.SectionsJSON = SectionsJSON(content)
 	f.UpdatedBy = actor.ID
 	f.UpdatedByLabel = actor.Label
 	return f

@@ -16,6 +16,7 @@ import (
 	"grimoire/internal/infra/app"
 	"grimoire/internal/infra/bus"
 	"grimoire/internal/infra/config"
+	"grimoire/internal/infra/jobs"
 	"grimoire/lib/constants"
 )
 
@@ -31,6 +32,7 @@ func newRoutesEnv() (app.Deps, chi.Router, *bus.Registry) {
 		Log:    log,
 		Bus:    reg,
 		API:    api,
+		Jobs:   jobs.New(nil, log),
 	}
 	return d, api, reg
 }

@@ -20,7 +20,7 @@ WITH old AS (
 )
 UPDATE knowledge_files f
 SET content = $4, title = $5, content_hash = $6, size_bytes = $7,
-    updated_at = now(), updated_by = $8, updated_by_label = $9
+    sections = $10::jsonb, updated_at = now(), updated_by = $8, updated_by_label = $9
 FROM old
 WHERE f.id = old.id
 RETURNING f.id::text AS id, f.project_id::text AS project_id, f.path, f.title, f.content, f.content_hash, f.size_bytes,
@@ -71,9 +71,13 @@ func (r *Repo) UpdateIfVersion(ctx context.Context, projectID, path string, expe
 	if !store.ValidUUID(projectID) {
 		return base.File{}, 0, false, nil
 	}
+	sections := f.SectionsJSON
+	if len(sections) == 0 {
+		sections = base.SectionsJSON(f.Content)
+	}
 	var row updatedRow
 	err := r.s.Q().GetContext(ctx, &row, updateSQL, projectID, path, expectedHash,
-		f.Content, f.Title, f.Hash, f.SizeBytes, f.UpdatedBy, f.UpdatedByLabel)
+		f.Content, f.Title, f.Hash, f.SizeBytes, f.UpdatedBy, f.UpdatedByLabel, string(sections))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return base.File{}, 0, false, nil

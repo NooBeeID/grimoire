@@ -9,8 +9,8 @@ import (
 
 const insertSQL = `INSERT INTO knowledge_files
   (project_id, path, title, content, content_hash, size_bytes,
-   created_by, created_by_label, updated_by, updated_by_label)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$7,$8)
+   created_by, created_by_label, updated_by, updated_by_label, sections)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$7,$8,$9::jsonb)
 RETURNING ` + store.FileColumns
 
 type Repo struct{ s *store.Store }
@@ -30,8 +30,12 @@ func (r *Repo) CountFiles(ctx context.Context, id string) (int, error) {
 }
 
 func (r *Repo) Insert(ctx context.Context, f base.File) (base.File, error) {
+	sections := f.SectionsJSON
+	if len(sections) == 0 {
+		sections = base.SectionsJSON(f.Content)
+	}
 	saved, ok, err := r.s.GetFile(ctx, insertSQL, f.ProjectID, f.Path, f.Title, f.Content, f.Hash, f.SizeBytes,
-		f.CreatedBy, f.CreatedByLabel)
+		f.CreatedBy, f.CreatedByLabel, string(sections))
 	if err != nil {
 		if store.IsUniqueViolation(err) {
 			return base.File{}, base.ErrPathExists

@@ -8,26 +8,27 @@ import (
 
 	"grimoire/internal/domain/project/internal/knowledge/base"
 	"grimoire/internal/domain/project/internal/knowledge/base/access"
+	"grimoire/internal/domain/project/internal/knowledge/base/searchrun"
 )
 
-// Repository dipenuhi oleh *store.Store.
-type Repository interface {
-	Search(ctx context.Context, projectID, tsq, likePrefix string, limit int) ([]base.SearchHit, int, error)
+// Runner dipenuhi oleh *searchrun.Runner.
+type Runner interface {
+	Run(ctx context.Context, projectID string, terms []base.Term, likePrefix string, limit int) (searchrun.Outcome, error)
 }
 
 type Usecase struct {
 	access access.Checker
-	repo   Repository
+	runner Runner
 }
 
-func NewUsecase(a access.Checker, r Repository) *Usecase { return &Usecase{access: a, repo: r} }
+func NewUsecase(a access.Checker, r Runner) *Usecase { return &Usecase{access: a, runner: r} }
 
 func (u *Usecase) Execute(ctx context.Context, in Input) (base.SearchResultDTO, error) {
 	if _, err := u.access.Require(ctx, in.ProjectID); err != nil {
 		return base.SearchResultDTO{}, err
 	}
 	empty := base.SearchResultDTO{Items: []base.SearchItemDTO{}}
-	tsq, ok := base.ParseQuery(in.Query)
+	terms, ok := base.ParseTerms(in.Query)
 	if !ok {
 		return empty, nil
 	}
@@ -44,10 +45,10 @@ func (u *Usecase) Execute(ctx context.Context, in Input) (base.SearchResultDTO, 
 		n = v
 	}
 	limit := base.ClampLimit(n, base.SearchDefaultLimit, base.SearchMaxLimit)
-	hits, total, err := u.repo.Search(ctx, in.ProjectID, tsq, base.LikePrefix(prefix), limit)
+	out, err := u.runner.Run(ctx, in.ProjectID, terms, base.LikePrefix(prefix), limit)
 	if err != nil {
 		return empty, fmt.Errorf("search: query: %w", err)
 	}
-	res := base.NewSearchResult(hits, total)
+	res := base.NewSearchResult(out.Hits, out.Total, out.Expanded)
 	return res, nil
 }

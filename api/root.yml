@@ -71,6 +71,10 @@ paths:
     $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1folders
   /api/projects/{projectID}/knowledge/search:
     $ref: ./modules/project/knowledge.yml#/paths/~1api~1projects~1{projectID}~1knowledge~1search
+  /api/projects/{projectID}/search/synonyms:
+    $ref: ./modules/project/search-synonym.yml#/paths/~1api~1projects~1{projectID}~1search~1synonyms
+  /api/projects/{projectID}/search/synonyms/{groupID}:
+    $ref: ./modules/project/search-synonym.yml#/paths/~1api~1projects~1{projectID}~1search~1synonyms~1{groupID}
   /api/projects/{projectID}/api-specs/upload:
     $ref: ./modules/project/api-spec.yml#/paths/~1api~1projects~1{projectID}~1api-specs~1upload
   /api/projects/{projectID}/api-specs/validate:
@@ -135,6 +139,12 @@ components:
       $ref: ./modules/project/api-key.yml#/components/schemas/ApiKeyList
     ApiKeyEnvelope:
       $ref: ./modules/project/api-key.yml#/components/schemas/ApiKeyEnvelope
+    SynonymGroup:
+      $ref: ./modules/project/search-synonym.yml#/components/schemas/SynonymGroup
+    SynonymGroupRequest:
+      $ref: ./modules/project/search-synonym.yml#/components/schemas/SynonymGroupRequest
+    SynonymGroupList:
+      $ref: ./modules/project/search-synonym.yml#/components/schemas/SynonymGroupList
     KnowledgeUserRef:
       $ref: ./modules/project/knowledge.yml#/components/schemas/KnowledgeUserRef
     KnowledgeFile:

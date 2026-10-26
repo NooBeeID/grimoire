@@ -5,48 +5,52 @@ import (
 	"testing"
 )
 
-func TestParseQuery(t *testing.T) {
-	cases := []struct {
-		name, in, want string
-		ok             bool
-	}{
-		{"word", "login", `"login"`, true},
-		{"two words", "reset password", `"reset" "password"`, true},
-		{"phrase", `"reset password"`, `"reset password"`, true},
-		{"unclosed", `"unclosed phrase`, `"unclosed phrase"`, true},
-		{"operators", `a & b : c or -d !e`, `"a" "b" "c" "or" "d" "e"`, true},
-		{"quotes only", `"""`, "", false},
-		{"symbols only", "&&&", "", false},
-		{"spaces", "   ", "", false},
-		{"empty", "", "", false},
-		{"underscore", "kata_satu", `"kata_satu"`, true},
-		{"unicode", "pengaturan é", `"pengaturan" "é"`, true},
-		{"emoji separator", "a😀b", `"a" "b"`, true},
-		{"control", "lo\x00g\tin", `"login"`, true},
-		{"phrase inner punct", `"a-b c"`, `"a b c"`, true},
-		{"word then phrase", `x"y z"w`, `"x" "y z" "w"`, true},
+func TestParseTerms_OperatorsInert(t *testing.T) {
+	ts, ok := ParseTerms("a & b | !c:* <-> 'd'")
+	if !ok || strings.Join(flat(ts), ",") != "a,b,c,d" {
+		t.Fatalf("terms = %v ok=%v", flat(ts), ok)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, ok := ParseQuery(tc.in)
-			if got != tc.want || ok != tc.ok {
-				t.Fatalf("got %q,%v want %q,%v", got, ok, tc.want, tc.ok)
-			}
-		})
+	for _, in := range []string{"-", "!!", "", "   ", `"""`, "&|:*", "''"} {
+		if ts, ok := ParseTerms(in); ok || ts != nil {
+			t.Errorf("ParseTerms(%q) = %v,%v; want nil,false", in, ts, ok)
+		}
+	}
+	ts, ok = ParseTerms(`"unclosed phrase`)
+	if !ok || len(ts) != 1 || !ts[0].Quoted || strings.Join(ts[0].Words, " ") != "unclosed phrase" {
+		t.Fatalf("kutip tak tertutup = %v", flat(ts))
 	}
 }
 
-func TestParseQuery_Limits(t *testing.T) {
-	var terms []string
-	for i := 0; i < 17; i++ {
-		terms = append(terms, "t"+string(rune('a'+i)))
+func TestParseTerms_Lowercase(t *testing.T) {
+	ts, _ := ParseTerms(`Reset "Rate Limit"`)
+	if got := strings.Join(flat(ts), ","); got != `reset,"rate limit"` {
+		t.Fatalf("got %s", got)
 	}
-	got, _ := ParseQuery(strings.Join(terms, " "))
-	if n := strings.Count(got, `"`) / 2; n != MaxQueryTerms {
-		t.Fatalf("terms = %d", n)
+}
+
+func TestParseTerms_Long(t *testing.T) {
+	var parts []string
+	for i := 0; i < 40; i++ {
+		parts = append(parts, "kata"+string(rune('a'+i%26)))
 	}
-	got, _ = ParseQuery(strings.Repeat("a", 300))
-	if len(got) != MaxQueryRunes+2 {
-		t.Fatalf("len = %d", len(got))
+	ts, ok := ParseTerms(strings.Join(parts, " "))
+	if !ok || len(ts) > MaxQueryTerms {
+		t.Fatalf("len = %d", len(ts))
 	}
+	ts, _ = ParseTerms(strings.Repeat("a", 300))
+	if len(ts) != 1 || len([]rune(ts[0].Words[0])) != MaxQueryRunes {
+		t.Fatalf("panjang kata = %d", len([]rune(ts[0].Words[0])))
+	}
+}
+
+func flat(ts []Term) []string {
+	var out []string
+	for _, t := range ts {
+		w := strings.Join(t.Words, " ")
+		if t.Quoted {
+			w = `"` + w + `"`
+		}
+		out = append(out, w)
+	}
+	return out
 }

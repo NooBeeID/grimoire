@@ -24,7 +24,12 @@
           class="flex w-full flex-col gap-0.5 rounded-base px-2 py-2 text-left hover:bg-raised focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none"
         >
           <span class="font-medium break-words">{it.title || baseName(it.path)}</span>
-          <span class="font-mono text-xs break-all text-muted">{it.path}</span>
+          <span class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span class="font-mono text-xs break-all text-muted">{it.path}</span>
+            {#if it.section}
+              <span class="outlined rounded-full bg-raised px-2 py-0.5 text-xs break-all text-muted" aria-label={$t('knowledge.search.section', { section: it.section })}>§ {it.section}</span>
+            {/if}
+          </span>
           <span class="text-[13px] break-words text-muted">
             {#each it.snippet as s, i (i)}{#if s.highlight}<mark class="rounded-base bg-brand/40 text-fg">{s.text}</mark>{:else}{s.text}{/if}{/each}
           </span>

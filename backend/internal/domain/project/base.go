@@ -6,6 +6,7 @@ import (
 	"grimoire/internal/domain/project/internal/gitsync"
 	"grimoire/internal/domain/project/internal/knowledge"
 	"grimoire/internal/domain/project/internal/management"
+	"grimoire/internal/domain/project/internal/searchsynonym"
 	"grimoire/internal/infra/app"
 )
 
@@ -14,6 +15,7 @@ func Register(d app.Deps) {
 	management.Register(d)
 	apikey.Register(d)
 	knowledge.Register(d)
+	searchsynonym.Register(d)
 	apispec.Register(d)
 	gitsync.Register(d)
 }

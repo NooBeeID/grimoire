@@ -2,6 +2,7 @@ import type { Component } from 'svelte';
 import type { ProjectContext } from '../../domain/project/management/getproject';
 import KnowledgeTab from '../views/workspace/knowledge/KnowledgeTab.svelte';
 import ApiSpecsTab from '../views/workspace/ApiSpecsTab.svelte';
+import SearchTab from '../views/workspace/SearchTab.svelte';
 import ApiKeysTab from '../views/workspace/ApiKeysTab.svelte';
 import MembersTab from '../views/workspace/MembersTab.svelte';
 import SettingsTab from '../views/workspace/SettingsTab.svelte';
@@ -24,10 +25,11 @@ export interface WorkspaceTab {
 }
 
 // Registri tab workspace project (rule 12.4: komposisi lintas module hanya di app/).
-// Urutan akhir: Knowledge, API Specs, API Keys, Members, Settings (tiket T03, bagian UI).
+// Urutan akhir: Knowledge, API Specs, Pencarian (T20), API Keys, Members, Settings (tiket T03, bagian UI).
 export const workspaceTabs: WorkspaceTab[] = [
   { key: 'knowledge', labelKey: 'project.tab.knowledge', view: KnowledgeTab },
   { key: 'api-specs', labelKey: 'project.tab.apiSpecs', view: ApiSpecsTab, supportsItem: true },
+  { key: 'search', labelKey: 'project.tab.search', view: SearchTab },
   { key: 'api-keys', labelKey: 'project.tab.apiKeys', view: ApiKeysTab },
   { key: 'members', labelKey: 'project.tab.members', view: MembersTab },
   { key: 'settings', labelKey: 'project.tab.settings', view: SettingsTab },

@@ -143,3 +143,34 @@ func TestSearchHits_StructuredRegression(t *testing.T) {
 		t.Fatal(h.Text())
 	}
 }
+
+func TestSearchHits_SectionAndExpanded(t *testing.T) {
+	h := NewSearchHits("q", "", search.Response{Expanded: true, Total: 2, Items: []search.Item{
+		{Path: "a.md", Score: 1, Snippet: "s", Section: "Bab 1"},
+		{Path: "b.md", Score: 0.5, Snippet: "t"},
+	}})
+	want := "2 dari 2 hasil untuk \"q\"\n1. a.md  (skor 1.000)\n   s\n   bagian: Bab 1\n2. b.md  (skor 0.500)\n   t\nBaca isi lengkap dengan read_file(path), atau satu bagian dengan read_section(path, heading)."
+	if got := h.Text(); got != want {
+		t.Fatal(got)
+	}
+	items := h.Structured()["items"].([]map[string]any)
+	if items[0]["section"] != "Bab 1" {
+		t.Fatalf("%v", items[0])
+	}
+	if _, has := items[1]["section"]; has {
+		t.Fatalf("section kosong tidak boleh ada: %v", items[1])
+	}
+	if h.Summary()["expanded"] != true {
+		t.Fatalf("%v", h.Summary())
+	}
+}
+
+func TestSearchHits_NoExpandedKeyByDefault(t *testing.T) {
+	s := NewSearchHits("q", "", search.Response{Items: []search.Item{{Path: "a"}}, Total: 1}).Summary()
+	if _, has := s["expanded"]; has {
+		t.Fatalf("%v", s)
+	}
+	if len(s) != 3 {
+		t.Fatalf("%v", s)
+	}
+}

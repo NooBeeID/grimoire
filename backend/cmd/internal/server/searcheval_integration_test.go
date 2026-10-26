@@ -99,6 +99,24 @@ func seSeedCorpus(t *testing.T, e *mcpEnv) {
 	}
 }
 
+// seSeedSynonyms mengirim kamus fixture lewat REST; gagal sekali saja menghentikan tes.
+func seSeedSynonyms(t *testing.T, e *mcpEnv) {
+	t.Helper()
+	groups, err := rankeval.LoadSynonyms(filepath.Join(seFixtureDir, "synonyms.yaml"))
+	if err != nil {
+		t.Fatalf("synonyms.yaml tidak terbaca: %v", err)
+	}
+	if err := rankeval.ValidateSynonyms(groups); err != nil {
+		t.Fatalf("synonyms.yaml tidak valid: %v", err)
+	}
+	for _, g := range groups {
+		resp, b := e.rest(http.MethodPost, "/api/projects/"+e.projID+"/search/synonyms", map[string]any{"terms": g})
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("seed sinonim %v: %d %s", g, resp.StatusCode, b)
+		}
+	}
+}
+
 func seSearch(t *testing.T, e *mcpEnv, q string) []string {
 	t.Helper()
 	r := e.mcpCall(e.rawKey, "search_knowledge", map[string]any{"query": q, "limit": 10})
@@ -146,6 +164,7 @@ func TestSearchEval(t *testing.T) {
 
 	e := seSetupMCP(t)
 	seSeedCorpus(t, e)
+	seSeedSynonyms(t, e)
 
 	results := make(map[string][]string, len(g.Pairs))
 	for _, p := range g.Pairs {

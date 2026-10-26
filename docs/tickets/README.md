@@ -28,6 +28,7 @@ Aturan: **1 tiket = 1 module**. Satu tiket mencakup backend (Go) dan UI (Svelte)
 | [T17](T17-project-git-sync-progress.md) | project                | git-sync (pacing rate limit per request + progress per file lewat SSE)           | M      | T14                     | Selesai (`4c9043b`)                                                        |
 | [T18](T18-discovery-mcp-outline-tools.md) | discovery              | knowledge-tools (outline, section, perubahan terbaru)                            | M      | T07, T08, T09           | Diimplementasi (menunggu review)                                           |
 | [T19](T19-core-audit-log-usage-insights.md) | core                   | audit-log (insight pemakaian agent: dokumen, query kosong, per API key)          | M      | T02, T11, T15, T18      | Plan siap                                                                  |
+| [T20](T20-project-search-recall.md) | project + discovery    | knowledge (pencarian toleran) + searchsynonym (kamus sinonim)                    | L      | T05, T08, T11, T18      | Diimplementasi (menunggu review)                                          |
 
 
 Urutan kerja yang disarankan: T00 → (T01, T02 paralel) → T03 → (T04, T05, T06 paralel) → T07 → (T08, T09 paralel).
@@ -48,6 +49,7 @@ T00 foundation (ROOT)
 │       │       │   └── T11 discovery/search-quality    + butuh T02, T05
 │       │       │       └── T15 core/audit-log summary   + butuh T02
 │       │       │       └── T19 core/audit-log usage insights   + butuh T18
+│       │       │       └── T20 project/knowledge pencarian toleran + searchsynonym   + butuh T05, T08, T18
 │       │       └── T09 discovery/api-spec-tools    + butuh T06
 │       ├── T05 project/knowledge
 │       │   └── T14 git-sync (PAT + sync knowledge/api-spec)   + butuh T06
@@ -74,6 +76,7 @@ Urutan kerja per gelombang (semua tiket dalam satu gelombang bisa paralel):
 | 8         | T13, T14, T15, T16 |
 | 9         | T17                |
 | 10        | T18, T19           |
+| 11        | T20                |
 
 
 Jalur kritis: T00 → T01 → T03 → T04 → T07 → T08/T09 (6 gelombang).
@@ -116,7 +119,7 @@ backend/
 │   │   ├── core/
 │   │   │   ├── base.go             # wiring domain
 │   │   │   └── internal/{auth,auditlog,gitcredential}/
-│   │   ├── project/internal/{management,apikey,knowledge,apispec,gitsync}/
+│   │   ├── project/internal/{management,apikey,knowledge,apispec,gitsync,searchsynonym}/
 │   │   └── discovery/internal/{mcpgateway,knowledgetools,apispectools}/
 │   ├── infra/{bus,db,http,middleware,config,static,logger,jobs,app,mailer,crypto,safehttp,gitprovider}/  # app: hanya struct Deps; mailer: pengirim email generik; crypto/secretbox: AES-256-GCM; safehttp: http.Client anti-SSRF; gitprovider: klien REST GitHub/GitLab
 │   ├── archtest/                   # tes arsitektur (tanpa kode produksi)
@@ -196,6 +199,7 @@ Batas arsitektur ditegakkan, bukan hanya didokumentasikan:
 | `project.knowledge.read-file`                    | Call                                                                                        | T05                                       | T08, T18                                          |
 | `project.knowledge.search`                       | Call                                                                                        | T05                                       | T08                                               |
 | `project.knowledge.list-changes`                 | Call (baca-saja)                                                                            | T18                                       | T18 (knowledgetools `listrecentchanges`)          |
+| `project.searchsynonym.list-groups`              | Call (baca-saja)                                                                            | T20                                       | T20 (knowledge `bussearch`, `search`)             |
 | `project.apispec.list-specs`                     | Call                                                                                        | T06                                       | T09, T18                                          |
 | `project.apispec.list-endpoints`                 | Call                                                                                        | T06                                       | T09                                               |
 | `project.apispec.get-endpoint`                   | Call                                                                                        | T06                                       | T09                                               |
@@ -236,6 +240,8 @@ Kontrak T18: `lib/contracts/project/knowledge/listchanges` (`BUS_PROJECT_KNOWLED
 
 Revisi T19: `GET /api/audit-log/usage` (feature `core/auditlog/usage`) hanya membaca `audit_log` dan memakai dua endpoint bus yang sudah ada (`project.management.get-project`, `project.knowledge.list-files`); kontrak `list-files` tidak diubah karena `Item.UpdatedAt` sudah ada. Project tak dikenal pada `/usage` menghasilkan 404 (berbeda dari `/summary` yang 200 kosong). Maksimal 50 file tak-pernah-dibaca per respons (bukan 200), dipindai maks 2000 file lewat bus.
 
+Kontrak T20: `lib/contracts/project/searchsynonym/listgroups` (`BUS_PROJECT_SEARCHSYNONYM_LIST_GROUPS`; mengembalikan kelompok sinonim satu project, baca-saja, tanpa cek keanggotaan: consumer wajib `check-access` lebih dulu). Knowledge memanggilnya fail-soft: bila gagal, pencarian jalan tanpa sinonim. Perubahan aditif pada kontrak T05 `project.knowledge.search`: `Item.Section` (teks heading bagian paling cocok, kosong bila di luar heading atau `sections` belum terisi) dan `Response.Expanded` (true bila sinonim atau koreksi typo dipakai); klien lama yang mengabaikan field baru tetap valid. REST kamus: `/api/projects/{projectID}/search/synonyms[/{groupID}]` (anggota project; non-anggota 404). Tool `search_knowledge` tetap read-only dan argumennya tidak berubah; `result.summary` audit `mcp.search_knowledge` boleh memuat `expanded` (hanya bila true).
+
 ### Pola fail-open penulisan audit
 
 Bila audit gagal ditulis, error di-log level error dan permintaan tetap dilayani (keputusan T02). Consumer:
@@ -263,6 +269,7 @@ Penamaan: `<area>.<objek>.<aksi>`, diawali `mcp.` untuk panggilan agent.
 - Project: `project.created`, `project.updated`, `project.deleted`, `project.member.added`, `project.member.removed`, `project.member.role_changed`, `project.member.invited`, `project.invitation.revoked` (T12).
 - Key: `apikey.created`, `apikey.revoked`.
 - Konten: `knowledge.file.created`, `knowledge.file.updated`, `knowledge.file.deleted`, `knowledge.file.moved`, `knowledge.folder.deleted`, `knowledge.upload.completed`, `apispec.uploaded`, `apispec.updated`, `apispec.deleted`.
+- Kamus pencarian (T20): `search_synonym.created`, `search_synonym.updated`, `search_synonym.deleted` (konten manusia, fail-open).
 - Git (T14): `git_credential.saved`, `git_credential.deleted`, `git_sync.run` (T17: `result` plus `wait_count` dan `wait_total_seconds`, ringkasan pacing rate limit provider; event progress tidak diaudit).
 
 ## Pertanyaan terbuka lintas tiket (butuh keputusan kamu)

@@ -55,6 +55,10 @@ const (
 	ActionAPISpecUpdated           = "apispec.updated"
 	ActionAPISpecDeleted           = "apispec.deleted"
 
+	ActionSearchSynonymCreated = "search_synonym.created"
+	ActionSearchSynonymUpdated = "search_synonym.updated"
+	ActionSearchSynonymDeleted = "search_synonym.deleted"
+
 	ActionGitCredentialSaved   = "git_credential.saved"
 	ActionGitCredentialDeleted = "git_credential.deleted"
 	ActionGitSyncRun           = "git_sync.run"
@@ -79,6 +83,7 @@ func Actions() []string {
 		ActionKnowledgeFileCreated, ActionKnowledgeFileUpdated, ActionKnowledgeFileDeleted,
 		ActionKnowledgeFileMoved, ActionKnowledgeFolderDeleted, ActionKnowledgeUploadCompleted,
 		ActionAPISpecUploaded, ActionAPISpecUpdated, ActionAPISpecDeleted,
+		ActionSearchSynonymCreated, ActionSearchSynonymUpdated, ActionSearchSynonymDeleted,
 		ActionGitCredentialSaved, ActionGitCredentialDeleted, ActionGitSyncRun,
 	}
 }

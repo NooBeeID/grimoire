@@ -6,7 +6,7 @@ import ScopeToggle from './ScopeToggle.svelte';
 import SearchResults from './SearchResults.svelte';
 
 beforeEach(() => setLocale('id'));
-const item = (snippet: { text: string; highlight: boolean }[]) => ({ path: 'docs/auth/login.md', title: 'Login', score: 1, snippet });
+const item = (snippet: { text: string; highlight: boolean }[], section = '') => ({ path: 'docs/auth/login.md', title: 'Login', score: 1, snippet, section });
 
 describe('SearchResults', () => {
   it('highlights as a single <mark> and total text', () => {
@@ -27,6 +27,12 @@ describe('SearchResults', () => {
     expect(onmore).toHaveBeenCalled();
     await rerender({ items: [item([])], total: 5, limit: 50, onopen: vi.fn(), onmore });
     expect(screen.queryByRole('button', { name: 'Tampilkan lebih banyak' })).toBeNull();
+  });
+  it('T20: shows the matched section as a chip, omitted when empty', async () => {
+    const { rerender } = render(SearchResults, { items: [item([], 'Refresh token')], total: 1, limit: 20, onopen: vi.fn(), onmore: vi.fn() });
+    expect(screen.getByText('§ Refresh token')).toBeInTheDocument();
+    await rerender({ items: [item([])], total: 1, limit: 20, onopen: vi.fn(), onmore: vi.fn() });
+    expect(screen.queryByText(/^§/)).toBeNull();
   });
   it('opens a result', async () => {
     const onopen = vi.fn();

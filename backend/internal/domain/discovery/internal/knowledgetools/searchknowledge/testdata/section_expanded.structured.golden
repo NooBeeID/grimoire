@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "path": "auth/autentikasi.md",
+      "score": 0.8,
+      "section": "Alur login",
+      "snippet": "alur **autentikasi**"
+    },
+    {
+      "path": "auth/lain.md",
+      "score": 0.3,
+      "snippet": "tanpa bagian"
+    }
+  ],
+  "query": "login",
+  "total": 2
+}

@@ -3,29 +3,33 @@ package bussearch
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
 
 	"grimoire/internal/domain/project/internal/knowledge/base"
+	"grimoire/internal/domain/project/internal/knowledge/base/searchrun"
 	"grimoire/lib/common/errs"
 	"grimoire/lib/contracts/project/knowledge/search"
 )
 
 type fakeStore struct {
-	hits  []base.SearchHit
-	total int
-	err   error
+	hits     []base.SearchHit
+	total    int
+	expanded bool
+	err      error
 
-	calls     int
-	tsq, like string
-	limit     int
+	calls int
+	terms []base.Term
+	like  string
+	limit int
 }
 
-func (f *fakeStore) Search(_ context.Context, _, tsq, like string, limit int) ([]base.SearchHit, int, error) {
+func (f *fakeStore) Run(_ context.Context, _ string, terms []base.Term, like string, limit int) (searchrun.Outcome, error) {
 	f.calls++
-	f.tsq, f.like, f.limit = tsq, like, limit
-	return f.hits, f.total, f.err
+	f.terms, f.like, f.limit = terms, like, limit
+	return searchrun.Outcome{Hits: f.hits, Total: f.total, Expanded: f.expanded}, f.err
 }
 
 func pid() string { return uuid.NewString() }
@@ -53,8 +57,8 @@ func TestMapsHits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.tsq != `"login"` || f.like != "%" || f.limit != 20 {
-		t.Fatalf("args: %q %q %d", f.tsq, f.like, f.limit)
+	if len(f.terms) != 1 || f.terms[0].Words[0] != "login" || f.like != "%" || f.limit != 20 {
+		t.Fatalf("args: %+v %q %d", f.terms, f.like, f.limit)
 	}
 	if res.Total != 7 || len(res.Items) != 2 || res.Items[0].Snippet != "Alur **login** memakai..." || res.Items[0].Path != "a.md" || res.Items[0].Score != 0.5 {
 		t.Fatalf("%+v", res)
@@ -122,9 +126,9 @@ func TestWeirdQueriesNoError(t *testing.T) {
 		if _, err := NewUsecase(f).Execute(context.Background(), search.Request{ProjectID: pid(), Query: q}); err != nil {
 			t.Fatalf("%q: %v", q, err)
 		}
-		want, _ := base.ParseQuery(q)
-		if f.tsq != want {
-			t.Fatalf("%q: tsq=%q want %q", q, f.tsq, want)
+		want, _ := base.ParseTerms(q)
+		if !reflect.DeepEqual(f.terms, want) {
+			t.Fatalf("%q: terms=%+v want %+v", q, f.terms, want)
 		}
 	}
 }
@@ -141,6 +145,28 @@ func TestStoreError(t *testing.T) {
 func TestNoHits(t *testing.T) {
 	res, err := NewUsecase(&fakeStore{}).Execute(context.Background(), search.Request{ProjectID: pid(), Query: "x"})
 	if err != nil || len(res.Items) != 0 || res.Total != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+func TestSectionAndExpandedForwarded(t *testing.T) {
+	f := &fakeStore{
+		hits:     []base.SearchHit{{Path: "a.md", Headline: "x", Section: "Alur login"}, {Path: "b.md", Headline: "y"}},
+		total:    2,
+		expanded: true,
+	}
+	res, err := NewUsecase(f).Execute(context.Background(), search.Request{ProjectID: pid(), Query: "login"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Expanded || res.Items[0].Section != "Alur login" || res.Items[1].Section != "" {
+		t.Fatalf("%+v", res)
+	}
+}
+
+func TestNotExpandedByDefault(t *testing.T) {
+	res, err := NewUsecase(&fakeStore{}).Execute(context.Background(), search.Request{ProjectID: pid(), Query: "x"})
+	if err != nil || res.Expanded {
 		t.Fatalf("%+v %v", res, err)
 	}
 }

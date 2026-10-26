@@ -21,9 +21,12 @@ type Item struct {
 	Path    string
 	Score   float64
 	Snippet string
+	Section string // heading bagian cuplikan (T20); "" di luar heading
 }
 
 type Response struct {
 	Items []Item
 	Total int // jumlah dokumen cocok (sebelum limit)
+	// Expanded true bila sinonim atau koreksi typo dipakai (T20). Aditif; zero value = tidak diperluas.
+	Expanded bool
 }

@@ -54,11 +54,14 @@ func TestClampLimit(t *testing.T) {
 }
 
 func TestNewSearchResult(t *testing.T) {
-	r := NewSearchResult([]SearchHit{{Path: "a.md", Title: "A", Score: 0.5, Headline: "x \x01y\x02"}}, 3)
+	r := NewSearchResult([]SearchHit{{Path: "a.md", Title: "A", Score: 0.5, Headline: "x \x01y\x02", Section: "Bagian"}}, 3, true)
 	if r.Total != 3 || len(r.Items) != 1 || len(r.Items[0].Snippet) != 2 || !r.Items[0].Snippet[1].Highlight {
 		t.Fatalf("%+v", r)
 	}
-	if e := NewSearchResult(nil, 0); e.Items == nil {
+	if r.Items[0].Section != "Bagian" || !r.Expanded {
+		t.Fatalf("section/expanded tidak diteruskan: %+v", r)
+	}
+	if e := NewSearchResult(nil, 0, false); e.Items == nil {
 		t.Fatal("items must be non-nil")
 	}
 }

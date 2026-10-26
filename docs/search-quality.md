@@ -58,6 +58,7 @@ Fixture ada di `backend/testdata/searcheval/` (`corpus/`, `golden.yaml`, `baseli
 - Tulis pasangan dari kebutuhan nyata dan istilah tim, SEBELUM menjalankan pencarian. Jangan menyalin keluaran pencarian.
 - Setiap `expect` harus path yang ada di `corpus/`; query harus unik; `kind` salah satu dari `exact-name`, `keyword`, `synonym`, `typo`, `phrase`.
 - Minimal 30 pasangan dan 3 per kind.
+- Kamus sinonim fixture ada di `backend/testdata/searcheval/synonyms.yaml` (`groups: [[term, ...], ...]`). `TestSearchEval` mengirimnya lewat `POST /api/projects/{id}/search/synonyms` setelah korpus di-seed dan sebelum mencari, persis seperti admin mengisinya. Tulis kelompok dari istilah tim (2 sampai 10 term, huruf kecil, unik lintas kelompok), periksa kosakata korpus dengan `grep`, dan jangan menyalin keluaran pencarian atau memasukkan query golden mentah-mentah sebagai kelompok. `go test ./lib/util/rankeval/` (`TestSynonymsFixture`) memvalidasi file tanpa DB.
 - Dokumen baru di `corpus/` ditulis natural, tanpa menyisipkan sinonim atau salah ketik sebagai umpan.
 - Karena jumlah pasangan berubah, perbarui baseline (bagian 8).
 - `cd backend && go test ./lib/util/rankeval/` memeriksa fixture tanpa DB.
@@ -74,21 +75,34 @@ Tinjau diff `baseline.json`, lalu commit dengan alasan di pesan commit. Jangan m
 
 ## 9. Baseline saat ini
 
-Tanggal 2026-10-21, 40 pasangan, 25 dokumen korpus (implementasi `simple` FTS sebelum perbaikan kualitas).
+Tanggal 2026-10-26, 40 pasangan, 25 dokumen korpus, implementasi T20 (sinonim, stemming, typo, bobot, frasa) dengan kamus fixture.
 
-| Kind | Pasangan | recall@1 | recall@5 | MRR |
-|---|---|---|---|---|
-| keseluruhan | 40 | 0.5875 | 0.5875 | 0.6000 |
-| exact-name | 8 | 1.0000 | 1.0000 | 1.0000 |
-| keyword | 10 | 1.0000 | 1.0000 | 1.0000 |
-| synonym | 8 | 0.0625 | 0.0625 | 0.1250 |
-| typo | 7 | 0.0000 | 0.0000 | 0.0000 |
-| phrase | 7 | 0.7143 | 0.7143 | 0.7143 |
+| Kind | Pasangan | recall@1 | recall@5 | MRR | MRR lama |
+|---|---|---|---|---|---|
+| keseluruhan | 40 | 0.9875 | 1.0000 | 1.0000 | 0.6000 |
+| exact-name | 8 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| keyword | 10 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| synonym | 8 | 0.9375 | 1.0000 | 1.0000 | 0.1250 |
+| typo | 7 | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
+| phrase | 7 | 1.0000 | 1.0000 | 1.0000 | 0.7143 |
 
-`synonym` dan `typo` diharapkan rendah dan menjadi target perbaikan berikutnya (trigram, stemming).
+Pembanding (2026-10-21, `simple` FTS sebelum T20): keseluruhan recall@1 0.5875, recall@5 0.5875, MRR 0.6000. Target K1 T20 (recall@5 >= 0.80, typo dan synonym recall@5 >= 0.50, MRR >= 0.70, exact-name dan phrase tidak turun) tercapai. Hasil `synonym` bergantung pada kamus fixture; tanpa kamus kinerjanya kembali rendah.
 
 ## 10. Keterbatasan
 
-- Korpus hanya 25 file dengan bahasa campuran Indonesia dan Inggris.
+- Korpus hanya 25 file dengan bahasa campuran Indonesia dan Inggris, dan kamus fixture ditulis oleh tim yang sama dengan golden set. Skor 1.0 menandakan tidak ada regresi pada fixture ini, bukan kualitas produksi.
 - Pencarian tanpa filter path dan dengan `limit=10`.
+- Trigram lemah untuk kata pendek atau salah ketik berupa transposisi, mis. `kyes` untuk `keys`; kemiripannya rendah sehingga bisa lolos dari ambang `TypoMinSimilarity`.
+- Stemmer Indonesia bawaan Postgres tidak memulihkan peluluhan (mis. `mengirim` ke `kirim`); itu ditutup oleh `stemid` di sisi query.
 - Skor tidak mewakili performa produksi.
+
+## 11. Cara kerja pencarian
+
+- **Bobot**: path dan judul berbobot A, heading B, isi D (`RankWeights` di `knowledge/base/rank.go`, urutan {D, C, B, A} = {0.1, 0.2, 0.5, 1.0}). Skor dasar adalah `ts_rank_cd` indeks `simple` ditambah `StemFactor` (0.5) kali `ts_rank_cd` indeks stem. Kecocokan frasa utuh pada judul atau heading menambah `PhraseBoost` (0.5).
+- **Cakupan**: query dipecah menjadi grup term (kata, frasa berkutip, atau deret yang cocok dengan satu term kamus). Dokumen lolos bila memuat minimal `ceil(n * MinCoverage)` grup (`MinCoverage` = 0.5). Urutan akhir: jumlah grup cocok, lalu skor, lalu path.
+- **Sinonim**: kelompok kamus project berlaku dua arah. Term sinonim dinormalisasi seperti query (`rate-limit` sama dengan `rate limit`), deret kata terpanjang dicocokkan dulu, dan setiap anggota kelompok menjadi alternatif (OR) di grup yang sama. Kamus dikelola lewat tab Pencarian atau `/api/projects/{id}/search/synonyms`.
+- **Typo**: kata yang tidak cocok satu dokumen pun di project dicarikan kandidat dari kosakata project (`knowledge_terms`, pg_trgm) dengan kemiripan minimal `TypoMinSimilarity` (0.4), maksimal `TypoMaxCandidates` (3) per kata, hanya untuk kata 4 sampai 64 karakter yang bukan angka.
+- **Section**: cuplikan diambil dari bagian (heading sampai heading berikutnya) yang paling cocok; field `section` berisi teks heading, kosong bila di luar heading.
+- **expanded**: `true` bila rencana pencarian diperluas oleh sinonim atau koreksi typo. Nilainya ikut di hasil dan di audit `mcp.search_knowledge` (`result.expanded`), sehingga reformulasi akibat kamus kurang bisa dilacak.
+
+Penyelarasan konstanta dan tabel percobaan ada di `docs/superpowers/plans/search-recall/eval-notes.md`.

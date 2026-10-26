@@ -71,7 +71,7 @@ func TestDB(t testing.TB) *DB {
 // aman dipanggil paralel antar paket test).
 func ensureTestExtensions(ctx context.Context, t testing.TB, admin *DB) {
 	t.Helper()
-	for _, ext := range []string{"citext"} {
+	for _, ext := range []string{"citext", "pg_trgm"} {
 		if _, err := admin.ExecContext(ctx, "CREATE EXTENSION IF NOT EXISTS "+ext+" SCHEMA public"); err != nil {
 			var n int
 			if e := admin.GetContext(ctx, &n, "SELECT count(*) FROM pg_extension WHERE extname=$1", ext); e != nil || n == 0 {

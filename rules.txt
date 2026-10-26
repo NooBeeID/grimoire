@@ -21,7 +21,7 @@ Kata "WAJIB" dan "DILARANG" ditegakkan oleh tes arsitektur (T00 F9). Pelanggaran
 --------------------
 2.1  Domain yang ada:
        core       : auth, auditlog
-       project    : management, apikey, knowledge, apispec
+       project    : management, apikey, knowledge, apispec, gitsync, searchsynonym
        discovery  : mcpgateway, knowledgetools, apispectools
 2.2  Menambah domain/module baru WAJIB disertai tiket di docs/tickets/ dan pembaruan README tiket.
 2.3  Nama folder Go: huruf kecil, tanpa pemisah (apikey, auditlog, apispec). Nama di dokumen/URL

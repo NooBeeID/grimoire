@@ -69,6 +69,7 @@ type SearchHit struct {
 	Path, Title string
 	Score       float64
 	Headline    string // mentah dengan marker
+	Section     string // heading bagian yang paling cocok; "" di luar heading / baris sections NULL
 }
 
 type SearchItemDTO struct {
@@ -76,11 +77,14 @@ type SearchItemDTO struct {
 	Title   string    `json:"title"`
 	Score   float64   `json:"score"`
 	Snippet []Segment `json:"snippet"`
+	Section string    `json:"section"` // heading bagian cuplikan; "" di luar heading
 }
 
 type SearchResultDTO struct {
 	Items []SearchItemDTO `json:"items"` // tidak pernah nil
 	Total int             `json:"total"`
+	// Expanded true bila sinonim atau koreksi typo dipakai untuk hasil ini.
+	Expanded bool `json:"expanded"`
 }
 
 const (
@@ -100,10 +104,10 @@ func ClampLimit(n, def, max int) int {
 }
 
 // NewSearchResult membangun DTO HTTP dari hasil store (snippet dipecah jadi segmen).
-func NewSearchResult(hits []SearchHit, total int) SearchResultDTO {
+func NewSearchResult(hits []SearchHit, total int, expanded bool) SearchResultDTO {
 	items := make([]SearchItemDTO, 0, len(hits))
 	for _, h := range hits {
-		items = append(items, SearchItemDTO{Path: h.Path, Title: h.Title, Score: h.Score, Snippet: ParseHeadline(h.Headline)})
+		items = append(items, SearchItemDTO{Path: h.Path, Title: h.Title, Score: h.Score, Snippet: ParseHeadline(h.Headline), Section: h.Section})
 	}
-	return SearchResultDTO{Items: items, Total: total}
+	return SearchResultDTO{Items: items, Total: total, Expanded: expanded}
 }
