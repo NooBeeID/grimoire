@@ -5,7 +5,11 @@
 // Tidak ketemu -> Found=false, Similar berisi maks 5 path mirip, err nil.
 // Error: tipe salah -> bus.ErrBadRequestType; ProjectID/Path tidak valid atau Offset di luar file ->
 // errs.ErrInvalid dengan pesan yang memandu.
+//
+// Whole hanya untuk consumer yang tidak meneruskan isi mentah ke klien (T18 outline/section); read_file tidak memakainya.
 package readfile
+
+import "time"
 
 const DefaultLimit = 65536 // Limit 0 -> DefaultLimit; maks Config.MCPMaxResponseBytes
 
@@ -14,6 +18,7 @@ type Request struct {
 	Path      string // satu "/" di depan ditoleransi
 	Offset    int
 	Limit     int
+	Whole     bool // true: kembalikan isi utuh (<= MAX_FILE_BYTES), abaikan Limit dan clamp MaxReadBytes; Offset WAJIB 0
 }
 
 type Response struct {
@@ -25,4 +30,5 @@ type Response struct {
 	NextOffset int    // offset byte setelah potongan
 	Truncated  bool   // NextOffset < TotalBytes
 	Similar    []string
+	UpdatedAt  time.Time // UTC, diisi bila Found
 }

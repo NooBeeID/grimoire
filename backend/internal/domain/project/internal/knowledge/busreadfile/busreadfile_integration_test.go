@@ -113,3 +113,17 @@ func TestIntegrationLiteralUnderscore(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+func TestIntegrationWholeAndUpdatedAt(t *testing.T) {
+	e := newEnv(t)
+	p := e.project("whole")
+	content := strings.Repeat("a", 200*1024)
+	e.add(p, "big.md", content)
+	res, err := e.uc.Execute(e.ctx, readfile.Request{ProjectID: p, Path: "big.md", Whole: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Content) != 200*1024 || res.UpdatedAt.IsZero() {
+		t.Fatalf("len=%d updated=%v", len(res.Content), res.UpdatedAt)
+	}
+}

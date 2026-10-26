@@ -57,6 +57,18 @@ func (u *Usecase) Execute(ctx context.Context, req readfile.Request) (readfile.R
 		return readfile.Response{Found: false, Similar: base.SimilarPaths(path, all, similarMax)}, nil
 	}
 
+	if req.Whole {
+		if req.Offset != 0 {
+			return readfile.Response{}, base.InvalidMsg(base.ReasonInvalidOffset, "whole tidak bisa digabung dengan offset")
+		}
+		total := len(f.Content)
+		return readfile.Response{
+			Found: true, Path: path, Content: f.Content,
+			SizeBytes: total, TotalBytes: total, NextOffset: total, Truncated: false,
+			UpdatedAt: f.UpdatedAt.UTC(),
+		}, nil
+	}
+
 	limit := effectiveLimit(req.Limit, u.limits.MaxReadBytes)
 	total := len(f.Content)
 	part, _, end, truncated, reason := base.SliceUTF8(f.Content, req.Offset, limit)
@@ -67,5 +79,6 @@ func (u *Usecase) Execute(ctx context.Context, req readfile.Request) (readfile.R
 	return readfile.Response{
 		Found: true, Path: path, Content: part,
 		SizeBytes: len(part), TotalBytes: total, NextOffset: end, Truncated: truncated,
+		UpdatedAt: f.UpdatedAt.UTC(),
 	}, nil
 }

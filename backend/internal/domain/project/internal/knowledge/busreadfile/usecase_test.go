@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"grimoire/internal/domain/project/internal/knowledge/base"
@@ -25,6 +26,7 @@ type fakeFiles struct {
 	listErr error
 	finds   int
 	lists   int
+	updated time.Time
 }
 
 func newFake() *fakeFiles { return &fakeFiles{data: map[string]map[string]string{}} }
@@ -46,7 +48,7 @@ func (f *fakeFiles) FindByPath(ctx context.Context, pid, path string) (base.File
 		return base.File{}, false, err
 	}
 	c, ok := f.data[pid][path]
-	return base.File{ProjectID: pid, Path: path, Content: c, SizeBytes: len(c)}, ok, nil
+	return base.File{ProjectID: pid, Path: path, Content: c, SizeBytes: len(c), UpdatedAt: f.updated}, ok, nil
 }
 
 func (f *fakeFiles) ListPaths(_ context.Context, pid string) ([]string, error) {
@@ -374,5 +376,38 @@ func TestInfraErrors(t *testing.T) {
 	_, err = uc(newFake()).Execute(ctx, readfile.Request{ProjectID: pidA, Path: "a.md"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ctx: %v", err)
+	}
+}
+
+func TestWholeReturnsEntireFileBeyondMaxRead(t *testing.T) {
+	f := newFake().put(pidA, "a.md", strings.Repeat("x", 100))
+	u := NewUsecase(f, base.Limits{MaxReadBytes: 10})
+	res := exec(t, u, readfile.Request{ProjectID: pidA, Path: "a.md", Whole: true})
+	if len(res.Content) != 100 || res.TotalBytes != 100 || res.NextOffset != 100 || res.Truncated {
+		t.Fatalf("%+v", res)
+	}
+	res = exec(t, u, readfile.Request{ProjectID: pidA, Path: "a.md"})
+	if len(res.Content) != 10 || !res.Truncated {
+		t.Fatalf("non-whole berubah: %+v", res)
+	}
+}
+
+func TestWholeWithOffsetInvalid(t *testing.T) {
+	f := newFake().put(pidA, "a.md", "hello")
+	_, err := uc(f).Execute(context.Background(), readfile.Request{ProjectID: pidA, Path: "a.md", Whole: true, Offset: 5})
+	if !errors.Is(err, errs.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestUpdatedAtFilled(t *testing.T) {
+	ts := time.Date(2026, 10, 1, 12, 0, 0, 0, time.FixedZone("WIB", 7*3600))
+	f := newFake().put(pidA, "a.md", "hello")
+	f.updated = ts
+	for _, whole := range []bool{true, false} {
+		res := exec(t, uc(f), readfile.Request{ProjectID: pidA, Path: "a.md", Whole: whole})
+		if !res.UpdatedAt.Equal(ts) || res.UpdatedAt.Location() != time.UTC {
+			t.Fatalf("whole=%v updated=%v", whole, res.UpdatedAt)
+		}
 	}
 }
