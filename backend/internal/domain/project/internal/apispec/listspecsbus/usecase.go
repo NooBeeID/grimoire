@@ -39,6 +39,8 @@ func (u *Usecase) Execute(ctx context.Context, projectID string) (listspecs.Resp
 			OpenapiVersion: s.OpenAPIVersion,
 			EndpointCount:  s.EndpointCount,
 			UpdatedAt:      s.UpdatedAt.UTC(),
+			CreatedAt:      s.CreatedAt.UTC(),
+			SizeBytes:      s.SizeBytes,
 		})
 	}
 	return listspecs.Response{Items: items}, nil

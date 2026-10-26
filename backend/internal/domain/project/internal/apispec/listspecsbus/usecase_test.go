@@ -29,17 +29,18 @@ func (f *fakeLister) ListSpecs(_ context.Context, projectID string) ([]base.Spec
 
 func TestExecute_MapsFields(t *testing.T) {
 	ts := time.Date(2026, 10, 24, 17, 0, 0, 0, time.FixedZone("x", 7*3600))
+	ts2 := time.Date(2026, 10, 20, 8, 0, 0, 0, time.FixedZone("y", -5*3600))
 	sp := "p.yaml"
-	f := &fakeLister{items: []base.SpecSummary{{Name: "payment", Title: "Payment API", APIVersion: "1.4.0", OpenAPIVersion: "3.0.3", EndpointCount: 12, UpdatedAt: ts, SourcePath: &sp, CreatedByLabel: "x"}}}
+	f := &fakeLister{items: []base.SpecSummary{{Name: "payment", Title: "Payment API", APIVersion: "1.4.0", OpenAPIVersion: "3.0.3", EndpointCount: 12, UpdatedAt: ts, CreatedAt: ts2, SizeBytes: 321, SourcePath: &sp, CreatedByLabel: "x"}}}
 	res, err := NewUsecase(f).Execute(context.Background(), pid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := listspecs.Spec{Name: "payment", Title: "Payment API", ApiVersion: "1.4.0", OpenapiVersion: "3.0.3", EndpointCount: 12, UpdatedAt: ts.UTC()}
+	want := listspecs.Spec{Name: "payment", Title: "Payment API", ApiVersion: "1.4.0", OpenapiVersion: "3.0.3", EndpointCount: 12, UpdatedAt: ts.UTC(), CreatedAt: ts2.UTC(), SizeBytes: 321}
 	if len(res.Items) != 1 || res.Items[0] != want {
 		t.Fatalf("got %+v", res.Items)
 	}
-	if res.Items[0].UpdatedAt.Location() != time.UTC {
+	if res.Items[0].CreatedAt.Location() != time.UTC || res.Items[0].UpdatedAt.Location() != time.UTC {
 		t.Fatal("not UTC")
 	}
 }
@@ -97,7 +98,7 @@ func TestExecute_StoreErrorWrapped(t *testing.T) {
 }
 
 func TestExecute_DoesNotExposeContent(t *testing.T) {
-	if n := reflect.TypeOf(listspecs.Spec{}).NumField(); n != 6 {
+	if n := reflect.TypeOf(listspecs.Spec{}).NumField(); n != 8 {
 		t.Fatalf("fields=%d", n)
 	}
 }

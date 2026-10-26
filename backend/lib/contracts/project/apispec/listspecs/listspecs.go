@@ -16,4 +16,6 @@ type Spec struct {
 	Name, Title, ApiVersion, OpenapiVersion string
 	EndpointCount                           int
 	UpdatedAt                               time.Time
+	CreatedAt                               time.Time // UTC (T18)
+	SizeBytes                               int       // ukuran isi spec (T18)
 }
