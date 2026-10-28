@@ -7,6 +7,7 @@
   import { UploadSpecsDialog } from '../../../domain/project/api-spec/uploadspecs';
   import { GitSyncDialog } from '../../../domain/project/git-sync/runsync';
   import Button from '../../../shared/components/Button.svelte';
+  import Dialog from '../../../shared/components/Dialog.svelte';
   import { t } from '../../../shared/stores/i18n';
   import { navigate } from '../../routes/router';
   import GitBranchIcon from './GitBranchIcon.svelte';
@@ -40,35 +41,35 @@
   }
 </script>
 
-{#if item === null}
-  <ListSpecsView projectId={ctx.project.id} store={list} onupload={() => (uploadOpen = true)} {onprojectgone}>
-    {#snippet headeractions()}
-      <Button variant="secondary" onclick={() => (syncOpen = true)}>
-        <GitBranchIcon />
-        {$t('gitSync.button')}
-      </Button>
-    {/snippet}
-  </ListSpecsView>
-  <GitSyncDialog
-    open={syncOpen}
-    projectId={ctx.project.id}
-    kind="api_spec"
-    onclose={() => (syncOpen = false)}
-    onsynced={() => list.invalidate()}
-    {onprojectgone}
-  />
-  <UploadSpecsDialog
-    open={uploadOpen}
-    projectId={ctx.project.id}
-    existingNames={list.names()}
-    onclose={() => (uploadOpen = false)}
-    onuploaded={() => list.invalidate()}
-    onstale={() => list.invalidate()}
-    {onprojectgone}
-  />
-{:else}
-  <div class="flex flex-col gap-4">
-    <a href={base} class="w-fit text-sm text-accent-ink underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent-ink focus-visible:outline-none">{$t('apispec.detail.backToList')}</a>
+<ListSpecsView projectId={ctx.project.id} store={list} onupload={() => (uploadOpen = true)} {onprojectgone}>
+  {#snippet headeractions()}
+    <Button variant="secondary" onclick={() => (syncOpen = true)}>
+      <GitBranchIcon />
+      {$t('gitSync.button')}
+    </Button>
+  {/snippet}
+</ListSpecsView>
+<GitSyncDialog
+  open={syncOpen}
+  projectId={ctx.project.id}
+  kind="api_spec"
+  onclose={() => (syncOpen = false)}
+  onsynced={() => list.invalidate()}
+  {onprojectgone}
+/>
+<UploadSpecsDialog
+  open={uploadOpen}
+  projectId={ctx.project.id}
+  existingNames={list.names()}
+  onclose={() => (uploadOpen = false)}
+  onuploaded={() => list.invalidate()}
+  onstale={() => list.invalidate()}
+  {onprojectgone}
+/>
+
+<!-- Detail spec tampil di popup besar; URL /api-specs/<nama>?op=… tetap menjadi sumber state. -->
+<Dialog open={item !== null} title={item ?? ''} size="full" onclose={() => navigate(base)}>
+  {#if item !== null}
     <SpecDetailView projectId={ctx.project.id} name={item} selectedOp={query.get('op')} {hrefForOp} backHref={base}>
       {#snippet actions(spec)}
         <DownloadSpecButton projectId={ctx.project.id} {spec} onspecgone={toList} />
@@ -76,7 +77,9 @@
         <Button variant="danger" onclick={() => (deleteOpen = true)}>{$t('apispec.delete.open')}</Button>
       {/snippet}
     </SpecDetailView>
-  </div>
+  {/if}
+</Dialog>
+{#if item !== null}
   <RenameSpecDialog
     open={renameOpen}
     projectId={ctx.project.id}

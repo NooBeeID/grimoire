@@ -25,7 +25,9 @@ describe('SettingsView', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockCredentialList())));
     const { container } = render(Settings);
     expect(container.querySelector('section#token-git')).not.toBeNull();
-    expect(container.firstElementChild?.className).toContain('max-w-2xl');
+    const wrap = container.querySelector('section#token-git')?.parentElement;
+    expect(wrap?.className).toContain('max-w-2xl');
+    expect(wrap?.className).not.toContain('mx-auto');
     expect(container.querySelector('h2#token-git-title')).not.toBeNull();
     await screen.findByText('…7Qx2');
   });

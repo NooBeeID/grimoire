@@ -379,6 +379,7 @@
   "knowledge.editor.write": "Tulis",
   "knowledge.editor.refreshPreview": "Perbarui pratinjau",
   "knowledge.breadcrumb.label": "Lokasi file",
+  "knowledge.viewer.outline": "Di halaman ini",
   "knowledge.viewer.notFound": "File tidak ditemukan",
   "knowledge.viewer.notFoundHint": "File mungkin sudah dihapus atau dipindah.",
   "knowledge.viewer.backToFolder": "Kembali ke folder",

@@ -20,6 +20,7 @@
   import { createUser, inviteUser, listUsers, resendUserInvitation, resetUserPassword, setUserStatus, updateUser } from '../services/users.service';
   import { hasFilters, usersList, usersListStore } from '../stores/usersList';
   import { PAGE_SIZE, toUserFormError, type CreateUserInput, type InviteUserInput, type Role, type User, type UserFormError } from '../types';
+  import PageHeader from '../../../../../shared/components/PageHeader.svelte';
   import { createUsersListController } from './usersList.controller';
 
   let { emailEnabled = null }: { emailEnabled?: boolean | null } = $props();
@@ -260,14 +261,13 @@
 </script>
 
 <section class="flex flex-col gap-4">
-  <header class="flex items-center justify-between gap-3">
-    <h1 class="text-[22px] leading-8 font-semibold">{$t('users.title')}</h1>
-    <div class="flex items-center gap-3">
+  <PageHeader title={$t('users.title')}>
+    {#snippet action()}
       {#if $usersList.refreshing}<span class="text-sm text-muted" role="status">{$t('common.loading')}</span>{/if}
       <Button variant="secondary" onclick={() => (createOpen = true)}>{$t('users.create')}</Button>
       <Button onclick={openInvite}>{$t('users.invite.open')}</Button>
-    </div>
-  </header>
+    {/snippet}
+  </PageHeader>
 
   <UsersFilterBar
     filters={$usersList.filters}

@@ -18,7 +18,7 @@
     dismissible?: boolean;
     // Dipanggil saat dismissible=false dan user menekan Esc, tombol silang, atau backdrop.
     onrequestclose?: () => void;
-    size?: 'md' | 'lg';
+    size?: 'md' | 'lg' | 'full';
     children?: Snippet;
     footer?: Snippet;
   } = $props();
@@ -76,7 +76,7 @@
   onclose={handleClose}
   oncancel={onCancel}
   onclick={onBackdrop}
-  class="m-auto w-full {size === 'lg' ? 'max-w-2xl' : 'max-w-lg'} glass rounded-sheet p-0 text-fg shadow-pop backdrop:bg-black/30 backdrop:backdrop-blur-sm"
+  class="m-auto w-full {size === 'full' ? 'h-[92vh] max-w-6xl open:flex open:flex-col' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg'} glass bg-[var(--dialog-bg)] rounded-sheet p-0 text-fg shadow-pop backdrop:bg-black/30 backdrop:backdrop-blur-sm"
 >
   <div class="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
     <h2 id={titleId} class="text-lg font-semibold">{title}</h2>
@@ -90,6 +90,6 @@
       <span aria-hidden="true">&times;</span>
     </button>
   </div>
-  <div class="p-5">{@render children?.()}</div>
+  <div class={size === 'full' ? 'min-h-0 flex-1 overflow-y-auto p-5' : 'p-5'}>{@render children?.()}</div>
   {#if footer}<div class="flex justify-end gap-2 border-t border-rule p-5">{@render footer()}</div>{/if}
 </dialog>

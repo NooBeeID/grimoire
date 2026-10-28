@@ -70,6 +70,7 @@
   --pad: 24px;
   --glass-bg: rgb(255 255 255 / 0.62);
   --glass-edge: rgb(255 255 255 / 0.85);
+  --dialog-bg: rgb(255 255 255 / 0.97);
   --ambient: radial-gradient(60rem 40rem at 8% -10%, rgb(110 140 255 / 0.4), transparent 60%), radial-gradient(50rem 36rem at 100% 0%, rgb(255 207 38 / 0.3), transparent 60%), radial-gradient(50rem 40rem at 70% 110%, rgb(190 150 255 / 0.34), transparent 60%);
   color-scheme: light;
 }
@@ -115,6 +116,7 @@
     --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 56px -24px rgb(0 0 0 / 0.7);
     --glass-bg: rgb(20 23 30 / 0.48);
     --glass-edge: rgb(255 255 255 / 0.1);
+    --dialog-bg: rgb(12 14 18 / 0.97);
     --ambient: radial-gradient(60rem 40rem at 8% -10%, rgb(70 105 255 / 0.5), transparent 62%), radial-gradient(50rem 36rem at 100% 0%, rgb(255 190 30 / 0.24), transparent 62%), radial-gradient(50rem 40rem at 70% 110%, rgb(150 90 255 / 0.42), transparent 62%);
 }
 
@@ -196,6 +198,33 @@ textarea {
   @supports not (backdrop-filter: blur(1px)) {
     .glass { background: var(--color-surface); }
   }
+  /* Tooltip sidebar ikon (desktop): teks dari data-tip, tidak masuk DOM sehingga tak menggandakan nama aksesibel. */
+  @media (min-width: 48rem) {
+    .nav-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      top: 50%;
+      left: 100%;
+      margin-left: 0.75rem;
+      transform: translateY(-50%);
+      z-index: 30;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: var(--color-fg);
+      color: var(--color-surface);
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: var(--shadow-pop);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s;
+    }
+    .nav-tip:hover::after,
+    .nav-tip:focus-visible::after {
+      opacity: 1;
+    }
+  }
   .outlined {
     border: var(--outline-width) solid var(--color-outline);
   }
@@ -221,7 +250,7 @@ textarea {
 
 /* Prosa Markdown (shared/components/MarkdownView). Hanya token; tanpa warna mentah. */
 .md-body {
-  max-width: 72ch;
+  max-width: 100ch;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -238,8 +267,9 @@ textarea {
 .md-body code { font-family: var(--font-mono); font-size: 0.9em; background: var(--color-raised); border-radius: var(--radius-base); padding: 0.1em 0.35em; }
 .md-body pre { background: var(--color-raised); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 0.75em 1em; overflow-x: auto; }
 .md-body pre code { background: none; padding: 0; }
-.md-body table { border-collapse: collapse; width: 100%; font-size: 0.925em; }
-.md-body th, .md-body td { border: 1px solid var(--color-border); padding: 0.4em 0.7em; text-align: left; }
+.md-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 0.925em; }
+.md-body th, .md-body td { border: 1px solid var(--color-border); padding: 0.4em 0.7em; text-align: left; min-width: 8rem; vertical-align: top; overflow-wrap: break-word; word-break: normal; }
+.md-body td code { overflow-wrap: anywhere; }
 .md-body th { background: var(--color-raised); font-weight: 600; }
 .md-body hr { border: 0; border-top: 1px solid var(--color-border); }
 .md-body .md-img-alt, .md-body .md-mermaid { color: var(--color-muted); }

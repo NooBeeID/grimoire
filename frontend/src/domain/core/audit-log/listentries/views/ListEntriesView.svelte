@@ -7,6 +7,7 @@
   import FilterBar from '../components/FilterBar.svelte';
   import { listEntries, resolveRange } from '../services/listentries.service';
   import { filterFromQuery, filterKey, filterToQuery, validateFilter } from '../stores/filterQuery';
+  import PageHeader from '../../../../../shared/components/PageHeader.svelte';
   import { createListEntriesStore } from '../stores/listentries.store';
   import { EMPTY_FILTER } from '../types';
 
@@ -88,13 +89,11 @@
 </script>
 
 <section class="flex min-w-0 flex-col gap-4">
-  <header class="flex flex-wrap items-start justify-between gap-2">
-    <div>
-      <h1 class="text-[22px] leading-8 font-semibold">{$t('auditLog.title')}</h1>
-      <p class="text-sm text-muted">{$t('auditLog.subtitle')}</p>
-    </div>
-    <Button variant="secondary" onclick={() => refreshTick++}>{$t('auditLog.refresh')}</Button>
-  </header>
+  <PageHeader title={$t('auditLog.title')} description={$t('auditLog.subtitle')}>
+    {#snippet action()}
+      <Button variant="secondary" onclick={() => refreshTick++}>{$t('auditLog.refresh')}</Button>
+    {/snippet}
+  </PageHeader>
 
   <FilterBar value={filter} suggestions={$suggestions} {errors} onapply={apply} onreset={reset} />
 

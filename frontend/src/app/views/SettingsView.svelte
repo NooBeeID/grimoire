@@ -3,6 +3,7 @@
   import { DeleteCredentialDialog, type DeleteTarget } from '../../domain/core/git-credential/deletecredential';
   import { GitTokensSection, gitCredentials, type SaveRequest } from '../../domain/core/git-credential/listcredentials';
   import { SaveTokenDialog, type SaveTarget } from '../../domain/core/git-credential/savecredential';
+  import PageHeader from '../../shared/components/PageHeader.svelte';
   import { t } from '../../shared/stores/i18n';
   import { current } from '../routes/router';
 
@@ -34,9 +35,9 @@
   });
 </script>
 
-<div class="mx-auto flex max-w-2xl flex-col gap-6">
-  <h1 class="text-[22px] leading-8 font-semibold">{$t('settings.title')}</h1>
+<PageHeader title={$t('settings.title')} />
 
+<div class="flex max-w-2xl flex-col gap-6">
   <section id="token-git" aria-labelledby="token-git-title" class="scroll-mt-6">
     <GitTokensSection
       onready={() => (ready = true)}

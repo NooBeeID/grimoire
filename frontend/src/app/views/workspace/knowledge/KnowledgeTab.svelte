@@ -11,6 +11,7 @@
   import { buildKnowledgeHref, parseKnowledgeQuery, type KnowledgeUrlState } from '../../../workspace/knowledgeUrl';
   import type { WorkspaceTabProps } from '../../../workspace/tabs';
   import KnowledgeMain from './KnowledgeMain.svelte';
+  import KnowledgeReader from './KnowledgeReader.svelte';
   import KnowledgeSidebar from './KnowledgeSidebar.svelte';
   import KnowledgeDialogs, { type DialogState } from './KnowledgeDialogs.svelte';
 
@@ -78,6 +79,12 @@
     }
   }
 
+  // Menutup popup kembali ke folder file yang dibuka (lewat penjaga perubahan belum disimpan).
+  function closeReader() {
+    const dir = url.path ? dirName(url.path) : (url.dir ?? '');
+    go(dir ? { dir } : {});
+  }
+
   const contextDir = $derived(url.dir ?? (url.path ? dirName(url.path) : ''));
   const selected = $derived(url.mode === 'new' ? null : (url.path ?? url.dir));
 </script>
@@ -107,24 +114,32 @@
   />
 
   <KnowledgeMain
-    {projectId}
     {url}
     {isEmpty}
-    {viewerReloadKey}
     folderCount={url.dir ? (folderCounts.get(url.dir) ?? null) : null}
-    {resolveLink}
     {go}
     opendialog={(d) => (dialog = d)}
-    ondirtychange={(d) => (dirty = d)}
-    oncreated={(f) => refreshAndGo({ path: f.path })}
-    oneditclosed={(f) => {
-      dirty = false;
-      viewerReloadKey++;
-      navigate(buildKnowledgeHref(projectId, { path: f?.path ?? url.path }));
-    }}
-    onstale={stale}
   />
 </div>
+
+<KnowledgeReader
+  {projectId}
+  {url}
+  {dirty}
+  {viewerReloadKey}
+  {resolveLink}
+  {go}
+  onclose={closeReader}
+  opendialog={(d) => (dialog = d)}
+  ondirtychange={(d) => (dirty = d)}
+  oncreated={(f) => refreshAndGo({ path: f.path })}
+  oneditclosed={(f) => {
+    dirty = false;
+    viewerReloadKey++;
+    navigate(buildKnowledgeHref(projectId, { path: f?.path ?? url.path }));
+  }}
+  onstale={stale}
+/>
 
 <KnowledgeDialogs
   {projectId}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setLocale } from '../../../shared/stores/i18n';
@@ -44,14 +44,15 @@ describe('ApiSpecsTab', () => {
     render(Tab, p);
     await vi.waitFor(() => expect(p.onprojectgone).toHaveBeenCalled());
   });
-  it('detail mode renders the spec with actions and a back link', async () => {
+  it('detail mode renders the spec with actions in a popup', async () => {
     history.replaceState({}, '', `/projects/${PID}/api-specs/payment`);
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockDetail())));
     render(Tab, props({ item: 'payment' }));
     expect(await screen.findByRole('heading', { name: 'payment' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Unduh' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Unduh' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ubah nama' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Kembali ke daftar spec' })[0]).toHaveAttribute('href', `/projects/${PID}/api-specs`);
+    await userEvent.click(screen.getByRole('button', { name: 'Tutup' }));
+    await vi.waitFor(() => expect(window.location.pathname).toBe(`/projects/${PID}/api-specs`));
   });
   it('delete navigates back to the list', async () => {
     history.replaceState({}, '', `/projects/${PID}/api-specs/payment`);
@@ -89,6 +90,6 @@ describe('ApiSpecsTab', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, mockDetail())));
     render(Tab, props({ item: 'payment' }));
     await screen.findByRole('button', { name: 'Unduh' });
-    expect(screen.queryByRole('button', { name: 'Sync dari Git' })).toBeNull();
+    expect(within(screen.getByRole('dialog', { name: 'payment' })).queryByRole('button', { name: 'Sync dari Git' })).toBeNull();
   });
 });

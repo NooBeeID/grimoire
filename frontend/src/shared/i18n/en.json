@@ -379,6 +379,7 @@
   "knowledge.editor.write": "Write",
   "knowledge.editor.refreshPreview": "Refresh preview",
   "knowledge.breadcrumb.label": "File location",
+  "knowledge.viewer.outline": "On this page",
   "knowledge.viewer.notFound": "File not found",
   "knowledge.viewer.notFoundHint": "The file may have been deleted or moved.",
   "knowledge.viewer.backToFolder": "Back to folder",
